@@ -93,21 +93,32 @@ def hedge_summary(
     s, p = s[ok], p[ok]
 
     h_mv = min_variance_ratio(s, p)
-    h_es = es_minimising_ratio(s, p, alpha)
     es_un = _empirical_es(s, alpha)
-    es_hg = _empirical_es(s - h_es * p, alpha)
     carry = funding_carry_annualised(funding_8h)
+
+    if perp_is_proxy:
+        # perp == spot, so the ES-minimising ratio is degenerate (h -> 1 zeroes
+        # the hedged series). Report only what is meaningful: the min-var ratio
+        # (1.0), the unhedged ES and the funding carry on a 1x hedge.
+        h_es = es_hg = es_red = np.nan
+        hedge_units = abs(h_mv)
+        note = "perp return proxied by spot (no perp price in store); ES-min hedge and ES reduction not meaningful, basis risk unavailable"
+    else:
+        h_es = es_minimising_ratio(s, p, alpha)
+        es_hg = _empirical_es(s - h_es * p, alpha)
+        es_red = float(1.0 - es_hg / es_un) if es_un != 0 else np.nan
+        hedge_units = abs(h_es)
+        note = ""
+
     return HedgeSummary(
         ratio_min_var=h_mv,
         ratio_es_min=h_es,
         es_unhedged=es_un,
         es_hedged=es_hg,
-        es_reduction=float(1.0 - es_hg / es_un) if es_un != 0 else np.nan,
+        es_reduction=es_red,
         funding_carry_annual_frac=carry,
-        funding_carry_annual_usd=float(carry * abs(h_es) * notional)
+        funding_carry_annual_usd=float(carry * hedge_units * notional)
         if np.isfinite(carry)
         else np.nan,
-        note="perp return proxied by spot (no perp price in store); basis risk unavailable"
-        if perp_is_proxy
-        else "",
+        note=note,
     )

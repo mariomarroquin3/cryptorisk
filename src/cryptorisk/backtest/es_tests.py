@@ -65,19 +65,24 @@ def z2_pvalue_asymptotic(realized, var, es, alpha: float) -> float:
 
 def z1_pvalue_asymptotic(realized, var, es) -> float:
     """One-sided p-value ``P(Z1 <= observed)``, normal approximation over the
-    breach days only. See :func:`z2_pvalue_asymptotic`."""
+    breach days only. See :func:`z2_pvalue_asymptotic`.
+
+    ``Z1 = mean(y) + 1`` with ``y_t = -(r_t / e_t)`` over the breaches (mean
+    ``-1`` under H0, so ``Z1 = 0``); ``se(Z1) = std(y) / sqrt(k)``. Small p ->
+    reject (ES too optimistic, ``Z1 < 0``).
+    """
     r, v, e = (np.asarray(x, float) for x in (realized, var, es))
     hit = r < v
     k = int(hit.sum())
     if k < 2:
         return np.nan
-    y = -(r[hit] / e[hit])  # mean 1 under H0
+    y = -(r[hit] / e[hit])  # mean -1 under H0; Z1 = mean(y) + 1
     sd = float(y.std(ddof=1))
     if not np.isfinite(sd) or sd == 0.0:
         return np.nan
     from scipy import stats as _st
 
-    return float(_st.norm.cdf((1.0 - float(y.mean())) / (sd / np.sqrt(k))))
+    return float(_st.norm.cdf((1.0 + float(y.mean())) / (sd / np.sqrt(k))))
 
 
 def pvalue_by_simulation(

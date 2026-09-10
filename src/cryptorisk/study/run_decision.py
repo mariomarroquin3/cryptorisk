@@ -278,6 +278,9 @@ def _summary_md(capdf, limdf, pladf, hgdf, cfg) -> str:
         "`funding carry` is the annualised funding on the hedged notional; "
         "**positive = the short-perp hedge earns it** (longs pay shorts).\n"
     )
+    def _f(x, spec):
+        return format(x, spec) if np.isfinite(x) else "n/a"
+
     o.append(
         "| asset | h (min-var) | h (ES-min) | ES unhedged | ES hedged | ES reduction | "
         "funding carry $/yr |"
@@ -285,9 +288,9 @@ def _summary_md(capdf, limdf, pladf, hgdf, cfg) -> str:
     o.append("|:--|--:|--:|--:|--:|--:|--:|")
     for _, r in hgdf.iterrows():
         o.append(
-            f"| {r['asset']} | {r['ratio_min_var']:.3f} | {r['ratio_es_min']:.3f} | "
-            f"{r['es_unhedged']:.4f} | {r['es_hedged']:.4f} | {r['es_reduction']:.2%} | "
-            f"{r['funding_carry_annual_usd']:+,.0f} |"
+            f"| {r['asset']} | {_f(r['ratio_min_var'], '.3f')} | {_f(r['ratio_es_min'], '.3f')} | "
+            f"{_f(r['es_unhedged'], '.4f')} | {_f(r['es_hedged'], '.4f')} | "
+            f"{_f(r['es_reduction'], '.2%')} | {_f(r['funding_carry_annual_usd'], '+,.0f')} |"
         )
     o.append(f"\n_{hgdf['note'].iloc[0]}._\n")
     return "\n".join(o)

@@ -725,16 +725,23 @@ def results_md(D: dict, figs: dict[str, str]) -> str:
         P("### Perpetual hedge (perp return proxied by spot)\n")
         P(
             "Funding carry is annualised; **positive = the short-perp hedge earns "
-            "it** (longs pay shorts). No perp price in the store, so the ratios "
-            "sit at 1.0 and basis risk is unavailable.\n"
+            "it** (longs pay shorts). No perp price in the store, so the min-var "
+            "ratio sits at 1.0 and the ES-minimising hedge / ES reduction are not "
+            "meaningful against an identical series (`n/a`); basis risk is "
+            "unavailable.\n"
         )
+
+        def _hf(x, spec):
+            return format(x, spec) if np.isfinite(x) else "n/a"
+
         P("| asset | h (min-var) | h (ES-min) | ES unhedged | ES hedged | funding carry $/yr |")
         P("|:--|--:|--:|--:|--:|--:|")
         for _, r in D["hedge"].iterrows():
             P(
-                f"| {r['asset']} | {r['ratio_min_var']:.3f} | {r['ratio_es_min']:.3f} | "
-                f"{r['es_unhedged']:.4f} | {r['es_hedged']:.4f} | "
-                f"{r['funding_carry_annual_usd']:+,.0f} |"
+                f"| {r['asset']} | {_hf(r['ratio_min_var'], '.3f')} | "
+                f"{_hf(r['ratio_es_min'], '.3f')} | {_hf(r['es_unhedged'], '.4f')} | "
+                f"{_hf(r['es_hedged'], '.4f')} | "
+                f"{_hf(r['funding_carry_annual_usd'], '+,.0f')} |"
             )
         P("")
 

@@ -136,6 +136,27 @@ def test_asymptotic_es_pvalues_are_probabilities():
         assert 0.0 <= p <= 1.0
 
 
+def test_asymptotic_es_pvalues_discriminate():
+    """Both p-values must react to ES misspecification: near 0.5 when calibrated,
+    small when ES is too optimistic, large when too conservative."""
+    rng = np.random.default_rng(5)
+    nu, a, sig, n = 6.0, 0.025, 0.03, 6000
+    s = np.sqrt((nu - 2) / nu)
+    r = sig * rng.standard_t(nu, n) * s
+    q = stats.t.ppf(a, nu)
+    v = np.full(n, sig * q * s)
+    es_z = -(stats.t.pdf(q, nu) / a) * ((nu + q**2) / (nu - 1.0)) * s
+    e = np.full(n, sig * es_z)
+
+    for pfn in (
+        lambda vv, ee: z1_pvalue_asymptotic(r, vv, ee),
+        lambda vv, ee: z2_pvalue_asymptotic(r, vv, ee, a),
+    ):
+        assert 0.2 < pfn(v, e) < 0.8            # calibrated
+        assert pfn(v, e * 0.7) < 0.05           # ES too optimistic -> reject
+        assert pfn(v, e * 1.4) > 0.95           # ES too conservative
+
+
 # --------------------------------------------------------------------------- #
 # real-data smoke
 # --------------------------------------------------------------------------- #

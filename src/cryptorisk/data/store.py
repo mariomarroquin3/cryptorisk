@@ -25,7 +25,7 @@ from pathlib import Path
 import duckdb
 import pandas as pd
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 _DDL = f"""
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
@@ -63,10 +63,11 @@ CREATE TABLE IF NOT EXISTS bars_5m (
 CREATE TABLE IF NOT EXISTS realized_daily (
     asset   TEXT   NOT NULL,
     date    DATE   NOT NULL,
-    rv      DOUBLE, bv DOUBLE, rsv_pos DOUBLE, rsv_neg DOUBLE, jump DOUBLE,
+    rv      DOUBLE, bv DOUBLE, rsv_pos DOUBLE, rsv_neg DOUBLE, jump DOUBLE, rq DOUBLE,
     n_bars  INTEGER,
     PRIMARY KEY (asset, date)
 );
+ALTER TABLE realized_daily ADD COLUMN IF NOT EXISTS rq DOUBLE;
 
 CREATE TABLE IF NOT EXISTS context_daily (
     date       DATE PRIMARY KEY,
@@ -135,7 +136,7 @@ def write_bars_5m(con, asset: str, df: pd.DataFrame) -> int:
 def write_realized_daily(con, asset: str, df: pd.DataFrame) -> int:
     out = df.copy()
     out["asset"] = asset
-    out = out[["asset", "date", "rv", "bv", "rsv_pos", "rsv_neg", "jump", "n_bars"]]
+    out = out[["asset", "date", "rv", "bv", "rsv_pos", "rsv_neg", "jump", "rq", "n_bars"]]
     return _replace(con, "realized_daily", out, {"asset": asset})
 
 

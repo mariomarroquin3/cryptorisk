@@ -53,8 +53,8 @@ def qlike_loss(sigma2_forecast, realized_var) -> np.ndarray:
 @dataclass(frozen=True)
 class DMResult:
     statistic: float
-    p_value: float          # two-sided
-    mean_diff: float         # mean(loss_a - loss_b); < 0 -> A better
+    p_value: float  # two-sided
+    mean_diff: float  # mean(loss_a - loss_b); < 0 -> A better
 
     def favors(self) -> str:
         return "A" if self.mean_diff < 0 else "B"
@@ -89,6 +89,71 @@ def diebold_mariano(loss_a, loss_b, *, hac_lag: int | None = None) -> DMResult:
     dm_hln = dm * corr
     p = 2.0 * float(stats.t.sf(abs(dm_hln), df=n - 1))
     return DMResult(dm_hln, p, float(d.mean()))
+
+
+# --------------------------------------------------------------------------- #
+# Giacomini–White conditional predictive ability (V2_PLAN §5.5)
+# --------------------------------------------------------------------------- #
+@dataclass(frozen=True)
+class GWResult:
+    statistic: float
+    p_value: float
+    df: int
+    beta: tuple[float, ...]  # OLS of d_t on h_{t-1}; beta[0] is the constant
+    favors_high: str  # which model is better when the instrument is high
+
+    def rejects(self, level: float = 0.05) -> bool:
+        return np.isfinite(self.p_value) and self.p_value < level
+
+
+def _nw_cov(z: np.ndarray, lag: int) -> np.ndarray:
+    """Newey–West HAC estimate of the long-run variance of the rows of ``z``
+    (shape ``(n, q)``): ``Gamma_0 + sum_k w_k (Gamma_k + Gamma_k')``. This is
+    the asymptotic variance of ``sqrt(n) * mean(z)``."""
+    z = z - z.mean(axis=0)
+    n = z.shape[0]
+    omega = z.T @ z / n
+    for k in range(1, lag + 1):
+        w = 1.0 - k / (lag + 1)
+        gk = z[k:].T @ z[:-k] / n
+        omega += w * (gk + gk.T)
+    return omega
+
+
+def giacomini_white(loss_a, loss_b, instruments, *, hac_lag: int | None = None) -> GWResult:
+    """Giacomini & White (2006) test of equal *conditional* predictive ability.
+
+    ``instruments`` is an ``(n, q)`` matrix of ``F_{t-1}``-measurable test
+    functions (include a column of ones). With ``d_t = L^A_t - L^B_t`` and
+    ``Z_t = h_{t-1} d_t``, under H0 ``E[Z_t] = 0`` and
+    ``GW = n * Zbar' Omega^{-1} Zbar ~ chi2(q)`` (``Omega`` a HAC estimate).
+    Rejection means the accuracy gap between A and B varies with the
+    conditioning information (e.g. it depends on the volatility regime).
+    """
+    a = np.asarray(loss_a, float)
+    b = np.asarray(loss_b, float)
+    h = np.atleast_2d(np.asarray(instruments, float))
+    if h.shape[0] != a.size:
+        h = h.T
+    d = a - b
+    n, q = h.shape
+    if n != d.size or n <= q + 2:
+        return GWResult(np.nan, np.nan, q, tuple(np.full(q, np.nan)), "?")
+
+    z = h * d[:, None]
+    zbar = z.mean(axis=0)
+    lag = hac_lag if hac_lag is not None else max(1, int(round(n ** (1 / 3))))
+    omega = _nw_cov(z, lag)
+    try:
+        stat = float(n * zbar @ np.linalg.solve(omega, zbar))
+    except np.linalg.LinAlgError:
+        return GWResult(np.nan, np.nan, q, tuple(np.full(q, np.nan)), "?")
+
+    beta, *_ = np.linalg.lstsq(h, d, rcond=None)  # direction of the difference
+    # instrument in the last column is the regime signal; sign of its slope says
+    # who wins when it is high (d = L_A - L_B < 0 -> A better)
+    favors_high = "A" if beta[-1] < 0 else "B"
+    return GWResult(stat, float(stats.chi2.sf(stat, q)), q, tuple(map(float, beta)), favors_high)
 
 
 # --------------------------------------------------------------------------- #
@@ -142,10 +207,10 @@ def model_confidence_set(
     pvals: dict[str, float] = {}
 
     while len(alive) > 1:
-        sub = L[alive]                             # (k, T)
-        d = sub - sub.mean(axis=0)                 # excess loss vs the set mean
-        dbar = d.mean(axis=1)                      # (k,)
-        db = d[:, boot].mean(axis=2)              # (k, n_boot) bootstrapped means
+        sub = L[alive]  # (k, T)
+        d = sub - sub.mean(axis=0)  # excess loss vs the set mean
+        dbar = d.mean(axis=1)  # (k,)
+        db = d[:, boot].mean(axis=2)  # (k, n_boot) bootstrapped means
         v = np.maximum(db.var(axis=1, ddof=1), 1e-30)
         t_stat = dbar / np.sqrt(v)
         T_max = float(t_stat.max())
@@ -153,13 +218,13 @@ def model_confidence_set(
         p = float((T_max_boot >= T_max).mean())
 
         p_running = max(p_running, p)
-        if p_running >= alpha:                     # equal predictive ability -> stop
+        if p_running >= alpha:  # equal predictive ability -> stop
             break
         worst = alive[int(np.argmax(t_stat))]
         pvals[names[worst]] = p_running
         alive.remove(worst)
 
-    for i in alive:                               # everything still standing is in the MCS
+    for i in alive:  # everything still standing is in the MCS
         pvals.setdefault(names[i], max(p_running, alpha))
     for k in names:
         pvals.setdefault(k, 1.0)

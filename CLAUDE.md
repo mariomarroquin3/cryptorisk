@@ -43,7 +43,7 @@ src/cryptorisk/
     engine.py          walk_forward(): the model-agnostic OOS loop
     coverage.py        Kupiec, Christoffersen, Engle-Manganelli DQ, Basel   (done)
     es_tests.py        Acerbi-Szekely Z1/Z2 (+ asymptotic p-value)          (done)
-    scoring.py         FZ0 loss, QLIKE, Diebold-Mariano, Model Confidence Set (done)
+    scoring.py         FZ0, QLIKE, Diebold-Mariano, MCS, Giacomini-White CPA (done)
     pit.py             PIT cleaning + Berkowitz LR                          (done)
   study/
     run_ingest.py      `make data`  — build the store, run quality checks
@@ -51,7 +51,9 @@ src/cryptorisk/
     run_backtests.py   `make backtest` — (model x asset x window) grid -> parquet
     run_evaluation.py  `make evaluate` — full battery -> data/results/eval_*.csv + eval_summary.md
     vol_forecast_eval.py  QLIKE vs RV, QLIKE-MCS, Mincer-Zarnowitz (called by run_evaluation)
-    ...                report, subperiods, regime_identification            (Phase 4/6)
+    subperiods.py      `make subperiods` — stress/calm re-eval + Giacomini-White CPA
+    regime_identification.py  `make regime-id` — MS-GARCH regime-prob vs vol state
+    report.py          `make report` — tables/figures for the write-up          (Phase 6)
   decision/            capital, limits, pnl_attribution, hedge            (Phase 5 stubs)
 config/study.yaml      seed, assets, frozen OOS start, windows, alphas, refit cadence,
                        sub-periods, MCS params, decision-layer knobs
@@ -152,4 +154,20 @@ make test lint  # pytest / ruff
   (`0.05 * r.std()`), not only a ceiling — a collapsed log-variance forecast was
   producing σ≈0 hence a *positive* VaR on ~60/2674 days. Re-run
   `run_backtests --models EGARCH-t` then `run_evaluation` after touching it.
-- Then 4 (sub-periods + regime identification), 5 (decision layer), 6 (report).
+- **Phase 4 — done** (the parts that need no new R):
+  - `study.subperiods` (`make subperiods`): re-runs FZ0+MCS / coverage / ES
+    inside each `config.evaluation.subperiods` window + full OOS, and a
+    Giacomini-White CPA test (`scoring.giacomini_white`) of `L_best - L_chal`
+    with conditioner `[1, z(log RV_{t-1})]` plus a HAC t-test on the RV-state
+    slope. Writes `eval_subperiods.{csv,md}`, `eval_gw_cpa.csv`.
+    Finding: the sub-period MCS is all-in everywhere (40-92 trading days → no
+    power); the ranking does not detectably change across regimes.
+  - `study.regime_identification` (`make regime-id`): from the cached
+    `msgarch_pred_<asset>.csv`, correlations of each regime-probability series
+    with |r| / RV / RV21. **corr(|r|): BTC walk-forward 0.01 vs full-sample
+    0.70 (Spearman 0.91); ETH -0.03 vs 0.55.** Quantifies methodology.tex §9(i).
+  - `msgarch/fit_msgarch_regime_windows.R` + `regime_identification --run-r`:
+    the W ∈ {500..2000, expanding} × {free, arch} sweep. **Not run** — multi-hour
+    R job; `run()` uses cached results if `regime_identification_windows.csv`
+    exists, else just the W=500 analysis.
+- Then 5 (decision layer), 6 (report).

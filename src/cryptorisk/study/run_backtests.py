@@ -80,7 +80,13 @@ def main() -> None:
 
     res_dir = repo_root() / "data" / "results"
     res_dir.mkdir(parents=True, exist_ok=True)
-    out.to_parquet(res_dir / "backtests.parquet", index=False)
+    pq = res_dir / "backtests.parquet"
+    if args.models and pq.exists():
+        # partial re-run: keep other models' rows
+        prev = pd.read_parquet(pq)
+        prev = prev[~prev["model"].isin({m.name for m in models})]
+        out = pd.concat([prev, out], ignore_index=True)
+    out.to_parquet(pq, index=False)
 
     summ = (
         out.groupby(["model", "asset", "window", "alpha"], observed=True)

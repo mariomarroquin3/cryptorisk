@@ -86,8 +86,10 @@ class GpdTailDist(PredictiveDist):
         loss = -z
         if not self.ok or loss <= self.u:
             return float(np.searchsorted(self.z, z, side="right") / self.z.size)
-        tail = self.p_exceed * (1.0 + self.xi * (loss - self.u) / self.beta) ** (-1.0 / self.xi)
-        return float(np.clip(tail, 0.0, 1.0))
+        base = 1.0 + self.xi * (loss - self.u) / self.beta
+        if base <= 0.0:  # beyond the GPD's finite upper endpoint (xi < 0)
+            return 0.0
+        return float(np.clip(self.p_exceed * base ** (-1.0 / self.xi), 0.0, 1.0))
 
     def ppf(self, u: float) -> float:
         if not 0.0 < u < 1.0:

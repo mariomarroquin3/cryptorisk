@@ -597,12 +597,12 @@ RTPL is the realized outcome mapped through the model's predictive CDF, so Spear
 
 ### Perpetual hedge (perp return proxied by spot)
 
-Funding carry is annualised; **positive = the short-perp hedge earns it** (longs pay shorts). No perp price in the store, so the ratios sit at 1.0 and basis risk is unavailable.
+Funding carry is annualised; **positive = the short-perp hedge earns it** (longs pay shorts). No perp price in the store, so the min-var ratio sits at 1.0 and the ES-minimising hedge / ES reduction are not meaningful against an identical series (`n/a`); basis risk is unavailable.
 
 | asset | h (min-var) | h (ES-min) | ES unhedged | ES hedged | funding carry $/yr |
 |:--|--:|--:|--:|--:|--:|
-| BTC | 1.000 | 1.000 | -0.0962 | -0.0000 | +115,834 |
-| ETH | 1.000 | 1.000 | -0.1269 | -0.0000 | +138,387 |
+| BTC | 1.000 | n/a | -0.0962 | n/a | +115,834 |
+| ETH | 1.000 | n/a | -0.1269 | n/a | +138,386 |
 
 ## 9. What the numbers do not settle
 

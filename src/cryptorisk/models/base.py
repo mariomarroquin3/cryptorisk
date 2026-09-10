@@ -178,6 +178,7 @@ class EmpiricalDist(PredictiveDist):
     weights: np.ndarray | None = None
     scale: float = 1.0
     loc: float = 0.0
+    sigma2_value: float | None = None
     _order: np.ndarray = field(init=False, repr=False)
     _cum: np.ndarray = field(init=False, repr=False)
 
@@ -228,6 +229,12 @@ class EmpiricalDist(PredictiveDist):
         if not 0.0 < u < 1.0:
             raise ValueError("u must be in (0, 1)")
         return self.loc + self.scale * self._weighted_quantile(u)
+
+    def sigma2(self) -> float:
+        if self.sigma2_value is not None:
+            return self.sigma2_value
+        # fall back to the sample variance of loc + scale * z
+        return float(self.scale**2 * np.var(self.sample))
 
 
 @dataclass

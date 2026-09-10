@@ -136,6 +136,7 @@ def realized_daily(
         bv = float(_BV_C * (m / (m - 1)) * np.sum(np.abs(r[1:]) * np.abs(r[:-1]))) if m > 1 else np.nan
         rsv_pos = float(np.sum(r[r > 0] ** 2))
         rsv_neg = float(np.sum(r[r < 0] ** 2))
+        rq = float((m / 3.0) * np.sum(r**4))  # realized quarticity (Bollerslev-Patton-Quaedvlieg)
 
         if jump_test.upper() == "LM":
             jm = _lm_jump_mask(r)
@@ -144,12 +145,14 @@ def realized_daily(
             z = _bns_zstat(r)
             jump = float(max(np.sum(r**2) - bv, 0.0)) if z > norm.ppf(0.95) else 0.0
 
-        rows.append((pd.Timestamp(day).date(), rv, bv, rsv_pos, rsv_neg, jump, int(m)))
+        rows.append((pd.Timestamp(day).date(), rv, bv, rsv_pos, rsv_neg, jump, rq, int(m)))
 
     if not rows:
         return _empty()
-    return pd.DataFrame(rows, columns=["date", "rv", "bv", "rsv_pos", "rsv_neg", "jump", "n_bars"])
+    return pd.DataFrame(
+        rows, columns=["date", "rv", "bv", "rsv_pos", "rsv_neg", "jump", "rq", "n_bars"]
+    )
 
 
 def _empty() -> pd.DataFrame:
-    return pd.DataFrame(columns=["date", "rv", "bv", "rsv_pos", "rsv_neg", "jump", "n_bars"])
+    return pd.DataFrame(columns=["date", "rv", "bv", "rsv_pos", "rsv_neg", "jump", "rq", "n_bars"])

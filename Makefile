@@ -6,7 +6,7 @@ ifeq ($(OS),)
   PY := .venv/bin/python
 endif
 
-.PHONY: help install test lint fmt data realized backtest report clean
+.PHONY: help install test lint fmt data realized msgarch backtest report clean
 
 help:
 	@echo "install   - create .venv and install (editable) with dev extras"
@@ -37,6 +37,9 @@ data:
 
 realized:
 	$(PY) -m cryptorisk.data.realized
+
+msgarch:
+	$(PY) -m cryptorisk.study.run_msgarch
 
 backtest:
 	$(PY) -m cryptorisk.study.run_backtests

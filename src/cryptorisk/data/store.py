@@ -25,7 +25,7 @@ from pathlib import Path
 import duckdb
 import pandas as pd
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 _DDL = f"""
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
@@ -79,6 +79,16 @@ CREATE TABLE IF NOT EXISTS microstructure_daily (
     asset            TEXT NOT NULL,
     date             DATE NOT NULL,
     funding_8h       DOUBLE, open_interest DOUBLE, netflow DOUBLE, stbl_supply_chg DOUBLE,
+    PRIMARY KEY (asset, date)
+);
+
+-- MS-GARCH walk-forward predictions (produced in R, served by the bridge model)
+CREATE TABLE IF NOT EXISTS msgarch_predictions (
+    asset TEXT NOT NULL,
+    prev_date DATE NOT NULL,      -- last observation the forecast used
+    date  DATE NOT NULL,          -- forecast / realized-return date
+    var_0025 DOUBLE, es_0025 DOUBLE, var_001 DOUBLE, es_001 DOUBLE, sigma2 DOUBLE,
+    prob_crisis_filt DOUBLE, prob_crisis_pred DOUBLE, prob_crisis_insample DOUBLE,
     PRIMARY KEY (asset, date)
 );
 """
@@ -161,6 +171,18 @@ def write_microstructure_daily(con, asset: str, df: pd.DataFrame) -> int:
     out["asset"] = asset
     out = out[["asset", "date", "funding_8h", "open_interest", "netflow", "stbl_supply_chg"]]
     return _replace(con, "microstructure_daily", out, {"asset": asset})
+
+
+def write_msgarch_predictions(con, df: pd.DataFrame) -> int:
+    cols = ["asset", "prev_date", "date", "var_0025", "es_0025", "var_001", "es_001",
+            "sigma2", "prob_crisis_filt", "prob_crisis_pred", "prob_crisis_insample"]
+    out = df[cols].copy()
+    con.register("_incoming", out)
+    con.execute("DELETE FROM msgarch_predictions")
+    con.execute(f"INSERT INTO msgarch_predictions ({', '.join(cols)}) "
+                f"SELECT {', '.join(cols)} FROM _incoming")
+    con.unregister("_incoming")
+    return len(out)
 
 
 def read_returns(con, asset: str) -> pd.DataFrame:

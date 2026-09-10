@@ -7,7 +7,7 @@ Phase 2c adds MS-GARCH via the R bridge.
 
 from __future__ import annotations
 
-from cryptorisk.config import load_config
+from cryptorisk.config import load_config, repo_root
 from cryptorisk.models.base import Model
 from cryptorisk.models.caviar import CAViaR
 from cryptorisk.models.ewma import EWMA
@@ -18,6 +18,7 @@ from cryptorisk.models.garch_x import GarchX
 from cryptorisk.models.har import HAR
 from cryptorisk.models.historical import HistoricalSimulation
 from cryptorisk.models.jump import JumpDiffusion
+from cryptorisk.models.msgarch_bridge import MSGarchBridge
 from cryptorisk.models.realized_garch import RealizedGARCH
 
 
@@ -47,5 +48,12 @@ def phase2b_models(alphas: tuple[float, ...] | None = None) -> list[Model]:
     ]
 
 
+def phase2c_models(alphas: tuple[float, ...] | None = None) -> list[Model]:
+    cfg = load_config()
+    alphas = alphas or tuple(cfg["alphas"])
+    db = repo_root() / cfg["paths"]["store"]
+    return [MSGarchBridge.from_store(db, alphas=alphas)]
+
+
 def all_models() -> list[Model]:
-    return phase2a_models() + phase2b_models()
+    return phase2a_models() + phase2b_models() + phase2c_models()

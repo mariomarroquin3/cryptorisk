@@ -73,3 +73,42 @@ def test_basel_zones():
     assert amber.zone == "amber" and amber.multiplier_addon == pytest.approx(0.40)
     red = basel_traffic_light(viol(10))
     assert red.zone == "red" and red.multiplier_addon == 1.0
+
+
+def test_dq_not_rejected_for_calibrated_iid_hits():
+    rng = np.random.default_rng(10)
+    n = 4000
+    var = -0.05 + rng.normal(0, 0.002, n)          # mild variation, unrelated to hits
+    viol = (rng.random(n) < 0.025).astype(int)
+    from cryptorisk.backtest.coverage import dq_test
+
+    assert not dq_test(viol, var, 0.025).rejects()
+
+
+def test_dq_rejects_hits_predictable_from_var():
+    rng = np.random.default_rng(11)
+    n = 4000
+    var = -0.03 - 0.05 * rng.random(n)             # wide range of VaR levels
+    # violations happen only when VaR is shallow -> hits predictable from VaR_t
+    p = np.where(var > -0.05, 0.10, 0.005)
+    viol = (rng.random(n) < p).astype(int)
+    from cryptorisk.backtest.coverage import dq_test
+
+    assert dq_test(viol, var, 0.025).rejects()
+
+
+def test_dq_rejects_clustered_hits():
+    from cryptorisk.backtest.coverage import dq_test
+
+    n = 2000
+    viol = np.zeros(n, dtype=int)
+    viol[500:560] = 1                              # a solid block -> strong AR in hits
+    var = np.full(n, -0.05)
+    assert dq_test(viol, var, 0.025).rejects()
+
+
+def test_dq_noninformative_without_violations():
+    from cryptorisk.backtest.coverage import dq_test
+
+    r = dq_test(np.zeros(500, dtype=int), np.full(500, -0.05), 0.025)
+    assert np.isnan(r.p_value) and not r.rejects()

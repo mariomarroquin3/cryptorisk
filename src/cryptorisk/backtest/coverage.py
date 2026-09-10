@@ -2,14 +2,12 @@
 
 * Kupiec unconditional coverage (POF) - Kupiec (1995)
 * Christoffersen independence and conditional coverage - Christoffersen (1998)
+* Engle-Manganelli Dynamic Quantile (DQ) test - Engle & Manganelli (2004)
 * Basel traffic light - BCBS backtesting framework
 
-Ported and hardened from v1 ``risk_models/backtest.py`` (which was itself
-textbook-correct). The Engle-Manganelli Dynamic Quantile test lives in a
-separate module and is added in Phase 3.
-
-All functions take a boolean/0-1 array of violations
-(``violation_t = realized_t < var_t``) and the tail probability ``alpha``.
+Ported and hardened from v1 ``risk_models/backtest.py``. All functions take a
+boolean/0-1 array of violations (``violation_t = realized_t < var_t``) and the
+tail probability ``alpha``; DQ additionally takes the ``var`` series.
 """
 
 from __future__ import annotations
@@ -105,6 +103,41 @@ def christoffersen_cc(violations, alpha: float) -> TestResult:
         return TestResult("Christoffersen CC", np.nan, np.nan, 2)
     lr = uc.statistic + ind.statistic
     return TestResult("Christoffersen CC", float(lr), float(stats.chi2.sf(lr, 2)), 2)
+
+
+def dq_test(violations, var, alpha: float, *, lags: int = 4) -> TestResult:
+    """Engle-Manganelli (2004) Dynamic Quantile test.
+
+    Regress the demeaned hit ``Hit_t = 1{r_t < VaR_t} - alpha`` on a constant,
+    ``lags`` of itself, and the contemporaneous ``VaR_t``. Under correct
+    specification every coefficient is zero, so
+    ``DQ = b' X'X b / (alpha (1-alpha)) ~ chi2(k)`` with ``k = 2 + lags``.
+    The most discriminating of the coverage tests.
+    """
+    hit = _as_bits(violations).astype(float) - alpha
+    v = np.asarray(var, dtype=float)
+    n = hit.size
+    if v.size != n:
+        raise ValueError("violations and var must be the same length")
+    if n <= lags + 3:
+        return TestResult("DQ", np.nan, np.nan, 2 + lags)
+
+    rows = n - lags
+    X = np.empty((rows, 2 + lags))
+    X[:, 0] = 1.0
+    for j in range(1, lags + 1):
+        X[:, j] = hit[lags - j : n - j]
+    X[:, 1 + lags] = v[lags:]
+    y = hit[lags:]
+
+    xtx = X.T @ X
+    try:
+        b = np.linalg.solve(xtx, X.T @ y)
+    except np.linalg.LinAlgError:
+        return TestResult("DQ", np.nan, np.nan, 2 + lags)
+    stat = float(b @ xtx @ b / (alpha * (1.0 - alpha)))
+    k = 2 + lags
+    return TestResult("DQ", stat, float(stats.chi2.sf(stat, k)), k)
 
 
 # Basel traffic light: exceptions in a 250-day window -> capital multiplier add-on

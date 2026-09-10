@@ -68,7 +68,10 @@ class HAR:
             xf = np.append(xf, sq_z[-1] * rv[-1])
 
         beta, *_ = np.linalg.lstsq(X, y, rcond=None)
-        h_next = max(float(xf @ beta), np.nanpercentile(rv, 5) * 0.5, 1e-8)
+        # floor at half the 5th-pct RV; ceiling at 30x the median RV (the HARQ
+        # RQ interaction can explode on an extreme-quarticity day otherwise).
+        h_next = float(xf @ beta)
+        h_next = min(max(h_next, np.nanpercentile(rv, 5) * 0.5, 1e-8), 30.0 * np.nanmedian(rv))
 
         # innovation d.o.f. from standardized returns r_t / sqrt(RV_t)
         z = ctx.returns / np.sqrt(rv[: ctx.returns.size])

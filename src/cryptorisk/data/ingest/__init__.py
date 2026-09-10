@@ -1,9 +1,8 @@
-"""One module per source (V2_PLAN §2). Each writes to the store with a vintage.
+"""One module per source (V2_PLAN §2). Each returns tidy DataFrames; the
+orchestrator (``cryptorisk.study.run_ingest``) writes them to the store.
 
-* ``prices_daily``   - two independent daily price sources + reconciliation
-* ``binance_klines`` - 5-minute bars from data.binance.vision
-* ``context``        - macro + hashrate/difficulty (descriptive only)
-* ``microstructure`` - perp funding, open interest, exchange netflows, stablecoin supply
-
-Phase 1.
+* ``prices_daily``   - Binance spot + CoinMetrics reference, reconciled
+* ``binance_klines`` - 5-minute bars from data.binance.vision (streamed monthly)
+* ``context``        - hashrate/difficulty + SPX/DXY/fed/CPI (descriptive only)
+* ``microstructure`` - perp funding, open interest (partial history)
 """

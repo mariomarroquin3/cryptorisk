@@ -120,9 +120,10 @@ make test lint fmt
 | 4 | sub-periods + Giacomini-White CPA + MS-GARCH regime identification | ✅ |
 | 5 | decision layer (`run_decision`) | ✅ |
 | 6 | results report + model cards + figures (`study/report.py`, `make report`) | ✅ |
+| 7 | portfolio extension — BTC+ETH basket, copula tail (`run_portfolio`, `make portfolio`) | ✅ |
 
-**All phases done.** The v2 study is complete end to end; further work is
-extension (Phase 7: multi-asset portfolio) or hardening.
+**All phases done**, including the optional Phase 7. Further work is hardening
+(the notes below) or a wider portfolio (SOL/BNB need ingesting first).
 
 Non-obvious, still-relevant facts:
 
@@ -144,6 +145,17 @@ Non-obvious, still-relevant facts:
   (versioned, 16 + README) and `docs/figures/*.png` (**gitignored**). Per-model
   prose lives in `_MODEL_NOTES` in `report.py`; everything else is tabulated
   from the CSVs, so re-run `make report` after any pipeline re-run.
+- **Phase 7** `study.run_portfolio` (`make portfolio`): fixed-weight BTC+ETH
+  basket. `portfolio/marginal.py` = GARCH(1,1)-t vol filter (refit every
+  `config.portfolio.refit_every` days — a documented staleness approximation);
+  `portfolio/copula_var.py` = FHS residual inversion + a 2-D copula
+  (independence / gaussian / student_t [fixed df] / clayton) via
+  `statsmodels.distributions.copula`, MC-aggregated. Also runs a few univariate
+  models straight on the basket series (`Direct-<model>`) via the normal
+  engine. Evaluated with the Phase-3 battery (`asset="PORTFOLIO"`). Clayton
+  falls back to independence when the fitted theta ≤ 0. Writes
+  `portfolio_backtests.parquet`, `portfolio_eval.csv`, `portfolio_subperiods.csv`,
+  `portfolio_summary.md`.
 
 ## Gotchas
 

@@ -20,6 +20,7 @@ contributors is in [`CLAUDE.md`](CLAUDE.md).
 | 4 | Sub-periods (calm vs stress) + Giacomini–White CPA + MS-GARCH identification study | ✅ |
 | 5 | Decision layer — FRTB ES-IMA capital, position limits, PLA test, perp hedge | ✅ |
 | 6 | Results report (`docs/results.md`) + 16 model cards + figures | ✅ |
+| 7 | Portfolio extension — BTC+ETH basket, copula tail dependence | ✅ |
 
 Data: BTC & ETH, daily 2018-01 → present, plus **1.8M 5-minute bars** for the
 realized measures. Out-of-sample period is frozen at **2019-05-16 → present**
@@ -59,6 +60,7 @@ make subperiods    # stress/calm re-eval + Giacomini–White CPA → eval_subper
 make regime-id     # MS-GARCH regime identification from cached preds
 make decide        # decision layer → decision_*.csv + decision_summary.md
 make report        # assemble docs/results.md + docs/model_cards/ + docs/figures/
+make portfolio     # BTC+ETH basket VaR/ES with a copula tail → portfolio_*
 ```
 
 The headline result is the FZ0 ranking + 90% Model Confidence Set per
@@ -80,6 +82,7 @@ src/cryptorisk/
   study/          run_ingest · run_msgarch · run_backtests · run_evaluation · vol_forecast_eval
                   · subperiods · regime_identification · run_decision
   decision/       capital (ES-IMA) · limits · pnl_attribution (PLA) · hedge
+  portfolio/      marginal (GARCH-t filter) · copula_var (Gaussian/t/Clayton)
 config/study.yaml seed, assets, frozen OOS start, windows, alphas, MCS params, ...
 msgarch/          R script + notes for the MS-GARCH bridge
 tests/            one known-answer test per statistical test; test_integration is

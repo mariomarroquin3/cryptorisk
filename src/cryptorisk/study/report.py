@@ -754,9 +754,11 @@ def results_md(D: dict, figs: dict[str, str]) -> str:
     )
     P("- **ES p-values are approximate** (asymptotic normal, not simulated).")
     P(
-        "- **The decision layer is one asset each, spot only** &mdash; no "
-        "portfolio dependence, no options, and the perp hedge uses spot as a "
-        "price proxy."
+        "- **The main study is one asset at a time, spot only** &mdash; no "
+        "options and the perp hedge uses spot as a price proxy. A fixed-weight "
+        "BTC+ETH basket with a copula tail is the Phase-7 extension in "
+        "[`portfolio.md`](portfolio.md); a wider basket needs SOL/BNB ingested "
+        "first."
     )
     P(
         "- Model-specific caveats are in the model cards and in "
@@ -766,11 +768,11 @@ def results_md(D: dict, figs: dict[str, str]) -> str:
     P("## Reproducibility\n")
     P(
         "`make data && make msgarch && make backtest && make evaluate && "
-        "make subperiods && make regime-id && make decide && make report` "
-        "rebuilds every artefact from the sources, deterministically (seed in "
-        "`config/study.yaml`). The store and `data/results/` are gitignored; the "
-        "text of this report and the model cards are versioned, the figures are "
-        "regenerated.\n"
+        "make subperiods && make regime-id && make decide && make report && "
+        "make portfolio` rebuilds every artefact from the sources, "
+        "deterministically (seed in `config/study.yaml`). The store and "
+        "`data/results/` are gitignored; the text of this report, the model "
+        "cards and `portfolio.md` are versioned, the figures are regenerated.\n"
     )
     return "\n".join(o)
 

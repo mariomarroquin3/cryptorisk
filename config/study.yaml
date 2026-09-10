@@ -55,6 +55,18 @@ decision:
   basel_multiplier_base: 1.5
   risk_budget_es99_1d_usd: 120000
 
+# Portfolio extension (V2_PLAN §7) — fixed-weight BTC+ETH basket
+portfolio:
+  weights: {BTC: 0.5, ETH: 0.5}   # renormalised
+  copulas: [independence, gaussian, student_t, clayton]
+  # univariate models run straight on the basket series; only models that work
+  # from a return series alone (realized-measure models have no basket RV)
+  direct_models: [FHS, GARCH-t, GJR-GARCH-t, HS]
+  refit_every: 1                  # GARCH marginals refit daily, to match the
+                                  # Direct-* models (a fair copula-vs-direct fight)
+  n_sim: 20000
+  t_df: 5.0                       # Student-t copula d.o.f. (fixed, not fitted)
+
 paths:
   store: "data/store/cryptorisk.duckdb"
   results: "data/results"

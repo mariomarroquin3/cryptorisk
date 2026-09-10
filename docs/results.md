@@ -610,9 +610,9 @@ Funding carry is annualised; **positive = the short-perp hedge earns it** (longs
 - **Multiple testing.** 16 models x 2 assets x 2 alpha, no family-wise correction; the sub-period split makes this worse (n drops fast).
 - **Estimation risk is not propagated.** VaR/ES are at the parameter point estimates; parameter uncertainty would widen the intervals.
 - **ES p-values are approximate** (asymptotic normal, not simulated).
-- **The decision layer is one asset each, spot only** &mdash; no portfolio dependence, no options, and the perp hedge uses spot as a price proxy.
+- **The main study is one asset at a time, spot only** &mdash; no options and the perp hedge uses spot as a price proxy. A fixed-weight BTC+ETH basket with a copula tail is the Phase-7 extension in [`portfolio.md`](portfolio.md); a wider basket needs SOL/BNB ingested first.
 - Model-specific caveats are in the model cards and in [`methodology.tex`](methodology.tex) §9.
 
 ## Reproducibility
 
-`make data && make msgarch && make backtest && make evaluate && make subperiods && make regime-id && make decide && make report` rebuilds every artefact from the sources, deterministically (seed in `config/study.yaml`). The store and `data/results/` are gitignored; the text of this report and the model cards are versioned, the figures are regenerated.
+`make data && make msgarch && make backtest && make evaluate && make subperiods && make regime-id && make decide && make report && make portfolio` rebuilds every artefact from the sources, deterministically (seed in `config/study.yaml`). The store and `data/results/` are gitignored; the text of this report, the model cards and `portfolio.md` are versioned, the figures are regenerated.

@@ -24,7 +24,7 @@ import pandas as pd
 
 from cryptorisk.models.base import Context, Model, PredictiveDist
 
-_REALIZED_COLS = ("rv", "bv", "rsv_pos", "rsv_neg", "jump")
+_REALIZED_COLS = ("rv", "bv", "rsv_pos", "rsv_neg", "jump", "rq")
 
 
 @dataclass

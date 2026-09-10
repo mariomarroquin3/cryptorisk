@@ -24,7 +24,7 @@ def _load_returns(db: str, asset: str) -> pd.DataFrame:
         "SELECT date, log_return FROM returns_daily WHERE asset = ? ORDER BY date", [asset]
     ).df()
     rlz = con.execute(
-        "SELECT date, rv, bv, rsv_pos, rsv_neg, jump FROM realized_daily WHERE asset = ? ORDER BY date",
+        "SELECT date, rv, bv, rsv_pos, rsv_neg, jump, rq FROM realized_daily WHERE asset = ? ORDER BY date",
         [asset],
     ).df()
     con.close()

@@ -6,7 +6,7 @@ ifeq ($(OS),)
   PY := .venv/bin/python
 endif
 
-.PHONY: help install test lint fmt data realized msgarch backtest evaluate subperiods regime-id report clean
+.PHONY: help install test lint fmt data realized msgarch backtest evaluate subperiods regime-id decide report clean
 
 help:
 	@echo "install   - create .venv and install (editable) with dev extras"
@@ -19,6 +19,7 @@ help:
 	@echo "evaluate  - full evaluation battery -> data/results/eval_*.csv (Phase 3)"
 	@echo "subperiods- sub-period re-eval + Giacomini-White CPA -> eval_subperiods.* (Phase 4)"
 	@echo "regime-id - MS-GARCH regime identification from cached preds (Phase 4)"
+	@echo "decide    - decision layer: capital / limits / PLA / hedge -> decision_*.csv (Phase 5)"
 	@echo "report    - full pipeline -> docs/methodology.md (Phase 6)"
 
 install:
@@ -55,6 +56,9 @@ subperiods:
 
 regime-id:
 	$(PY) -m cryptorisk.study.regime_identification
+
+decide:
+	$(PY) -m cryptorisk.study.run_decision
 
 report:
 	$(PY) -m cryptorisk.study.report

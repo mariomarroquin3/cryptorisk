@@ -1,5 +1,6 @@
 """Orchestration and analysis (V2_PLAN §5, §8).
 
 run_ingest, run_backtests, run_evaluation, vol_forecast_eval, subperiods
-(+ Giacomini-White CPA), regime_identification, report. Phases 1-6.
+(+ Giacomini-White CPA), regime_identification, run_decision, report.
+Phases 1-6.
 """

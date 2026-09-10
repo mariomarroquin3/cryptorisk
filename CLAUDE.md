@@ -54,7 +54,8 @@ src/cryptorisk/
     subperiods.py      `make subperiods` — stress/calm re-eval + Giacomini-White CPA
     regime_identification.py  `make regime-id` — MS-GARCH regime-prob vs vol state
     report.py          `make report` — tables/figures for the write-up          (Phase 6)
-  decision/            capital, limits, pnl_attribution, hedge            (Phase 5 stubs)
+    run_decision.py   `make decide` — capital / limits / PLA / hedge -> decision_*.csv
+  decision/           capital (ES-IMA), limits, pnl_attribution (PLA), hedge   (done)
 config/study.yaml      seed, assets, frozen OOS start, windows, alphas, refit cadence,
                        sub-periods, MCS params, decision-layer knobs
 msgarch/               R script + notes for the bridge
@@ -170,4 +171,35 @@ make test lint  # pytest / ruff
     the W ∈ {500..2000, expanding} × {free, arch} sweep. **Not run** — multi-hour
     R job; `run()` uses cached results if `regime_identification_windows.csv`
     exists, else just the W=500 analysis.
-- Then 5 (decision layer), 6 (report).
+- **Phase 5 — done**: `study.run_decision` (`make decide`) turns the MCS models
+  into management numbers, writing `decision_{capital,limits,pla,hedge}.csv` +
+  `decision_summary.md`.
+  - `decision/capital.py`: `capital = m_c*N*|ES_97.5,1d|*sqrt(LH)`. The capital
+    *amount* uses the 97.5% ES; `m_c` (Basel base + traffic-light add-on) is a
+    **99% backtesting** concept, so `run_decision.capital_table` counts
+    exceptions from the α=0.01 violation series, not the 97.5% slice. Post-fix
+    most models are m_c=1.5 (green at 99%); EWMA/HARQ/CAViaR-AS/GARCH-EVT are
+    amber (1.9). `es_horizon_bootstrap` (stationary block bootstrap of LH-day
+    compounded returns) is the √time cross-check; `model_risk_addon` = capital
+    spread across the MCS.
+  - `decision/limits.py`: `N* = budget/|ES_99,1d|`; `backtest_framework` reports
+    bind rate, budget-breach rate, `flagged_breach_rate` (breach where that
+    day's ES already exceeded budget -- same-day, since ES_t is the t-1 forecast
+    for t), ES-exceedance rate (below α: ES < VaR), worst loss.
+  - `decision/pnl_attribution.py`: `pla_test` (Spearman + KS, FRTB-style zones).
+    RTPL = realized outcome mapped through the model's predictive CDF
+    (`implied_rtpl`), so Spearman is ~1 by construction and the KS is the
+    discriminating metric -- a known limitation of adapting PLA to a single-
+    risk-factor VaR study. `attribute_pnl` keeps `jump_var_share=0` (real
+    diffusion/jump split needs stored jump params, not in the parquet).
+  - `decision/hedge.py`: MV + ES-minimising hedge ratios, `funding_carry_annualised`
+    (= mean 8h funding * 3 * 365). **Sign**: funding > 0 => longs pay shorts, and
+    the hedge is *short* the perp, so a positive carry is *income*. **No perp
+    price in the store** -> perp return proxied by spot; ratios sit at 1.0,
+    basis risk reported unavailable. Real output: the hedge *earns*
+    ~+$116k/yr (BTC) / +$138k/yr (ETH) in carry while removing the directional ES.
+  - Headline: model-risk add-on ~$228k (BTC) / ~$185k (ETH) on a $1M notional --
+    picking within the "statistically tied" MCS moves required capital ~50%.
+    Thin-tailed models (EWMA/HARQ/HAR-RV) give a bigger N* that then breaches
+    the budget ~1.4% of days vs ~0.3% for the GARCH family.
+- Then 6 (report).

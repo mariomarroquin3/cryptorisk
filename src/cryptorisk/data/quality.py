@@ -17,9 +17,11 @@ Checks:
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import yaml
 
 _EXPECTED_5M_BARS = 288
 
@@ -75,16 +77,25 @@ def check_daily_series(asset: str, df: pd.DataFrame, *, extreme: float = 0.40,
 
 
 def check_source_divergence(asset: str, a: pd.DataFrame, b: pd.DataFrame, *,
-                            threshold: float = 0.02) -> list[QualityFlag]:
-    """``a``, ``b`` columns: date, close. Flags days where the two sources
-    disagree by more than ``threshold`` in log terms."""
+                            threshold: float = 0.02,
+                            returns: pd.DataFrame | None = None) -> list[QualityFlag]:
+    """``a``, ``b`` columns: date, close. Flags a day when the two price sources
+    disagree by more than ``threshold`` in log terms **and** by more than that
+    day's own log-return (``returns`` columns: date, log_return). The second
+    condition removes timing artefacts: on a big-move day an exchange close and
+    a reference-rate snapshot naturally differ by a few percent. If a source
+    disagrees by more than the asset actually moved, that is a real problem."""
     m = a[["date", "close"]].merge(b[["date", "close"]], on="date", suffixes=("_a", "_b"))
+    if returns is not None:
+        m = m.merge(returns[["date", "log_return"]], on="date", how="left")
     div = np.log(m["close_a"] / m["close_b"]).abs()
+    day_move = m["log_return"].abs() if "log_return" in m.columns else pd.Series(0.0, index=m.index)
     out = []
     for i, v in enumerate(div.to_numpy()):
-        if np.isfinite(v) and v > threshold:
+        mv = day_move.iloc[i]
+        if np.isfinite(v) and v > threshold and (not np.isfinite(mv) or v > mv):
             out.append(QualityFlag("source_divergence", asset, str(pd.Timestamp(m["date"].iloc[i]).date()),
-                                   f"|ln(a/b)|={v:.4f} > {threshold}"))
+                                   f"|ln(a/b)|={v:.4f} > max({threshold}, day |ret|={mv:.4f})"))
     return out
 
 
@@ -109,8 +120,47 @@ def check_all(
         flags += check_daily_series(asset, df)
     if per_asset_sources:
         for asset, (a, b) in per_asset_sources.items():
-            flags += check_source_divergence(asset, a, b)
+            flags += check_source_divergence(asset, a, b, returns=per_asset_daily.get(asset))
     if per_asset_realized:
         for asset, rdf in per_asset_realized.items():
             flags += check_intraday_coverage(asset, rdf)
     return _flags_to_frame(flags)
+
+
+def load_allowlist(path: str | Path) -> list[dict]:
+    p = Path(path)
+    if not p.exists():
+        return []
+    return yaml.safe_load(p.read_text(encoding="utf-8")) or []
+
+
+def apply_allowlist(report: pd.DataFrame, rules: list[dict]) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Split ``report`` into (unexplained, explained). A row is explained if it
+    matches a rule on ``kind`` plus any of: ``dates`` (exact), ``before`` /
+    ``after`` (date bound), ``asset``. Every rule must carry a ``reason``."""
+    if report.empty or not rules:
+        return report, report.iloc[0:0].assign(reason=pd.Series(dtype=str))
+
+    explained_idx: set[int] = set()
+    reasons: dict[int, str] = {}
+    d = pd.to_datetime(report["date"])
+    for rule in rules:
+        if "reason" not in rule:
+            raise ValueError(f"allowlist rule without a reason: {rule}")
+        m = report["kind"] == rule["kind"]
+        if "asset" in rule:
+            m &= report["asset"] == rule["asset"]
+        if "dates" in rule:
+            m &= report["date"].isin([str(x) for x in rule["dates"]])
+        if "before" in rule:
+            m &= d < pd.Timestamp(rule["before"])
+        if "after" in rule:
+            m &= d >= pd.Timestamp(rule["after"])
+        for i in report.index[m]:
+            explained_idx.add(i)
+            reasons.setdefault(i, " ".join(rule["reason"].split()))
+
+    explained = report.loc[sorted(explained_idx)].copy()
+    explained["reason"] = [reasons[i] for i in explained.index]
+    unexplained = report.drop(index=explained_idx)
+    return unexplained.reset_index(drop=True), explained.reset_index(drop=True)

@@ -3,6 +3,7 @@
 
     python -m cryptorisk.study.run_ingest                 # everything
     python -m cryptorisk.study.run_ingest --skip-intraday # daily + context only
+    python -m cryptorisk.study.run_ingest --quality-only  # re-run checks on the store
     python -m cryptorisk.study.run_ingest --assets BTC --start 2020-01-01
 """
 
@@ -75,21 +76,53 @@ def run(assets: list[str], start: str, end: str | None, *, skip_intraday: bool, 
         _log(f"{asset}: microstructure (funding, OI - partial)")
         store.write_microstructure_daily(con, asset, microstructure.build_microstructure(asset, start, end))
 
+    _log(f"store row counts: {store.table_counts(con)}")
+    run_quality(con, per_asset_daily, per_asset_sources, per_asset_realized)
+    con.close()
+
+
+def _read_quality_frames(con, assets: list[str]):
+    per_daily, per_src, per_rlz = {}, {}, {}
+    for a in assets:
+        ret = con.execute(
+            "SELECT date, close, log_return FROM returns_daily WHERE asset = ? ORDER BY date", [a]
+        ).df()
+        vol = con.execute(
+            "SELECT date, volume FROM prices_daily WHERE asset = ? AND source = 'binance' ORDER BY date", [a]
+        ).df()
+        per_daily[a] = ret.merge(vol, on="date", how="left")
+        pa = con.execute(
+            "SELECT date, close FROM prices_daily WHERE asset = ? AND source = 'binance' ORDER BY date", [a]
+        ).df()
+        pb = con.execute(
+            "SELECT date, close FROM prices_daily WHERE asset = ? AND source = 'coinmetrics' ORDER BY date", [a]
+        ).df()
+        per_src[a] = (pa, pb)
+        per_rlz[a] = con.execute(
+            "SELECT date, n_bars FROM realized_daily WHERE asset = ? ORDER BY date", [a]
+        ).df()
+    return per_daily, per_src, per_rlz
+
+
+def run_quality(con, per_asset_daily, per_asset_sources, per_asset_realized) -> None:
     _log("quality checks")
     report = quality.check_all(per_asset_daily, per_asset_sources or None, per_asset_realized or None)
+    rules = quality.load_allowlist(repo_root() / "config" / "quality_allowlist.yaml")
+    unexplained, explained = quality.apply_allowlist(report, rules)
+
     out_dir = repo_root() / "data" / "results"
     out_dir.mkdir(parents=True, exist_ok=True)
     report.to_csv(out_dir / "quality_report.csv", index=False)
+    unexplained.to_csv(out_dir / "quality_report_unexplained.csv", index=False)
+    explained.to_csv(out_dir / "quality_report_explained.csv", index=False)
 
-    counts = store.table_counts(con)
-    con.close()
-
-    _log(f"store row counts: {counts}")
-    if report.empty:
-        _log("quality: no flags")
-    else:
-        _log(f"quality: {len(report)} flags -> data/results/quality_report.csv")
+    _log(f"quality: {len(report)} flags total | {len(explained)} allow-listed | "
+         f"{len(unexplained)} UNEXPLAINED")
+    if len(report):
         _log("\n" + report["kind"].value_counts().to_string())
+    if len(unexplained):
+        _log("\nUNEXPLAINED (must be zero for Phase 1 done):\n" + unexplained.to_string(index=False))
+        raise SystemExit(1)
 
 
 def main() -> None:
@@ -99,9 +132,17 @@ def main() -> None:
     ap.add_argument("--start", default=cfg["sample"]["start"])
     ap.add_argument("--end", default=cfg["sample"]["end"])
     ap.add_argument("--skip-intraday", action="store_true")
+    ap.add_argument("--quality-only", action="store_true",
+                    help="re-run quality checks against the existing store, no fetching")
     ap.add_argument("--db", default=str(repo_root() / cfg["paths"]["store"]))
     args = ap.parse_args()
     Path(args.db).parent.mkdir(parents=True, exist_ok=True)
+
+    if args.quality_only:
+        con = store.connect(args.db, read_only=True)
+        run_quality(con, *_read_quality_frames(con, args.assets))
+        con.close()
+        return
     run(args.assets, args.start, args.end, skip_intraday=args.skip_intraday, db_path=args.db)
 
 

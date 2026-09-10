@@ -18,8 +18,8 @@ contributors is in [`CLAUDE.md`](CLAUDE.md).
 | 2 | Models — 16 models + the walk-forward engine | ✅ |
 | 3 | **Backtesting battery** — coverage + DQ + Basel, Acerbi–Székely ES, FZ0 loss + **Model Confidence Set**, PIT, vol-forecast eval | ✅ |
 | 4 | Sub-periods (calm vs stress) + Giacomini–White CPA + MS-GARCH identification study | ✅ |
-| 5 | Decision layer — capital, position limits, P&L attribution, perp hedge | next |
-| 6 | Methodology report + model cards | |
+| 5 | Decision layer — FRTB ES-IMA capital, position limits, PLA test, perp hedge | ✅ |
+| 6 | Methodology report + model cards | next |
 
 Data: BTC & ETH, daily 2018-01 → present, plus **1.8M 5-minute bars** for the
 realized measures. Out-of-sample period is frozen at **2019-05-16 → present**
@@ -57,6 +57,7 @@ make backtest      # (model × asset × window) grid → data/results/backtests.
 make evaluate      # full battery → data/results/eval_*.csv + eval_summary.md
 make subperiods    # stress/calm re-eval + Giacomini–White CPA → eval_subperiods.*
 make regime-id     # MS-GARCH regime identification from cached preds
+make decide        # decision layer → decision_*.csv + decision_summary.md
 ```
 
 The headline result is the FZ0 ranking + 90% Model Confidence Set per
@@ -73,9 +74,10 @@ src/cryptorisk/
   config.py       config/study.yaml loader (single source of truth)
   data/           store.py (DuckDB) · ingest/ · realized.py · quality.py
   models/         base.py (interface) · registry.py · one module per family
-  backtest/       engine.py (walk-forward) · coverage · es_tests · scoring (FZ0/DM/MCS) · pit
+  backtest/       engine.py (walk-forward) · coverage · es_tests · scoring (FZ0/DM/MCS/GW) · pit
   study/          run_ingest · run_msgarch · run_backtests · run_evaluation · vol_forecast_eval
-  decision/       capital · limits · pnl_attribution · hedge (Phase 5)
+                  · subperiods · regime_identification · run_decision
+  decision/       capital (ES-IMA) · limits · pnl_attribution (PLA) · hedge
 config/study.yaml seed, assets, frozen OOS start, windows, alphas, MCS params, ...
 msgarch/          R script + notes for the MS-GARCH bridge
 tests/            one known-answer test per statistical test; test_integration is

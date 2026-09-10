@@ -610,7 +610,7 @@ Funding carry is annualised; **positive = the short-perp hedge earns it** (longs
 - **Multiple testing.** 16 models x 2 assets x 2 alpha, no family-wise correction; the sub-period split makes this worse (n drops fast).
 - **Estimation risk is not propagated.** VaR/ES are at the parameter point estimates; parameter uncertainty would widen the intervals.
 - **ES p-values are approximate** (asymptotic normal, not simulated).
-- **The main study is one asset at a time, spot only** &mdash; no options and the perp hedge uses spot as a price proxy. A fixed-weight BTC+ETH basket with a copula tail is the Phase-7 extension in [`portfolio.md`](portfolio.md); a wider basket needs SOL/BNB ingested first.
+- **The main study is one asset at a time, spot only** &mdash; no options and the perp hedge uses spot as a price proxy. A fixed-weight 4-asset basket (BTC/ETH/SOL/BNB) with a k-dimensional copula tail is the Phase-7 extension in [`portfolio.md`](portfolio.md).
 - Model-specific caveats are in the model cards and in [`methodology.tex`](methodology.tex) §9.
 
 ## Reproducibility

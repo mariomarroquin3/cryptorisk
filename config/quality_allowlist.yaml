@@ -25,3 +25,32 @@
   reason: >
     COVID "Black Thursday" crash. Genuine intraday move of about -47% (BTC) and
     -57% (ETH), confirmed across venues. A true tail event, not a bad print.
+
+- kind: extreme_return
+  asset: BNB
+  dates: ["2018-01-05", "2021-02-19"]
+  reason: >
+    Genuine BNB parabolic moves, confirmed on both Binance and the CoinMetrics
+    reference. 2018-01-05: the January-2018 alt blow-off, BNB ~$9 -> ~$15
+    close-to-close. 2021-02-19: the BSC-hype run, BNB ~$130 -> ~$280 in a day.
+    Both are real tail events for this asset, not bad prints.
+
+- kind: extreme_return
+  asset: SOL
+  dates: ["2021-05-19", "2022-11-09"]
+  reason: >
+    Genuine SOL crashes. 2021-05-19: the market-wide de-leveraging (China
+    mining-ban headlines), SOL close ~$56 -> ~$35. 2022-11-09: the FTX/Alameda
+    collapse, to which SOL had the largest token exposure. Confirmed on Binance
+    and the Coinbase SOL-USD reference; true tail events.
+
+- kind: source_divergence
+  asset: BNB
+  dates: ["2020-09-14", "2020-09-18"]
+  reason: >
+    Two isolated ~2.2-2.5% gaps between the Binance BNBUSDT close and the
+    CoinMetrics PriceUSD snapshot on low-volatility days (asset moved ~1% and
+    ~0.4%). Both sources agree on the price level (~$31 and ~$27.6); the gap is
+    a snapshot-timing artefact between the exchange UTC close and the reference
+    rate's snapshot, in thin early BNB reference coverage. The canonical series
+    uses the CoinMetrics reference, so the study is unaffected.

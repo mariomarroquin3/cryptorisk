@@ -42,7 +42,8 @@ _PORT = "PORTFOLIO"
 
 def _default_portfolio_cfg(cfg: dict) -> dict:
     p = cfg.get("portfolio") or {}
-    p.setdefault("weights", {a: 1.0 / len(cfg["assets"]) for a in cfg["assets"]})
+    p.setdefault("assets", list(cfg["assets"]))
+    p.setdefault("weights", {a: 1.0 / len(p["assets"]) for a in p["assets"]})
     p.setdefault("copulas", ["independence", "gaussian", "student_t", "clayton"])
     p.setdefault("direct_models", ["FHS", "GARCH-t", "GJR-GARCH-t", "HS"])
     p.setdefault("refit_every", 1)
@@ -51,9 +52,10 @@ def _default_portfolio_cfg(cfg: dict) -> dict:
     return p
 
 
-def _returns(cfg: dict) -> pd.DataFrame:
+def _returns(cfg: dict, assets: list[str] | None = None) -> pd.DataFrame:
     import duckdb
 
+    assets = assets or list(cfg["assets"])
     con = duckdb.connect(str(repo_root() / cfg["paths"]["store"]), read_only=True)
     df = con.execute(
         "SELECT asset, date, log_return FROM returns_daily ORDER BY date"
@@ -61,14 +63,20 @@ def _returns(cfg: dict) -> pd.DataFrame:
     con.close()
     df["date"] = pd.to_datetime(df["date"])
     wide = df.pivot(index="date", columns="asset", values="log_return")
-    return wide[cfg["assets"]].dropna()
+    missing = [a for a in assets if a not in wide.columns]
+    if missing:
+        raise SystemExit(
+            f"[portfolio] returns_daily has no rows for {missing}; "
+            f"ingest them first (e.g. run_ingest --assets {' '.join(missing)} --skip-intraday)"
+        )
+    return wide[assets].dropna()
 
 
 # --------------------------------------------------------------------------- #
 def _copula_walk_forward(
     wide: pd.DataFrame, pcfg: dict, cfg: dict
 ) -> pd.DataFrame:
-    assets = cfg["assets"]
+    assets = pcfg["assets"]
     alphas = cfg["alphas"]
     w = int(cfg["walk_forward"]["windows"][0])
     oos = pd.Timestamp(cfg["sample"]["oos_start"])
@@ -107,7 +115,7 @@ def _copula_walk_forward(
 def _direct_walk_forward(wide: pd.DataFrame, pcfg: dict, cfg: dict) -> pd.DataFrame:
     weights = pcfg["weights"]
     tot = sum(weights.values())
-    port = sum(weights[a] * wide[a] for a in cfg["assets"]) / tot
+    port = sum(weights[a] * wide[a] for a in pcfg["assets"]) / tot
     df = pd.DataFrame({"date": wide.index, "log_return": port.to_numpy(float)})
     wanted = set(pcfg["direct_models"])
     frames = []
@@ -158,15 +166,17 @@ def _evaluate(bt: pd.DataFrame, cfg: dict) -> tuple[pd.DataFrame, pd.DataFrame]:
 
 def _summary_md(ev: pd.DataFrame, sub: pd.DataFrame, pcfg: dict, cfg: dict) -> str:
     w = pcfg["weights"]
-    o = ["# Portfolio VaR / ES with a copula tail (Phase 7)", ""]
+    k = len(pcfg["assets"])
+    o = [f"# Portfolio VaR / ES with a copula tail ({k}-asset basket, Phase 7)", ""]
     o.append("_`python -m cryptorisk.study.run_portfolio`._\n")
     re = pcfg["refit_every"]
     re_txt = "daily" if re == 1 else f"every {re} days"
     o.append(
-        f"Fixed-weight basket: {', '.join(f'{k} {v:g}' for k, v in w.items())} "
+        f"Fixed-weight basket: {', '.join(f'{key} {v:g}' for key, v in w.items())} "
         f"(renormalised). GARCH(1,1)-t marginals refit {re_txt}, {pcfg['n_sim']:,} "
-        f"Monte-Carlo draws, Student-t copula df {pcfg['t_df']:g}. Same OOS window "
-        f"and battery as the single-asset study.\n"
+        f"Monte-Carlo draws, {k}-dimensional copula (Student-t df {pcfg['t_df']:g}). "
+        f"Same evaluation battery as the single-asset study; the joint out-of-sample "
+        f"window is bounded by the shortest series (SOL, Binance spot from 2020-08).\n"
     )
     for alpha, g in ev.groupby("alpha", observed=True):
         g = g.sort_values("fz0_rank")
@@ -198,36 +208,77 @@ def _summary_md(ev: pd.DataFrame, sub: pd.DataFrame, pcfg: dict, cfg: dict) -> s
             o.append(f"| {m} | " + " | ".join(marks) + " |")
         o.append("")
     o.append("## Read\n")
+    o.extend(_read_bullets(ev, pcfg))
     o.append(
-        "- **Ignoring tail dependence is dangerous.** `Copula-independence` "
-        "over-breaches by ~3x, fails the ES test hard (Z2 well below 0) and is "
-        "the only model out of the MCS &mdash; assuming BTC and ETH move "
-        "independently understates basket tail risk by a wide margin.\n"
-        "- **A tail-dependent copula beats the Gaussian.** Within the `Copula-*` "
-        "block the FZ0 ordering is Clayton < Student-t < Gaussian in both cells, "
-        "and Clayton's Z2 is the least negative &mdash; lower-tail dependence "
-        "(joint crashes) is the right structure for the pair.\n"
-        "- **Modelling the basket directly still wins.** `Direct-GJR-GARCH-t` / "
-        "`Direct-GARCH-t` on the basket return series edge every copula on FZ0, "
-        "both sides refitting volatility daily (a fair fight). The copula "
-        "captures the dependence well enough to beat the Gaussian and "
-        "independence, but a leverage-GARCH fit on `w'r` is simpler and "
-        "marginally better.\n"
         "- The copula marginals are GARCH(1,1)-t; the residual inversion is FHS "
         "(empirical). Only the *dependence* is parametric.\n"
-        "- The sub-period MCS is all-in for the seven survivors (40&ndash;90 day "
-        "windows have no power), so the copula-family differences show up only in "
-        "the full-sample FZ0 mean.\n"
+        "- The sub-period MCS has little power (40&ndash;90 day windows), so the "
+        "copula-family differences show up mainly in the full-sample FZ0 mean.\n"
     )
     return "\n".join(o)
+
+
+def _read_bullets(ev: pd.DataFrame, pcfg: dict) -> list[str]:
+    """Narrative driven by the actual numbers, so the doc stays honest for any
+    basket size / family set."""
+    assets = pcfg["assets"]
+    pair = " and ".join(assets) if len(assets) == 2 else f"the {len(assets)} assets"
+    out: list[str] = []
+    amin = ev["alpha"].min()
+    g = ev[ev["alpha"] == amin]
+
+    ind = g[g["model"] == "Copula-independence"]
+    if not ind.empty:
+        r = ind.iloc[0]
+        verdict = "out of the MCS" if not bool(r["in_mcs"]) else "in the MCS but bottom-ranked"
+        out.append(
+            f"- **Ignoring tail dependence.** `Copula-independence` sits at hit "
+            f"rate {r['hit_rate']:.3f} (target {amin:.3f}), ES Z2 {r['z2']:+.2f}, "
+            f"and is {verdict} &mdash; treating {pair} as independent understates "
+            f"basket tail risk.\n"
+        )
+
+    cop = g[g["model"].str.startswith("Copula-") & (g["model"] != "Copula-independence")]
+    if not cop.empty:
+        order = cop.sort_values("fz0_mean")["model"].str.replace("Copula-", "", regex=False).tolist()
+        best = cop.sort_values("fz0_mean").iloc[0]
+        out.append(
+            f"- **Dependence structure.** Among the parametric copulas the FZ0 "
+            f"ordering (best first) is {' < '.join(order)}; `{best['model']}` "
+            f"leads with Z2 {best['z2']:+.2f}.\n"
+        )
+
+    direct = g[g["model"].str.startswith("Direct-")]
+    if not direct.empty and not cop.empty:
+        best_direct = direct.sort_values("fz0_mean").iloc[0]
+        best_cop = cop.sort_values("fz0_mean").iloc[0]
+        overall = g.sort_values("fz0_rank").iloc[0]
+        if best_direct["fz0_mean"] < best_cop["fz0_mean"]:
+            out.append(
+                f"- **Direct vs copula.** `{best_direct['model']}` on the basket "
+                f"return series still edges every copula on FZ0 "
+                f"({best_direct['fz0_mean']:.4f} vs {best_cop['fz0_mean']:.4f}), "
+                f"both refitting volatility daily. Overall FZ0 winner: "
+                f"`{overall['model']}`.\n"
+            )
+        else:
+            out.append(
+                f"- **Direct vs copula.** The copula wins here: `{best_cop['model']}` "
+                f"beats the best `Direct-*` on FZ0 ({best_cop['fz0_mean']:.4f} vs "
+                f"{best_direct['fz0_mean']:.4f}). Overall FZ0 winner: "
+                f"`{overall['model']}`.\n"
+            )
+    return out
 
 
 def main() -> None:
     cfg = load_config()
     pcfg = _default_portfolio_cfg(cfg)
     res = repo_root() / cfg["paths"]["results"]
-    wide = _returns(cfg)
+    wide = _returns(cfg, pcfg["assets"])
 
+    print(f"[portfolio] basket = {', '.join(pcfg['assets'])} | "
+          f"{len(wide)} joint days {wide.index.min().date()} -> {wide.index.max().date()}", flush=True)
     print(f"[portfolio] copula walk-forward ({', '.join(pcfg['copulas'])}) ...", flush=True)
     cop = _copula_walk_forward(wide, pcfg, cfg)
     print(f"[portfolio] direct models ({', '.join(pcfg['direct_models'])}) ...", flush=True)

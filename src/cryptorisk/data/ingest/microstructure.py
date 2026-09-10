@@ -16,7 +16,7 @@ import pandas as pd
 
 from cryptorisk.data._http import get_json
 
-_PERP = {"BTC": "BTCUSDT", "ETH": "ETHUSDT"}
+_PERP = {"BTC": "BTCUSDT", "ETH": "ETHUSDT", "SOL": "SOLUSDT", "BNB": "BNBUSDT"}
 _FUNDING = "https://fapi.binance.com/fapi/v1/fundingRate"
 _OI_HIST = "https://fapi.binance.com/futures/data/openInterestHist"
 

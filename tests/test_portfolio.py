@@ -46,10 +46,29 @@ def test_each_copula_fits_and_samples(fam):
     assert s.shape == (4000, 2)
     assert (s > 0).all() and (s < 1).all()
     if fam == "gaussian":
-        assert params["rho"] > 0.5
+        assert params["corr"][0, 1] > 0.5
         assert np.corrcoef(s.T)[0, 1] > 0.4
     if fam == "clayton":
         assert params["theta"] > 0.5
+
+
+@pytest.mark.parametrize("fam", ["independence", "gaussian", "student_t", "clayton"])
+def test_each_copula_fits_and_samples_k4(fam):
+    rng = np.random.default_rng(11)
+    common = rng.standard_t(5, 1500)
+    cols = [_pseudo_obs(0.7 * common + 0.3 * rng.standard_t(5, 1500)) for _ in range(4)]
+    u = np.column_stack(cols)
+    used, params = _fit_copula(u, fam, t_df=5.0, k_dim=4)
+    assert params["k_dim"] == 4
+    s = _sample_copula(used, params, 5000, np.random.default_rng(12))
+    assert s.shape == (5000, 4)
+    assert (s > 0).all() and (s < 1).all()
+    if fam in ("gaussian", "student_t") and used == fam:
+        c = params["corr"]
+        assert c.shape == (4, 4)
+        assert np.allclose(np.diag(c), 1.0)
+        assert np.all(np.linalg.eigvalsh(c) > -1e-8)          # PSD
+        assert np.corrcoef(s.T)[0, 1] > 0.3                    # dependence carried through
 
 
 def test_independence_copula_has_zero_dependence():
@@ -126,7 +145,7 @@ def test_run_portfolio_short_oos_smoke():
     pcfg = {**pcfg, "n_sim": 3000, "copulas": ["independence", "gaussian"],
             "direct_models": ["HS"], "refit_every": 10}
 
-    wide = _returns(cfg)
+    wide = _returns(cfg, pcfg["assets"])
     cop = _copula_walk_forward(wide, pcfg, cfg)
     direct = _direct_walk_forward(wide, pcfg, cfg)
     bt = pd.concat([cop, direct], ignore_index=True)

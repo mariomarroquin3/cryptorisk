@@ -55,9 +55,15 @@ decision:
   basel_multiplier_base: 1.5
   risk_budget_es99_1d_usd: 120000
 
-# Portfolio extension (V2_PLAN §7) — fixed-weight BTC+ETH basket
+# Portfolio extension (V2_PLAN §7) — fixed-weight multi-asset basket.
+# `assets` here is independent of the top-level single-asset study universe:
+# the copula marginals are plain GARCH(1,1)-t and the Direct-* models are
+# return-only, so basket assets need only `returns_daily` in the store (no
+# 5-min bars / realized measures / MS-GARCH). SOL/ BNB start ~2020-08 on
+# Binance spot, so the 4-asset basket has a shorter joint OOS than BTC+ETH.
 portfolio:
-  weights: {BTC: 0.5, ETH: 0.5}   # renormalised
+  assets: [BTC, ETH, SOL, BNB]
+  weights: {BTC: 0.25, ETH: 0.25, SOL: 0.25, BNB: 0.25}   # renormalised
   copulas: [independence, gaussian, student_t, clayton]
   # univariate models run straight on the basket series; only models that work
   # from a return series alone (realized-measure models have no basket RV)

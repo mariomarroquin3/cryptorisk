@@ -60,10 +60,12 @@ class HAR:
         if self.harq and "rq" in rlz:
             rq = ffill(np.where(np.isfinite(rlz["rq"]) & (rlz["rq"] > 0), rlz["rq"], np.nan))
             sq = np.sqrt(rq)
-            sq_c = sq - np.nanmean(sq)  # demeaned, as in BPQ
-            extra = np.array([sq_c[t - 1] * rv[t - 1] for t in range(_M, rv.size)])
+            # z-score sqrt(RQ) so the interaction term sits on the same scale as
+            # RV_d/RV_w/RV_m (raw sqrt(RQ) is ~500x smaller -> OLS coef -> 0).
+            sq_z = (sq - np.nanmean(sq)) / (np.nanstd(sq) + 1e-30)
+            extra = np.array([sq_z[t - 1] * rv[t - 1] for t in range(_M, rv.size)])
             X = np.column_stack([X, extra])
-            xf = np.append(xf, sq_c[-1] * rv[-1])
+            xf = np.append(xf, sq_z[-1] * rv[-1])
 
         beta, *_ = np.linalg.lstsq(X, y, rcond=None)
         h_next = max(float(xf @ beta), np.nanpercentile(rv, 5) * 0.5, 1e-8)

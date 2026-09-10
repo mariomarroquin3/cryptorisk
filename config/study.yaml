@@ -1,0 +1,56 @@
+# cryptorisk study configuration.
+# Every knob that affects results lives here. Nothing random without a seed.
+
+seed: 20260101
+
+assets: [BTC, ETH]
+
+# Sample and out-of-sample period. The OOS start is FROZEN before looking at
+# any result (see V2_PLAN §4).
+sample:
+  start: "2018-01-01"      # 2015-2017 excluded: illiquid early exchanges
+  oos_start: "2019-05-16"  # first date with a full 500-obs estimation window
+  end: null                # null = latest available vintage
+
+# Walk-forward engine
+walk_forward:
+  windows: [500]           # rolling window lengths; "expanding" also run in study
+  expanding: true
+  refit_every:             # per model family; justified in each model card
+    default: 1
+    msgarch: 20            # with daily re-filtering via newdata
+    jump: 5
+
+# Risk levels. FRTB uses ES 97.5%; 99% kept for the VaR comparison.
+alphas: [0.025, 0.01]
+
+# Intraday realized measures
+realized:
+  bar_minutes: 5
+  subsample: true          # average RV over staggered grids
+  jump_test: "BNS"         # Barndorff-Nielsen & Shephard; "LM" = Lee-Mykland
+
+# Evaluation
+evaluation:
+  test_level: 0.05         # rejection level for coverage/ES tests
+  dq_lags: 4               # Engle-Manganelli DQ: lagged hits in the regression
+  mcs:
+    confidence: 0.90
+    block_bootstrap_len: 20
+    n_boot: 5000
+  subperiods:
+    covid:   ["2020-02-20", "2020-04-30"]
+    luna:    ["2022-05-05", "2022-06-30"]
+    ftx:     ["2022-11-01", "2022-12-31"]
+    calm_23: ["2023-07-01", "2023-09-30"]
+
+# Decision layer (V2_PLAN §6)
+decision:
+  notional_usd: 1000000
+  liquidity_horizon_days: 10
+  basel_multiplier_base: 1.5
+  risk_budget_es99_1d_usd: 120000
+
+paths:
+  store: "data/store/cryptorisk.duckdb"
+  results: "data/results"

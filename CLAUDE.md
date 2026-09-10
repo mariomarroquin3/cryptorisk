@@ -41,13 +41,17 @@ src/cryptorisk/
     registry.py        phase2a_models() / phase2b_models() / phase2c_models() / all_models()
   backtest/
     engine.py          walk_forward(): the model-agnostic OOS loop
-    coverage.py        Kupiec, Christoffersen, Basel traffic light        (done)
-    es_tests.py scoring.py pit.py                                        (Phase 3 stubs)
+    coverage.py        Kupiec, Christoffersen, Engle-Manganelli DQ, Basel   (done)
+    es_tests.py        Acerbi-Szekely Z1/Z2 (+ asymptotic p-value)          (done)
+    scoring.py         FZ0 loss, QLIKE, Diebold-Mariano, Model Confidence Set (done)
+    pit.py             PIT cleaning + Berkowitz LR                          (done)
   study/
     run_ingest.py      `make data`  — build the store, run quality checks
     run_msgarch.py     `make msgarch` — export returns, run R, load predictions
     run_backtests.py   `make backtest` — (model x asset x window) grid -> parquet
-    ...                report, subperiods, regime_identification, vol_forecast_eval  (later)
+    run_evaluation.py  `make evaluate` — full battery -> data/results/eval_*.csv + eval_summary.md
+    vol_forecast_eval.py  QLIKE vs RV, QLIKE-MCS, Mincer-Zarnowitz (called by run_evaluation)
+    ...                report, subperiods, regime_identification            (Phase 4/6)
   decision/            capital, limits, pnl_attribution, hedge            (Phase 5 stubs)
 config/study.yaml      seed, assets, frozen OOS start, windows, alphas, refit cadence,
                        sub-periods, MCS params, decision-layer knobs
@@ -130,7 +134,22 @@ make test lint  # pytest / ruff
 
 - 0 setup · 1 data · 2a engine + 9 models · 2b realized family + CAViaR + GARCH-X
   · 2c MS-GARCH bridge — **done**.
-- Next: **Phase 3** — coverage battery (+ Engle-Manganelli DQ), Acerbi-Székely
-  ES tests, FZ0 loss + Diebold-Mariano + **Model Confidence Set**, PIT/Berkowitz,
-  vol-forecast eval (QLIKE vs RV).
+- **Phase 3 — done**: `run_evaluation` runs the full battery over
+  `backtests.parquet` and writes `eval_coverage.csv`, `eval_es.csv`,
+  `eval_fz0_mcs.csv` (the headline), `eval_density.csv`, `eval_volforecast.csv`,
+  `eval_summary.md`. `make evaluate`.
+  - `eval_fz0_mcs` drops days where any model emits a degenerate forecast
+    (ES ≥ -1e-6 or VaR ≥ 0) so one bad row can't dominate a mean FZ0; the count
+    is in `n_degenerate`.
+  - Acerbi-Székely p-values are the **asymptotic normal** approximation
+    (`z2_pvalue_asymptotic`); the simulation version needs models to expose
+    per-day predictive draws — a later addition.
+  - Headline as of first run: **Realized-GARCH** wins FZ0 in 3 of 4 (asset, α)
+    cells, HAR-RV wins ETH α=0.025; the 90% MCS is wide (13-15 of 16) — low
+    power to separate the middle of the pack, EGARCH-t is the only clear
+    exclusion.
+- **EGARCH-t fix (garch.py)**: the vol guard now has a *floor*
+  (`0.05 * r.std()`), not only a ceiling — a collapsed log-variance forecast was
+  producing σ≈0 hence a *positive* VaR on ~60/2674 days. Re-run
+  `run_backtests --models EGARCH-t` then `run_evaluation` after touching it.
 - Then 4 (sub-periods + regime identification), 5 (decision layer), 6 (report).

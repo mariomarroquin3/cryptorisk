@@ -29,7 +29,7 @@ def _tail_ratio_sum(r: np.ndarray, v: np.ndarray, e: np.ndarray) -> tuple[float,
 
 def z1(realized, var, es) -> float:
     r, v, e = (np.asarray(x, float) for x in (realized, var, es))
-    s, n_hit = _tail_ratio_sum(r, v, e)   # s = -sum(r_t / e_t) over breaches
+    s, n_hit = _tail_ratio_sum(r, v, e)  # s = -sum(r_t / e_t) over breaches
     if n_hit == 0:
         return np.nan
     return s / n_hit + 1.0
@@ -39,6 +39,45 @@ def z2(realized, var, es, alpha: float) -> float:
     r, v, e = (np.asarray(x, float) for x in (realized, var, es))
     s, _ = _tail_ratio_sum(r, v, e)
     return s / (r.size * alpha) + 1.0
+
+
+def z2_pvalue_asymptotic(realized, var, es, alpha: float) -> float:
+    """One-sided p-value ``P(Z2 <= observed)`` from the normal approximation.
+
+    Acerbi & Szekely note ``Z2`` is asymptotically normal. Writing
+    ``y_t = -(r_t / e_t) * 1{r_t < v_t} / alpha`` (mean 1 under H0),
+    ``Z2 = 1 - mean(y_t)`` and ``se(Z2) = std(y_t) / sqrt(n)``. Small p ->
+    reject (ES too optimistic).
+
+    Cheap stand-in for :func:`pvalue_by_simulation`, which needs per-day
+    predictive draws; prefer the simulation version once models expose them.
+    """
+    r, v, e = (np.asarray(x, float) for x in (realized, var, es))
+    y = -(r / e) * (r < v).astype(float) / alpha
+    n = y.size
+    sd = float(y.std(ddof=1)) if n > 1 else 0.0
+    if n == 0 or not np.isfinite(sd) or sd == 0.0:
+        return np.nan
+    from scipy import stats as _st
+
+    return float(_st.norm.cdf(z2(r, v, e, alpha) / (sd / np.sqrt(n))))
+
+
+def z1_pvalue_asymptotic(realized, var, es) -> float:
+    """One-sided p-value ``P(Z1 <= observed)``, normal approximation over the
+    breach days only. See :func:`z2_pvalue_asymptotic`."""
+    r, v, e = (np.asarray(x, float) for x in (realized, var, es))
+    hit = r < v
+    k = int(hit.sum())
+    if k < 2:
+        return np.nan
+    y = -(r[hit] / e[hit])  # mean 1 under H0
+    sd = float(y.std(ddof=1))
+    if not np.isfinite(sd) or sd == 0.0:
+        return np.nan
+    from scipy import stats as _st
+
+    return float(_st.norm.cdf((1.0 - float(y.mean())) / (sd / np.sqrt(k))))
 
 
 def pvalue_by_simulation(

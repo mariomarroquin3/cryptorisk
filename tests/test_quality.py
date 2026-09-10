@@ -2,6 +2,7 @@
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from cryptorisk.data import quality
 
@@ -40,13 +41,43 @@ def test_zero_volume_flagged():
     assert any(f.kind == "zero_volume" for f in quality.check_daily_series("BTC", df))
 
 
-def test_source_divergence_flagged():
+def test_source_divergence_flagged_on_quiet_day():
     dates = pd.date_range("2021-01-01", periods=4, freq="D")
     a = pd.DataFrame({"date": dates, "close": [100.0, 101.0, 102.0, 103.0]})
     b = a.copy()
-    b.loc[2, "close"] = 108.0  # ~5.7% higher on one day
+    b.loc[2, "close"] = 108.0  # ~5.7% source gap on a ~1% move day
     flags = quality.check_source_divergence("BTC", a, b, threshold=0.02)
     assert len(flags) == 1 and flags[0].date == "2021-01-03"
+
+
+def test_source_divergence_suppressed_on_big_move_day():
+    # sources differ 4% but the asset itself moved 20% that day -> timing artefact
+    dates = pd.date_range("2021-01-01", periods=3, freq="D")
+    a = pd.DataFrame({"date": dates, "close": [100.0, 120.0, 121.0]})
+    b = pd.DataFrame({"date": dates, "close": [100.0, 125.0, 121.0]})
+    ret = pd.DataFrame({"date": dates, "log_return": [np.nan, np.log(1.20), np.log(121 / 120)]})
+    flags = quality.check_source_divergence("BTC", a, b, threshold=0.02, returns=ret)
+    assert flags == []
+
+
+def test_apply_allowlist_splits_and_requires_reason():
+    rep = pd.DataFrame({
+        "kind": ["source_divergence", "source_divergence", "extreme_return"],
+        "asset": ["BTC", "BTC", "ETH"],
+        "date": ["2018-05-01", "2020-01-01", "2020-03-12"],
+        "detail": ["x", "y", "z"],
+    })
+    rules = [
+        {"kind": "source_divergence", "before": "2019-01-01", "reason": "USDT basis"},
+        {"kind": "extreme_return", "dates": ["2020-03-12"], "reason": "COVID crash"},
+    ]
+    unexp, expl = quality.apply_allowlist(rep, rules)
+    assert set(unexp["date"]) == {"2020-01-01"}
+    assert set(expl["date"]) == {"2018-05-01", "2020-03-12"}
+    assert "reason" in expl.columns
+
+    with pytest.raises(ValueError):
+        quality.apply_allowlist(rep, [{"kind": "extreme_return"}])  # no reason
 
 
 def test_intraday_coverage_flagged():

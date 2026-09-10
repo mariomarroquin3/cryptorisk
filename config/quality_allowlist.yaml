@@ -1,0 +1,27 @@
+# Known, explained data-quality flags. `run_ingest` suppresses matching rows so
+# the "unexplained" report is what must be empty. Each rule needs a reason.
+
+- kind: source_divergence
+  before: "2019-07-01"
+  reason: >
+    USDT/USD basis. Binance quotes BTCUSDT / ETHUSDT (Tether). USDT traded at a
+    discount to USD through 2018 (down to ~0.92 in Oct 2018) and re-depegged
+    around the NY Attorney General's action against Bitfinex/Tether (filed
+    2019-04-25). The canonical return series uses the CoinMetrics PriceUSD
+    reference (true USD), so the study is unaffected; the flag confirms that
+    choice. Divergence is negligible from mid-2019.
+
+- kind: few_intraday_bars
+  before: "2020-06-01"
+  reason: >
+    Binance exchange maintenance / unscheduled outage days (2018-2020), incl.
+    the multi-day February 2018 upgrade. The daily return series (CoinMetrics
+    reference) does not depend on Binance uptime. Realized measures on these
+    days are computed on partial 5-minute bars and stay flagged for
+    down-weighting in the realized-model evaluation.
+
+- kind: extreme_return
+  dates: ["2020-03-12"]
+  reason: >
+    COVID "Black Thursday" crash. Genuine intraday move of about -47% (BTC) and
+    -57% (ETH), confirmed across venues. A true tail event, not a bad print.

@@ -199,6 +199,37 @@ Non-obvious, still-relevant facts:
 - `methodology.tex` describes CAViaR-**SAV**, but only the **AS** spec is in
   `registry.py` (→ reconcile the doc or add SAV before Phase 6).
 
+## Review backlog (known, not yet fixed)
+
+From the 2026-09 full-project review; none affect a headline (FZ0 / MCS)
+result, all are latent or touch a secondary column.
+
+- **`scoring.diebold_mariano` HLN correction** uses the HAC truncation `lag`
+  where the Harvey–Leybourne–Newbold formula wants the forecast horizon `h`
+  (= 1 here). Shrinks the DM stat (over-conservative). Only `dm_vs_best_p` uses
+  it; the MCS does not.
+- **`jump.py` drift inconsistency**: the MLE centres the n=0 mixture component
+  at `mu_base − λk̄`; `fit_predict` simulates with an extra `−0.5σ²`
+  (`mu_base − 0.5σ² − λk̄`). ~8 bp/day for BTC; nudges Jump-Diffusion VaR/ES
+  slightly more negative than the fitted model.
+- **`.to_numpy(bool)` on `violation`** in `evaluate_coverage` /
+  `run_decision.{capital,limits}_table`: a non-finite VaR → `violation` NaN →
+  `NaN.astype(bool) == True` (counts a non-forecast as a breach). Not triggered
+  today (every model falls back to a finite forecast; 0 nulls in the parquet).
+  Prefer `(realized < var) & isfinite(var)`.
+- **`evaluate_gw_cpa`** (subperiods) does not drop degenerate-forecast days
+  (`v<0 & e<-1e-6`) the way `evaluate_fz0_mcs` does. 3 positive-VaR rows exist
+  (EGARCH-t); harmless only because EGARCH-t is never a per-cell FZ0 best nor a
+  `_GW_CHALLENGERS` member.
+- **`vol_forecast_eval`** uses row-wise `dropna()` (drop the day for every
+  model if one has a NaN `sigma2`); `evaluate_fz0_mcs` uses column-wise
+  `dropna(axis=1)` (drop the model). A sparse `sigma2` (e.g. MS-GARCH bridge)
+  silently shrinks the QLIKE-MCS sample for everyone.
+- **`copula_var` residual alignment**: `marginal._ewma_fallback` compresses out
+  non-finite residuals, and the copula pairs residuals by recency (`x[-L:]`),
+  so an interior drop mis-aligns the pseudo-obs from that point back. Low
+  probability (`arch` `std_resid` rarely has interior NaNs).
+
 ## Conventions
 
 - Commit when work is done and tests are green. v2 commits use

@@ -32,7 +32,7 @@ def _blockchain_chart(chart: str) -> pd.DataFrame:
 
 def _yahoo_series(symbol: str, name: str, start: str, end: str | None) -> pd.DataFrame:
     p0 = int(pd.Timestamp(start, tz="UTC").timestamp())
-    p1 = int((pd.Timestamp(end, tz="UTC") if end else pd.Timestamp.utcnow()).timestamp())
+    p1 = int((pd.Timestamp(end, tz="UTC") if end else pd.Timestamp.now(tz="UTC")).timestamp())
     js = get_json(_YAHOO.format(sym=symbol), params={"period1": p0, "period2": p1, "interval": "1d"})
     res = js["chart"]["result"]
     if not res:
@@ -62,7 +62,7 @@ def _fred_series(series_id: str, name: str) -> pd.DataFrame:
 def build_context(start: str, end: str | None = None, *, cpi_publication_lag_days: int = 45) -> pd.DataFrame:
     """Columns: date, spx, dxy, fed_funds, cpi_lag, hashrate, difficulty
     on a daily calendar from ``start``; slow macro series forward-filled."""
-    cal = pd.DataFrame({"date": pd.date_range(start, end or pd.Timestamp.utcnow().normalize(), freq="D")})
+    cal = pd.DataFrame({"date": pd.date_range(start, end or pd.Timestamp.now(tz="UTC").tz_localize(None).normalize(), freq="D")})
 
     parts = [
         _blockchain_chart("hash-rate").rename(columns={"hash-rate": "hashrate"}),

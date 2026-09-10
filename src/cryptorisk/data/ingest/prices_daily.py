@@ -26,7 +26,7 @@ def fetch_binance_daily(asset: str, start: str, end: str | None = None) -> pd.Da
     """Columns: date, open, high, low, close, volume."""
     sym = _BINANCE_SYMBOL[asset]
     t0 = int(pd.Timestamp(start, tz="UTC").timestamp() * 1000)
-    t1 = int((pd.Timestamp(end, tz="UTC") if end else pd.Timestamp.utcnow()).timestamp() * 1000)
+    t1 = int((pd.Timestamp(end, tz="UTC") if end else pd.Timestamp.now(tz="UTC")).timestamp() * 1000)
     rows: list[list] = []
     cursor = t0
     while cursor < t1:

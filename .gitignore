@@ -22,4 +22,8 @@ data/results/
 .idea/
 .vscode/
 .DS_Store
+
+# report deliverables: the text (results.md, model cards) is versioned;
+# generated binaries are not
 methodology.pdf
+docs/figures/

@@ -16,10 +16,14 @@ sample:
 walk_forward:
   windows: [500]           # rolling window lengths; "expanding" also run in study
   expanding: true
-  refit_every:             # per model family; justified in each model card
+  # NOTE: the Python engine (study.run_backtests) refits every day for every
+  # model -- all Phase-2 models are cheap enough. MS-GARCH's 20-day cadence
+  # lives in msgarch/fit_msgarch_walkforward.R (REFIT_EVERY), not here. These
+  # values are documentation of intent, not read by run_backtests.
+  refit_every:
     default: 1
-    msgarch: 20            # with daily re-filtering via newdata
-    jump: 5
+    msgarch: 20            # enforced in the R script, with daily re-filtering
+    jump: 1
 
 # Risk levels. FRTB uses ES 97.5%; 99% kept for the VaR comparison.
 alphas: [0.025, 0.01]

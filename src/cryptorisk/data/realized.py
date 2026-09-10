@@ -21,11 +21,12 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
+from scipy.special import gamma as _gamma
 from scipy.stats import norm
 
 _MU1 = np.sqrt(2.0 / np.pi)                       # E|Z|
 _BV_C = np.pi / 2.0                               # _MU1 ** -2
-_MU_43 = 2.0 ** (2 / 3) * 0.9027452929509336      # 2^{2/3} Gamma(7/6)/Gamma(1/2)
+_MU_43 = 2.0 ** (2 / 3) * _gamma(7 / 6) / _gamma(1 / 2)   # E|Z|^{4/3} = 0.8308609...
 _TQ_C = _MU_43 ** -3
 _THETA = np.pi**2 / 4.0 + np.pi - 5.0             # ~= 0.6090
 

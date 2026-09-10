@@ -120,10 +120,10 @@ make test lint fmt
 | 4 | sub-periods + Giacomini-White CPA + MS-GARCH regime identification | ✅ |
 | 5 | decision layer (`run_decision`) | ✅ |
 | 6 | results report + model cards + figures (`study/report.py`, `make report`) | ✅ |
-| 7 | portfolio extension — BTC+ETH basket, copula tail (`run_portfolio`, `make portfolio`) | ✅ |
+| 7 | portfolio extension — 4-asset basket (BTC/ETH/SOL/BNB), copula tail (`run_portfolio`, `make portfolio`) | ✅ |
 
-**All phases done**, including the optional Phase 7. Further work is hardening
-(the notes below) or a wider portfolio (SOL/BNB need ingesting first).
+**All phases done**, including the optional Phase 7 (now a 4-asset basket).
+Further work is hardening (the notes below).
 
 Non-obvious, still-relevant facts:
 
@@ -145,17 +145,30 @@ Non-obvious, still-relevant facts:
   (versioned, 16 + README) and `docs/figures/*.png` (**gitignored**). Per-model
   prose lives in `_MODEL_NOTES` in `report.py`; everything else is tabulated
   from the CSVs, so re-run `make report` after any pipeline re-run.
-- **Phase 7** `study.run_portfolio` (`make portfolio`): fixed-weight BTC+ETH
-  basket. `portfolio/marginal.py` = GARCH(1,1)-t vol filter (refit every
-  `config.portfolio.refit_every` days — a documented staleness approximation);
-  `portfolio/copula_var.py` = FHS residual inversion + a 2-D copula
+- **Phase 7** `study.run_portfolio` (`make portfolio`): fixed-weight basket,
+  `config.portfolio.assets` (default BTC/ETH/SOL/BNB, equal weight) — a **separate
+  list from the top-level single-asset `assets`**. Basket assets need only
+  `returns_daily` in the store (copula marginals are plain GARCH-t, `Direct-*`
+  are return-only) — no 5-min bars / realized / MS-GARCH. `portfolio/marginal.py`
+  = GARCH(1,1)-t vol filter (refit every `config.portfolio.refit_every` days);
+  `portfolio/copula_var.py` = FHS residual inversion + a **k-dimensional** copula
   (independence / gaussian / student_t [fixed df] / clayton) via
-  `statsmodels.distributions.copula`, MC-aggregated. Also runs a few univariate
-  models straight on the basket series (`Direct-<model>`) via the normal
-  engine. Evaluated with the Phase-3 battery (`asset="PORTFOLIO"`). Clayton
-  falls back to independence when the fitted theta ≤ 0. Writes
-  `portfolio_backtests.parquet`, `portfolio_eval.csv`, `portfolio_subperiods.csv`,
-  `portfolio_summary.md`.
+  `statsmodels.distributions.copula`, MC-aggregated. gaussian / student_t use a
+  full PSD-repaired correlation matrix (`_corr_from_param` + `_nearest_psd`);
+  `fit_corr_param` returns a scalar for k=2 and a matrix for k≥3. Also runs a few
+  univariate models straight on the basket series (`Direct-<model>`) via the
+  normal engine. Evaluated with the Phase-3 battery (`asset="PORTFOLIO"`).
+  Clayton falls back to independence when the fitted theta ≤ 0. The `## Read`
+  section of `docs/portfolio.md` is **generated from the eval numbers**
+  (`_read_bullets`), not hardcoded. Writes `portfolio_backtests.parquet`,
+  `portfolio_eval.csv`, `portfolio_subperiods.csv`, `docs/portfolio.md`.
+- **Phase 7 data**: SOL is not on the CoinMetrics community tier (HTTP 403), so
+  its reference rate is **Coinbase `SOL-USD`** daily candles
+  (`prices_daily._REFERENCE` / `fetch_reference_daily`; SOL history starts
+  2020-08 on Binance spot, 2021-06 on Coinbase). BNB uses CoinMetrics. The
+  basket's joint OOS therefore starts later than BTC+ETH's (SOL-bound).
+  `run_ingest` stores the reference under its true provider label; quality
+  re-reads pick `source <> 'binance'`.
 
 ## Gotchas
 

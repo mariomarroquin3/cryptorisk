@@ -22,7 +22,7 @@ import pandas as pd
 from cryptorisk.data._http import get_bytes, url_exists
 
 _BASE = "https://data.binance.vision/data/spot/monthly/klines"
-_SYMBOL = {"BTC": "BTCUSDT", "ETH": "ETHUSDT"}
+_SYMBOL = {"BTC": "BTCUSDT", "ETH": "ETHUSDT", "SOL": "SOLUSDT", "BNB": "BNBUSDT"}
 _COLS = [
     "open_time", "open", "high", "low", "close", "volume", "close_time",
     "quote_volume", "trades", "tbb", "tbq", "ignore",

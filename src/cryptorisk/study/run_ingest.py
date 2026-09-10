@@ -31,17 +31,17 @@ def run(assets: list[str], start: str, end: str | None, *, skip_intraday: bool, 
     per_asset_realized: dict[str, pd.DataFrame] = {}
 
     for asset in assets:
-        _log(f"{asset}: daily prices (Binance + CoinMetrics)")
+        ref_name, c = prices_daily.fetch_reference_daily(asset, start, end)
+        _log(f"{asset}: daily prices (Binance + {ref_name})")
         b = prices_daily.fetch_binance_daily(asset, start, end)
-        c = prices_daily.fetch_coinmetrics_daily(asset, start, end)
         store.write_prices_daily(con, asset, "binance", b)
         store.write_prices_daily(
-            con, asset, "coinmetrics",
+            con, asset, ref_name,
             c.assign(open=pd.NA, high=pd.NA, low=pd.NA, volume=pd.NA)[
                 ["date", "open", "high", "low", "close", "volume"]
             ],
         )
-        ret = prices_daily.build_returns(b, c)
+        ret = prices_daily.build_returns(b, c, reference_name=ref_name)
         store.write_returns_daily(con, asset, ret)
         per_asset_daily[asset] = ret.merge(b[["date", "volume"]], on="date", how="left")
         per_asset_sources[asset] = (b[["date", "close"]], c[["date", "close"]])
@@ -95,7 +95,7 @@ def _read_quality_frames(con, assets: list[str]):
             "SELECT date, close FROM prices_daily WHERE asset = ? AND source = 'binance' ORDER BY date", [a]
         ).df()
         pb = con.execute(
-            "SELECT date, close FROM prices_daily WHERE asset = ? AND source = 'coinmetrics' ORDER BY date", [a]
+            "SELECT date, close FROM prices_daily WHERE asset = ? AND source <> 'binance' ORDER BY date", [a]
         ).df()
         per_src[a] = (pa, pb)
         per_rlz[a] = con.execute(

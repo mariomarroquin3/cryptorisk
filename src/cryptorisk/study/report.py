@@ -756,9 +756,8 @@ def results_md(D: dict, figs: dict[str, str]) -> str:
     P(
         "- **The main study is one asset at a time, spot only** &mdash; no "
         "options and the perp hedge uses spot as a price proxy. A fixed-weight "
-        "BTC+ETH basket with a copula tail is the Phase-7 extension in "
-        "[`portfolio.md`](portfolio.md); a wider basket needs SOL/BNB ingested "
-        "first."
+        "4-asset basket (BTC/ETH/SOL/BNB) with a k-dimensional copula tail is "
+        "the Phase-7 extension in [`portfolio.md`](portfolio.md)."
     )
     P(
         "- Model-specific caveats are in the model cards and in "

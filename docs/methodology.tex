@@ -37,6 +37,7 @@
 \newtheorem{assumption}{Assumption}
 
 \newcommand{\intuition}[1]{\par\smallskip\noindent\textit{Reading.}\ #1\par\smallskip}
+\newcommand{\inbrief}[1]{\par\noindent\textbf{In one line.}\ \textit{#1}\par\smallskip}
 
 \title{\textbf{\Large A comparative, out-of-sample study of\\ volatility and tail-risk models for crypto assets}\\[6pt]
 \large Notation, models, and the evaluation methodology of the \texttt{cryptorisk} project}
@@ -167,6 +168,16 @@ running example throughout is a single asset at a single $\alpha$; the study
 repeats everything over $\{$BTC, ETH$\} \times \{0.025, 0.01\}$ and reports it as
 tables.
 
+\paragraph{How to read it.} The document is meant to be usable at two depths.
+For the argument alone, read this introduction, the italic \emph{In one line}
+opener under each model, the \emph{Reading} paragraph that closes most
+subsections, and Table~\ref{tab:tests} (every evaluation test on one page). For
+the mathematics, the equations in between are self-contained given the
+notation glossary in \S\ref{sec:notation}; nothing later depends on a
+derivation the reader has to reconstruct. Symbols are collected in
+\S\ref{sec:notation} so that no equation later relies on a definition made only
+in passing.
+
 %======================================================================
 \section{Setup and the forecasting problem}\label{sec:setup}
 
@@ -199,6 +210,13 @@ For $\alpha\in(0,\tfrac12)$,
 Both are negative return levels for the $\alpha$ we use. Note $\ES_{\alpha,t}\le
 \VaR_{\alpha,t} < 0$ always, and $\ES$ is the average of the worst $\alpha$-fraction
 of outcomes, so it ``sees'' the shape of the tail beyond the quantile.
+
+\intuition{If tomorrow's return is Gaussian with mean $0$ and s.d.\ $3\%$, then
+$\VaR_{0.025}= 0.03\,\Phi^{-1}(0.025)= -5.9\%$ (a worse-than-$5.9\%$ loss has
+$2.5\%$ probability) and $\ES_{0.025}= -0.03\,\phi(\Phi^{-1}(0.025))/0.025 =
+-7.0\%$ (the average loss \emph{given} you are past the VaR). Fat tails push the
+two further apart; every model below is a different way of guessing tomorrow's
+shape.}
 
 \paragraph{The violation process.} With
 $I_{t+1}\eqdef\Ind{r_{t+1} < \VaR_{\alpha,t}}$, a correctly specified model
@@ -271,6 +289,50 @@ way to minimise it in expectation is to report the true functional value.
 Section~\ref{sec:fz} gives the strictly consistent score for
 $(\VaR_\alpha,\ES_\alpha)$.
 
+\subsection{Notation glossary}\label{sec:notation}
+
+Every recurring symbol, in one place. Model-specific parameters are defined
+where the model is.
+
+\begin{center}\small
+\begin{tabular}{@{}ll@{}}
+\toprule
+Symbol & Meaning \\
+\midrule
+$P_t,\ r_t$              & daily close; log-return $\ln P_t-\ln P_{t-1}$ \\
+$\Fcal_t$                & information available at the end of day $t$ \\
+$F_t,\ f_t$              & one-step predictive CDF / density, $\Prob(r_{t+1}\le\cdot\mid\Fcal_t)$ \\
+$\alpha$                 & tail probability; $\alpha\in\{0.025,0.01\}$ (i.e.\ $97.5\%$, $99\%$ VaR) \\
+$\VaR_{\alpha,t},\ \ES_{\alpha,t}$ & $\alpha$-quantile and $\alpha$-tail mean of $F_t$; negative return levels \\
+$v_t,\ e_t$              & shorthand for $\VaR_{\alpha,t}$, $\ES_{\alpha,t}$ in the evaluation section \\
+$I_{t+1}$                & violation indicator $\Ind{r_{t+1}<\VaR_{\alpha,t}}$ \\
+$u_{t+1}$                & probability integral transform $F_t(r_{t+1})$ \\
+$\mu_{t+1},\ \sigma_{t+1}^2,\ h_t$ & conditional mean; conditional variance (two notations, $\sigma^2$ and $h$) \\
+$\eta_t,\ z_t$           & standardized innovation / residual, $\varepsilon_t/\sqrt{h_t}$ \\
+$g_\nu$                  & density of the \emph{standardized} Student-$t_\nu$ (unit variance), \S\ref{sec:garch} \\
+$z_\alpha,\ \bar z_\alpha$ & standardized-$t$ quantile and ES multipliers, \S\ref{sec:garch} \\
+$\Phi,\ \phi$            & standard normal CDF / density \\
+$W_t,\ w$               & estimation window at date $t$; its length ($w=500$) \\
+$t_0$                    & out-of-sample start, $2019$-$05$-$16$ \\
+$k$                      & refit period (days between re-estimations) \\
+$n$                      & number of out-of-sample days ($\approx 2{,}674$) \\
+$\RV_t,\ \BV_t$          & realized variance; bipower variation (jump-robust), \S\ref{sec:realized} \\
+$\RV^{-}_t,\ \RQ_t$      & downside realized semivariance; realized quarticity \\
+$\IV_t,\ \QV_t$          & integrated variance (continuous part); quadratic variation (total) \\
+$M$                      & intraday returns per day ($\approx 288$ at 5-minute sampling) \\
+$L^{\mathrm{FZ0}}_t,\ L^{\mathrm{QL}}_t$ & FZ0 joint $(\VaR,\ES)$ loss; QLIKE variance loss, \S\ref{sec:fz} \\
+$\Mcal,\ \Mcal^\ast$    & a set of competing models; the true set of best models (MCS) \\
+$\dto,\ \pto$            & convergence in distribution / in probability \\
+$\eqdef$                 & equal by definition \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\paragraph{Sign convention.} VaR and ES are \emph{negative} return levels: a
+$97.5\%$ one-day VaR of $-0.06$ means ``a loss worse than $6\%$ tomorrow has
+probability $2.5\%$.'' A violation is $r_{t+1}<\VaR_{\alpha,t}$, and
+$\ES_{\alpha,t}\le\VaR_{\alpha,t}<0$.
+
 %======================================================================
 \section{Data}\label{sec:data}
 
@@ -317,13 +379,23 @@ in an allow-list (the 2018 USDT/USD basis; Binance outage days; the
 2020-03-12 COVID crash), and the pipeline refuses to proceed on any
 \emph{unexplained} flag.
 
+\intuition{One clean daily return series that no single exchange can distort, a
+separate pile of 5-minute bars used only to measure yesterday's variance, and a
+gate that stops the study if it sees a data anomaly it cannot name. Everything
+downstream assumes this layer is trustworthy.}
+
 %======================================================================
 \section{Realized measures}\label{sec:realized}
 
+\inbrief{From the 5-minute bars, build four daily numbers --- how much the price
+actually moved ($\RV$), how much of that was smooth rather than jumps ($\BV$),
+how much was downside ($\RV^{-}$), and how noisy the $\RV$ estimate itself was
+($\RQ$). The realized-measure models in \S\ref{sec:models} are built on these.}
+
 \subsection{Framework}
 
-Assume the log-price follows a Brownian semimartingale with finite-activity
-jumps,
+The formal setup, needed only to state what each measure converges to. Assume
+the log-price follows a Brownian semimartingale with finite-activity jumps,
 \begin{equation}
   d\ln P_s = \mu_s\,ds + \sigma_s\,dW_s + dJ_s,
   \qquad J_s = \sum_{i} \kappa_i\,\Ind{\tau_i \le s},
@@ -438,8 +510,20 @@ $\ES_{\alpha,t}$. Fallbacks (used when an optimiser fails or a forecast
 degenerates) are noted; they always reduce to an empirical quantile of the
 window.
 
+The order is roughly increasing structure. The first two models make no
+distributional assumption at all; EWMA and the GARCH family add a variance
+recursion; FHS and GARCH-EVT keep that recursion but treat the tail
+non-parametrically; the Merton model adds discrete jumps; the realized-measure
+models replace the squared-return signal with observed $\RV$; the last group
+either adds an exogenous driver or models the quantile directly. Reading just
+the \emph{In one line} opener and the \emph{Reading} close of each subsection
+gives the full roster without the algebra.
+
 %----------------------------------------------------------------------
 \subsection{Historical Simulation and age-weighting}
+
+\inbrief{Tomorrow looks like a random draw from the last $w$ days; read VaR and
+ES straight off that sample, optionally down-weighting old days.}
 
 \paragraph{Plain HS.} With $r_{(1)}\le\cdots\le r_{(w)}$ the order statistics of
 $W_t$,
@@ -466,6 +550,9 @@ length, and the decay, are the only knobs.}
 %----------------------------------------------------------------------
 \subsection{EWMA / RiskMetrics}
 
+\inbrief{Track variance as an exponentially fading average of squared returns,
+then put a normal (or fixed-$\nu$ $t$) tail on it.}
+
 Zero conditional mean, one-parameter variance:
 \begin{equation}
   \sigma_{t+1}^2 = \lambda\,\sigma_t^2 + (1-\lambda)\,r_t^2,
@@ -488,6 +575,10 @@ $\alpha=0.01$.}
 
 %----------------------------------------------------------------------
 \subsection{Single-regime GARCH with standardized \texorpdfstring{$t$}{t} innovations}\label{sec:garch}
+
+\inbrief{Let today's variance depend on yesterday's shock and yesterday's
+variance (with a bad-news bonus in GJR/EGARCH), and draw the return from a
+fat-tailed $t$ whose thickness is estimated.}
 
 \paragraph{Specification.} $r_t = \mu + \varepsilon_t$,
 $\varepsilon_t = \sqrt{h_t}\,\eta_t$, $\eta_t\stackrel{\text{iid}}{\sim}$
@@ -551,6 +642,9 @@ Gaussian tail with a fat one whose thickness $\nu$ is estimated.}
 %----------------------------------------------------------------------
 \subsection{Filtered Historical Simulation}
 
+\inbrief{Use GARCH only to remove the volatility dynamics, then read the tail
+off the leftover shocks --- no assumed shape for them.}
+
 Barone-Adesi--Giannopoulos--Vosper (1999). Fit a GARCH(1,1) filter, form the
 standardized residuals $\hat z_s = \hat\varepsilon_s/\sqrt{\hat h_s}$,
 $s\in W_t$, and rescale their empirical tail by the one-step volatility:
@@ -569,6 +663,10 @@ leftover shocks without assuming a shape for them.}
 
 %----------------------------------------------------------------------
 \subsection{GARCH-EVT (McNeil--Frey, 2000)}\label{sec:evt}
+
+\inbrief{Same GARCH filter as FHS, but fit the \emph{only} distribution
+extreme-value theory allows for ``exceedances over a high threshold'' (the
+Generalized Pareto) to the worst residuals, and invert it for VaR/ES.}
 
 \paragraph{Peaks-over-threshold.} Work in loss units $L = -\hat z$. For a
 threshold $u$, the excess distribution is
@@ -633,6 +731,10 @@ extrapolated from the centre.}
 %----------------------------------------------------------------------
 \subsection{Merton jump-diffusion}
 
+\inbrief{Return $=$ a normal ``diffusion'' part $+$ a Poisson number of normal
+``jumps''; the density is a Poisson-weighted mixture of normals, fit by maximum
+likelihood.}
+
 \paragraph{Model.} Under $\Prob$,
 \begin{equation}
   r_{t+1} = \Big(\mu - \tfrac12\sigma^2 - \lambda\bar k\Big)
@@ -665,6 +767,10 @@ GARCH clustering.}
 
 %----------------------------------------------------------------------
 \subsection{HAR-RV and HARQ}\label{sec:har}
+
+\inbrief{Predict tomorrow's realized variance by an OLS regression on its own
+daily, weekly and monthly averages; HARQ shrinks the daily term on days when
+$\RV$ was itself measured noisily.}
 
 \paragraph{HAR-RV} (Corsi, 2009). The heterogeneous-market hypothesis: agents
 act on daily, weekly and monthly horizons, and volatility cascades across them.
@@ -708,6 +814,10 @@ day when the variance estimate itself was noisy, lean on it less.}
 %----------------------------------------------------------------------
 \subsection{Realized GARCH (Hansen--Huang--Shek, 2012)}
 
+\inbrief{A GARCH that updates its variance from observed $\RV$ instead of the
+squared return, plus a ``measurement equation'' that keeps model-variance and
+$\RV$ mutually consistent; both equations fit jointly by maximum likelihood.}
+
 A GARCH whose latent variance is tied to observed $\RV$ by a \emph{measurement
 equation}. With $z_t = r_t/\sqrt{h_t}$, $z_t\sim N(0,1)$, $x_t = \RV_t$:
 \begin{align}
@@ -737,6 +847,10 @@ keeps the two notions of variance consistent.}
 %----------------------------------------------------------------------
 \subsection{GARCH-X}
 
+\inbrief{Plain GARCH-$t$ with one extra term --- lagged $\RV$ --- in the
+variance equation; its coefficient $\gamma$ measures whether measured variance
+adds anything beyond the squared return.}
+
 GARCH(1,1)-$t$ with a lagged realized variance in the variance equation:
 \begin{equation}
   h_t = \omega + \alpha\,r_{t-1}^2 + \beta\,h_{t-1} + \gamma\,x_{t-1},
@@ -752,6 +866,10 @@ anything beyond yesterday's squared return?'' --- $\gamma$ answers it.}
 
 %----------------------------------------------------------------------
 \subsection{CAViaR and CAViaR-X (Engle--Manganelli, 2004)}
+
+\inbrief{Skip the density entirely: write the $\alpha$-quantile itself as an
+autoregression and fit it by minimising the pinball loss so the empirical breach
+rate lands on $\alpha$.}
 
 \paragraph{Model.} The conditional quantile itself follows an autoregression.
 Two specifications, with $(x)^{+}=\max(x,0)$, $(x)^{-}=\max(-x,0)$:
@@ -792,6 +910,10 @@ empirical breach rate comes out at $2.5\%$.}
 
 %----------------------------------------------------------------------
 \subsection{MS-GARCH (2-state Markov-switching)}\label{sec:msgarch}
+
+\inbrief{Two GARCH regimes (calm / turbulent) with a hidden Markov switch
+between them; a filter keeps a running probability of each regime and the
+forecast is the probability-weighted mixture of the two densities.}
 
 \paragraph{Model.} A latent state $S_t\in\{1,2\}$ follows a first-order Markov
 chain with transition matrix $P=(p_{k\ell})$, $p_{k\ell}=\Prob(S_t=\ell\mid
@@ -856,6 +978,33 @@ and is the difference statistically real? --- \S\ref{sec:fz}--\S\ref{sec:mcs}.
 Throughout, $n$ is the number of out-of-sample days,
 $x=\sum_t I_t$ the violations, $\hat\pi=x/n$; specification tests use a $5\%$
 level.
+
+Table~\ref{tab:tests} is the whole battery on one page; the subsections that
+follow give each row's statistic and its reference distribution.
+
+\begin{table}[h]
+\centering\small
+\begin{tabular}{@{}p{3.0cm}p{1.1cm}p{4.6cm}p{4.6cm}@{}}
+\toprule
+Test & Target & Null hypothesis & What a rejection means \\
+\midrule
+Kupiec POF        & VaR & breach rate $=\alpha$ & too many / too few breaches on average \\
+Christoffersen ind.\ / cc & VaR & breaches i.i.d.\ (and rate $=\alpha$) & breaches cluster --- missed vol.\ dynamics \\
+Dynamic Quantile  & VaR & demeaned hit $\perp$ past hits and VaR level & breaches are predictable \\
+Basel traffic light & VaR & $\le4$ exceptions per $250$ days & regulatory amber/red $\Rightarrow$ capital add-on \\
+Acerbi--Székely $Z_1,Z_2$ & ES & realized tail loss matches $\ES$ & $Z<0$: tail losses deeper than forecast \\
+FZ0 loss (mean)   & VaR+ES & --- (a score, not a test) & higher mean loss $\Rightarrow$ worse pair \\
+QLIKE loss (mean) & variance & --- (a score) & higher mean loss $\Rightarrow$ worse variance forecast \\
+Diebold--Mariano  & any loss & two models equally accurate & one model's mean loss is significantly lower \\
+Model Confidence Set & any loss & models in the set are equally accurate & model dropped from the set is significantly worse \\
+Berkowitz         & full density & PIT is i.i.d.\ $N(0,1)$ after $\Phi^{-1}$ & drift, memory, or wrong spread in the density \\
+\bottomrule
+\end{tabular}
+\caption{The evaluation battery at a glance. ``Target'' is the object each test
+judges. FZ0 and QLIKE are scoring functions: they are averaged and fed to
+Diebold--Mariano and the Model Confidence Set rather than compared to a critical
+value.}\label{tab:tests}
+\end{table}
 
 %----------------------------------------------------------------------
 \subsection{Unconditional coverage --- Kupiec POF (1995)}\label{sec:kupiec}
@@ -953,6 +1102,10 @@ deeper than $e_t$, $Z_2$ is clearly negative.}
 %----------------------------------------------------------------------
 \subsection{Consistent scoring: the FZ0 loss}\label{sec:fz}
 
+\inbrief{A single per-day loss for the $(\VaR,\ES)$ pair that is provably
+minimised only by the true values, so its average over the out-of-sample period
+is a legitimate score to rank models by.}
+
 \paragraph{Joint elicitability.} $\VaR_\alpha$ is elicitable (pinball loss);
 $\ES_\alpha$ is not (Gneiting, 2011). But:
 \begin{theorem}[Fissler \& Ziegel, 2016]
@@ -1020,6 +1173,10 @@ autocorrelated, hence the HAC variance.}
 
 %----------------------------------------------------------------------
 \subsection{The Model Confidence Set --- Hansen--Lunde--Nason (2011)}\label{sec:mcs}
+
+\inbrief{Instead of crowning one winner, return the group of models that are
+statistically tied for best: repeatedly test ``are the survivors equally
+accurate?'', drop the worst while the answer is no, stop when it is yes.}
 
 \paragraph{Goal.} Rather than name a single winner, isolate the set
 $\widehat{\Mcal}_{1-\beta}$ of models that cannot be statistically separated
@@ -1126,6 +1283,12 @@ Kolmogorov--Smirnov between model and realized P\&L $\to$ green / amber / red).
 \paragraph{Hedge.} Minimum-variance and ES-minimising hedge ratios against the
 perpetual future; the annualised funding cost of the hedge against the reduction
 in $\ES$ and capital; the spot--perp basis risk in the stress sub-periods.
+
+\intuition{The winning model's ES is turned into three numbers a desk actually
+uses: how much capital to hold, how large a position the risk budget allows, and
+whether a perp hedge is worth its funding cost. The gap between the best and
+worst surviving model becomes an explicit model-risk charge rather than a
+footnote.}
 
 %======================================================================
 \section{What the mathematics does not fix}\label{sec:limits}

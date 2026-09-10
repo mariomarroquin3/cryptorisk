@@ -61,7 +61,12 @@ class _ArchModel:
             sigma_next = float(np.sqrt(fc.variance.iloc[-1, 0])) / _SCALE
             mu_next = float(res.params.get("mu", 0.0)) / _SCALE
             nu = float(res.params.get("nu", 8.0))
-            if not np.isfinite(sigma_next) or sigma_next <= 0 or nu <= 2.05:
+            # A 1-day-ahead conditional vol far above the sample vol is a
+            # numerical artefact (EGARCH log-variance can blow up near the
+            # non-stationary boundary).
+            vol_ceiling = 20.0 * float(r.std())
+            if (not np.isfinite(sigma_next) or sigma_next <= 0
+                    or sigma_next > vol_ceiling or nu <= 2.05):
                 return _fallback(r)
             ppf, cdf, es = student_t_z(nu)
             return ParametricDist(loc=mu_next, scale=sigma_next, z_ppf=ppf, z_cdf=cdf, z_es=es)

@@ -17,8 +17,8 @@ contributors is in [`CLAUDE.md`](CLAUDE.md).
 | 1 | Data layer — DuckDB store, ingestion, realized measures, quality checks | ✅ |
 | 2 | Models — 16 models + the walk-forward engine | ✅ |
 | 3 | **Backtesting battery** — coverage + DQ + Basel, Acerbi–Székely ES, FZ0 loss + **Model Confidence Set**, PIT, vol-forecast eval | ✅ |
-| 4 | Sub-periods (calm vs stress) + MS-GARCH identification study | next |
-| 5 | Decision layer — capital, position limits, P&L attribution, perp hedge | |
+| 4 | Sub-periods (calm vs stress) + Giacomini–White CPA + MS-GARCH identification study | ✅ |
+| 5 | Decision layer — capital, position limits, P&L attribution, perp hedge | next |
 | 6 | Methodology report + model cards | |
 
 Data: BTC & ETH, daily 2018-01 → present, plus **1.8M 5-minute bars** for the
@@ -48,13 +48,15 @@ walk-forward. See `CLAUDE.md` for the interface and each model's quirks.
 python -m venv .venv
 .venv/Scripts/python -m pip install -e ".[dev]"
 
-make test          # ~110 known-answer + integration tests
+make test          # ~150 known-answer + integration tests
 make lint          # ruff
 
 make data          # build the DuckDB store from source APIs   (~30 min)
 make msgarch       # MS-GARCH walk-forward in R                 (~20 min, needs R + MSGARCH)
 make backtest      # (model × asset × window) grid → data/results/backtests.parquet
 make evaluate      # full battery → data/results/eval_*.csv + eval_summary.md
+make subperiods    # stress/calm re-eval + Giacomini–White CPA → eval_subperiods.*
+make regime-id     # MS-GARCH regime identification from cached preds
 ```
 
 The headline result is the FZ0 ranking + 90% Model Confidence Set per

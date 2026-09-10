@@ -30,7 +30,7 @@ _COLS = [
 
 
 def _months(start: str, end: str | None) -> list[pd.Timestamp]:
-    last = (pd.Timestamp(end) if end else pd.Timestamp.utcnow()).normalize().replace(day=1)
+    last = (pd.Timestamp(end) if end else pd.Timestamp.now(tz="UTC").tz_localize(None)).normalize().replace(day=1)
     # only complete months
     last = last - pd.offsets.MonthBegin(1)
     return list(pd.date_range(pd.Timestamp(start).replace(day=1), last, freq="MS"))

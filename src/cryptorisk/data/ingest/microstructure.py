@@ -25,7 +25,7 @@ def fetch_funding_daily(asset: str, start: str, end: str | None = None) -> pd.Da
     """Columns: date, funding_8h  (mean of the day's 8h funding rates)."""
     sym = _PERP[asset]
     t0 = int(pd.Timestamp(start, tz="UTC").timestamp() * 1000)
-    t1 = int((pd.Timestamp(end, tz="UTC") if end else pd.Timestamp.utcnow()).timestamp() * 1000)
+    t1 = int((pd.Timestamp(end, tz="UTC") if end else pd.Timestamp.now(tz="UTC")).timestamp() * 1000)
     rows, cursor = [], t0
     while cursor < t1:
         batch = get_json(_FUNDING, params={"symbol": sym, "startTime": cursor, "endTime": t1, "limit": 1000})
@@ -61,7 +61,7 @@ def fetch_open_interest_daily(asset: str) -> pd.DataFrame:
 def build_microstructure(asset: str, start: str, end: str | None = None) -> pd.DataFrame:
     """Columns: date, funding_8h, open_interest, netflow, stbl_supply_chg
     (last two always NULL for now)."""
-    cal = pd.DataFrame({"date": pd.date_range(start, end or pd.Timestamp.utcnow().normalize(), freq="D")})
+    cal = pd.DataFrame({"date": pd.date_range(start, end or pd.Timestamp.now(tz="UTC").tz_localize(None).normalize(), freq="D")})
     out = cal.merge(fetch_funding_daily(asset, start, end), on="date", how="left")
     out = out.merge(fetch_open_interest_daily(asset), on="date", how="left")
     out["netflow"] = np.nan

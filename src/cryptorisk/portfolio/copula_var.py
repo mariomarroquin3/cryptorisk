@@ -155,16 +155,29 @@ class CopulaVaR:
     ) -> PortfolioForecast:
         fits = marginals or {a: fit_marginal(window[a]) for a in self.assets}
         z = [fits[a].z_resid for a in self.assets]
-        L = min(len(x) for x in z)
-        u = np.column_stack([_pseudo_obs(x[-L:]) for x in z])
 
-        fam, params = _fit_copula(u, self.family, t_df=self.t_df, k_dim=len(self.assets))
+        # Every asset's z_resid must be the *same length* for _pseudo_obs to
+        # pair them day-for-day -- window[a] are equal-length, positionally
+        # aligned slices of a jointly-dropna'd basket (run_portfolio.
+        # _copula_walk_forward), and neither the `arch` GARCH(1,1) fit nor the
+        # EWMA fallback drops observations, so lengths always match in
+        # practice. If they ever don't, truncating each to the last L points
+        # (as before) would silently pair residuals from different calendar
+        # days across assets -- degrade to independence instead of guessing.
+        aligned = len({x.size for x in z}) == 1
+        if not aligned:
+            lmin = min(x.size for x in z)
+            z = [x[-lmin:] for x in z]
+        u = np.column_stack([_pseudo_obs(x) for x in z])
+
+        family = self.family if aligned else "independence"
+        fam, params = _fit_copula(u, family, t_df=self.t_df, k_dim=len(self.assets))
         rng = np.random.default_rng(self.seed)
         u_sim = np.clip(_sample_copula(fam, params, self.n_sim, rng), 1e-9, 1 - 1e-9)
 
         # FHS inverse: empirical quantile of each asset's standardized residuals
         shocks = np.column_stack(
-            [np.quantile(z[i][-L:], u_sim[:, i]) for i in range(len(self.assets))]
+            [np.quantile(z[i], u_sim[:, i]) for i in range(len(self.assets))]
         )
         mu = np.array([fits[a].mu_next for a in self.assets])
         sig = np.array([fits[a].sigma_next for a in self.assets])

@@ -216,21 +216,36 @@ Non-obvious, still-relevant facts:
 - `test_integration` needs the store; skipped otherwise, so CI stays green
   without data.
 
-## Review backlog (known, not yet fixed)
+## Review backlog (2026-09 full-project review — all six items fixed)
 
-From the 2026-09 full-project review. Four of the original six items were
-fixed in a hardening pass (DM HLN horizon, jump.py drift, `.to_numpy(bool)`,
-`evaluate_gw_cpa` degenerate-day filter — see git log). Two remain, both
-latent / secondary-column only:
+All six items are now closed (git log has each commit); none ever moved a
+headline (FZ0/MCS) result — recomputes where needed confirmed byte-identical
+or noise-level changes. Kept as a log of what to watch for after a similar
+review, not open work:
 
-- **`vol_forecast_eval`** uses row-wise `dropna()` (drop the day for every
-  model if one has a NaN `sigma2`); `evaluate_fz0_mcs` uses column-wise
-  `dropna(axis=1)` (drop the model). A sparse `sigma2` (e.g. MS-GARCH bridge)
-  silently shrinks the QLIKE-MCS sample for everyone.
-- **`copula_var` residual alignment**: `marginal._ewma_fallback` compresses out
-  non-finite residuals, and the copula pairs residuals by recency (`x[-L:]`),
-  so an interior drop mis-aligns the pseudo-obs from that point back. Low
-  probability (`arch` `std_resid` rarely has interior NaNs).
+- DM's HLN small-sample correction used the HAC lag instead of the horizon
+  `h=1`; `jump.py`'s simulated drift double-counted an Itô term vs. its own
+  MLE; `.to_numpy(bool)` upcast a non-finite-VaR `NaN` to `True`;
+  `evaluate_gw_cpa` didn't drop degenerate-forecast days the way
+  `evaluate_fz0_mcs` does.
+- `vol_forecast_eval` used row-wise `dropna()` (a single model's NaN `sigma2`
+  would shrink every model's sample); now column-wise like `evaluate_fz0_mcs`
+  (drop that model). No-op on real data today — no model has a *partial* NaN
+  `sigma2` (each is either 0/N or N/N) — but the row-wise version was a latent
+  trap for one that someday does (e.g. a sparser MS-GARCH cache).
+  `test_vol_forecast_drops_a_sparse_model_without_shrinking_the_others` locks
+  it in.
+- `CopulaVaR.fit_predict` paired each asset's `z_resid` by truncating to the
+  shortest and slicing `[-L:]` — silently misaligning calendar days across
+  assets if lengths ever differed (they don't today: every basket asset's
+  window is a jointly-dropna'd, equal-length slice, and neither the `arch`
+  GARCH(1,1) fit nor the EWMA fallback drops observations from an
+  already-finite input). Now asserts the lengths match and degrades to the
+  independence copula — rather than silently claiming a fitted dependence —
+  on the one path that could violate it (`marginals=None`, i.e. not called
+  through `run_portfolio`).
+  `test_copula_var_falls_back_to_independence_on_mismatched_residual_lengths`
+  reproduces the mismatch synthetically and locks in the fallback.
 
 ## Conventions
 

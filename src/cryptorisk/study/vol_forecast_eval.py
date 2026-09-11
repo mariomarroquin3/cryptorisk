@@ -75,7 +75,12 @@ def evaluate_vol_forecasts(
     rv["date"] = pd.to_datetime(rv["date"])
 
     wide = bt.pivot_table(index="date", columns="model", values="sigma2")
-    wide = wide.dropna(axis=1, how="all")
+    # Drop a model if it has ANY missing sigma2, not just if it never has one
+    # (matches evaluate_fz0_mcs's column-wise rule). A model that is only
+    # sparsely missing (e.g. a cache-served bridge with a gap) would otherwise
+    # survive here and force a row-wise .dropna() below that silently shrinks
+    # the QLIKE-MCS sample for every *other* model too.
+    wide = wide.dropna(axis=1, how="any")
     merged = wide.join(rv.set_index("date")["rv"], how="inner").dropna()
     if merged.empty or merged.shape[1] < 2:
         return pd.DataFrame()

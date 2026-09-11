@@ -16,7 +16,7 @@ from cryptorisk.portfolio.copula_var import (
     _pseudo_obs,
     _sample_copula,
 )
-from cryptorisk.portfolio.marginal import fit_marginal
+from cryptorisk.portfolio.marginal import MarginalFit, fit_marginal
 
 _DB = repo_root() / load_config()["paths"]["store"]
 
@@ -124,6 +124,40 @@ def test_copula_var_invariants_and_diversification():
         out[fam] = fc.var[0.025]
     # positively-dependent assets: pretending independence understates basket risk
     assert out["independence"] > out["gaussian"] - 1e-3     # less negative (tighter)
+
+
+def test_fit_marginal_preserves_window_length_on_a_finite_window():
+    """CopulaVaR.fit_predict pairs z_resid day-for-day across assets, which is
+    only sound if every asset's residual array is the same length as its
+    (already finite) input window -- lock in that invariant for both the arch
+    path and the EWMA fallback."""
+    rng = np.random.default_rng(8)
+    long_series = rng.standard_t(6, 300) * 0.02   # long enough for the arch path
+    short_series = rng.normal(0, 0.02, 50)        # too short -> EWMA fallback, forced
+    for r in (long_series, short_series):
+        assert np.isfinite(r).all()
+        fit = fit_marginal(r)
+        assert fit.z_resid.size == r.size  # true on either path (arch or EWMA)
+
+
+def test_copula_var_falls_back_to_independence_on_mismatched_residual_lengths():
+    """If two marginals somehow returned z_resid of different lengths (should
+    not happen -- see fit_predict's comment), pairing them by recency would
+    silently mismatch calendar days across assets. Must degrade to
+    independence rather than claim a fitted dependence structure."""
+    rng = np.random.default_rng(9)
+    fits = {
+        "BTC": MarginalFit(0.0, 0.03, rng.standard_normal(500), 8.0, ok=True),
+        "ETH": MarginalFit(0.0, 0.04, rng.standard_normal(480), 8.0, ok=True),
+    }
+    win = {"BTC": rng.standard_normal(500) * 0.03, "ETH": rng.standard_normal(500) * 0.04}
+    w = {"BTC": 0.5, "ETH": 0.5}
+    fc = CopulaVaR("gaussian", ["BTC", "ETH"], w, n_sim=5000, seed=2).fit_predict(
+        win, [0.025], marginals=fits
+    )
+    assert fc.family_used == "independence"
+    assert fc.var[0.025] < 0
+    assert fc.es[0.025] <= fc.var[0.025] + 1e-9
 
 
 # --------------------------------------------------------------------------- #

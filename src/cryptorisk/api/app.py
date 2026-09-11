@@ -1,0 +1,277 @@
+"""FastAPI app: read-only REST endpoints over the study's pipeline outputs.
+
+``make api`` (or ``uvicorn cryptorisk.api.app:app --reload``), then
+``/docs`` for interactive Swagger docs. No auth -- this is a local,
+read-only, personal-research tool. Do not expose it on an open network
+without adding auth first.
+
+Every endpoint reads already-computed `data/results/` output or the DuckDB
+store; the one exception is `/forecast/{asset}`, which re-fits the chosen
+model in-process for a live, one-step-ahead band (`source: "live_refit"` in
+the response) and falls back to the last frozen backtest row
+(`source: "frozen_backtest"`) if that re-fit isn't supported. See
+`cryptorisk.api.data.today_forecast`.
+"""
+
+from __future__ import annotations
+
+import json
+import math
+from typing import Any
+
+import pandas as pd
+from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
+
+from cryptorisk.api import data as D
+from cryptorisk.config import load_config
+
+app = FastAPI(
+    title="CUBO+ Risk API",
+    description=(
+        "Read-only REST API over the cryptorisk study: VaR/ES per model, "
+        "FZ0/MCS ranking, coverage & ES tests, the 4-asset portfolio, FRTB "
+        "capital, position limits, the perp hedge, MS-GARCH regimes, plus a "
+        "live spot price and an on-demand model re-fit."
+    ),
+    version="1.0.0",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["GET"],
+    allow_headers=["*"],
+)
+
+
+def _records(df: pd.DataFrame) -> list[dict[str, Any]]:
+    """DataFrame -> JSON-safe records (handles NaN/NaT, numpy scalars, dates)."""
+    if df.empty:
+        return []
+    return json.loads(df.to_json(orient="records", date_format="iso"))
+
+
+def _price(last_close: float, log_return: float | None) -> float | None:
+    if log_return is None or not math.isfinite(log_return):
+        return None
+    return last_close * math.exp(log_return)
+
+
+def _check_asset(asset: str, assets: list[str]) -> None:
+    if asset not in assets:
+        raise HTTPException(404, f"unknown asset {asset!r}; must be one of {assets}")
+
+
+def _check_alpha(alpha: float, alphas: list[float]) -> None:
+    if not any(math.isclose(alpha, a) for a in alphas):
+        raise HTTPException(400, f"unknown alpha {alpha!r}; must be one of {alphas}")
+
+
+@app.get("/")
+def root() -> dict:
+    return {"name": "CUBO+ Risk API", "docs": "/docs", "health": "/health"}
+
+
+@app.get("/health")
+def health() -> dict:
+    return {"status": "ok"}
+
+
+@app.get("/config")
+def config() -> dict:
+    cfg = load_config()
+    return {
+        "assets": cfg["assets"],
+        "alphas": cfg["alphas"],
+        "oos_start": str(cfg["sample"]["oos_start"]),
+        "portfolio": cfg.get("portfolio", {}),
+    }
+
+
+@app.get("/models")
+def models() -> list[str]:
+    return D.model_names()
+
+
+@app.get("/price/{asset}")
+def price(asset: str) -> dict:
+    p = D.live_price(asset)
+    if p is None:
+        raise HTTPException(503, f"live price unavailable for {asset!r}")
+    return {"asset": asset, **p}
+
+
+@app.get("/forecast/{asset}")
+def forecast(
+    asset: str,
+    model: str | None = Query(
+        None, description="Model name; defaults to the FZ0-best, in-MCS model for `alpha`"
+    ),
+    alpha: float = Query(0.025, description="Tail probability, e.g. 0.025 -> 97.5% VaR"),
+) -> dict:
+    cfg = load_config()
+    _check_asset(asset, cfg["assets"])
+    _check_alpha(alpha, cfg["alphas"])
+    results = D.load_results()
+    model_name = model or D.primary_model(asset, alpha, results)
+    if model_name is None:
+        raise HTTPException(
+            404, "no FZ0-best model found for this (asset, alpha); pass `model` explicitly"
+        )
+
+    fc = D.today_forecast(asset, model_name, alphas=tuple(cfg["alphas"]))
+    if fc is not None:
+        lo, es, hi = fc.get(f"var_{alpha}"), fc.get(f"es_{alpha}"), fc.get(f"upper_{alpha}")
+        last = fc["last_close"]
+        return {
+            "asset": asset,
+            "model": model_name,
+            "alpha": alpha,
+            "source": "live_refit",
+            "asof": str(fc["asof"]),
+            "last_close": last,
+            "var": lo,
+            "es": es,
+            "upper": hi,
+            "var_price": _price(last, lo),
+            "es_price": _price(last, es),
+            "upper_price": _price(last, hi),
+        }
+
+    bt = D.load_backtests()
+    row = bt[(bt.asset == asset) & (bt.model == model_name) & (bt.alpha == alpha)].tail(1)
+    if row.empty:
+        raise HTTPException(404, f"no forecast available for {asset}/{model_name}")
+    r = row.iloc[0]
+    return {
+        "asset": asset,
+        "model": model_name,
+        "alpha": alpha,
+        "source": "frozen_backtest",
+        "date": str(r["date"]),
+        "var": float(r["var"]),
+        "es": float(r["es"]),
+    }
+
+
+@app.get("/models/comparison")
+def models_comparison(asset: str, alpha: float) -> list[dict]:
+    cfg = load_config()
+    _check_asset(asset, cfg["assets"])
+    _check_alpha(alpha, cfg["alphas"])
+    df = D.load_results()["fz0_mcs"]
+    if df.empty:
+        return []
+    sub = df[(df.asset == asset) & (df.alpha == alpha)].sort_values("fz0_rank")
+    return _records(sub)
+
+
+@app.get("/coverage")
+def coverage(asset: str, alpha: float) -> list[dict]:
+    cfg = load_config()
+    _check_asset(asset, cfg["assets"])
+    _check_alpha(alpha, cfg["alphas"])
+    df = D.load_results()["coverage"]
+    if df.empty:
+        return []
+    return _records(df[(df.asset == asset) & (df.alpha == alpha)].sort_values("model"))
+
+
+@app.get("/es-tests")
+def es_tests(asset: str, alpha: float) -> list[dict]:
+    cfg = load_config()
+    _check_asset(asset, cfg["assets"])
+    _check_alpha(alpha, cfg["alphas"])
+    df = D.load_results()["es"]
+    if df.empty:
+        return []
+    return _records(df[(df.asset == asset) & (df.alpha == alpha)].sort_values("model"))
+
+
+@app.get("/gw-cpa")
+def gw_cpa(asset: str, alpha: float | None = None) -> list[dict]:
+    df = D.load_results()["gw_cpa"]
+    if df.empty:
+        return []
+    sub = df[df.asset == asset]
+    if alpha is not None and "alpha" in df.columns:
+        sub = sub[sub.alpha == alpha]
+    return _records(sub)
+
+
+@app.get("/backtests")
+def backtests(
+    asset: str,
+    model: str,
+    alpha: float,
+    limit: int = Query(500, le=5000, description="Most recent N days"),
+) -> list[dict]:
+    bt = D.load_backtests()
+    if bt.empty:
+        return []
+    sub = bt[(bt.asset == asset) & (bt.model == model) & (bt.alpha == alpha)]
+    sub = sub.sort_values("date").tail(limit)
+    return _records(sub)
+
+
+@app.get("/portfolio/eval")
+def portfolio_eval(alpha: float) -> list[dict]:
+    df = D.load_results()["portfolio_eval"]
+    if df.empty:
+        return []
+    sub = df[(df.asset == "PORTFOLIO") & (df.alpha == alpha)].sort_values("fz0_rank")
+    return _records(sub)
+
+
+@app.get("/portfolio/composition")
+def portfolio_composition() -> dict:
+    cfg = load_config()
+    port = cfg.get("portfolio", {})
+    basket = port.get("assets", [])
+    return {
+        "weights": port.get("weights", {}),
+        "prices": {a: D.live_price(a) for a in basket},
+    }
+
+
+@app.get("/capital")
+def capital(asset: str) -> list[dict]:
+    df = D.load_results()["capital"]
+    if df.empty:
+        return []
+    return _records(df[df.asset == asset].sort_values("capital_usd"))
+
+
+@app.get("/estimation-risk")
+def estimation_risk(asset: str) -> list[dict]:
+    df = D.load_results()["estimation_risk"]
+    if df.empty:
+        return []
+    return _records(df[df.asset == asset])
+
+
+@app.get("/limits")
+def limits(asset: str) -> list[dict]:
+    df = D.load_results()["limits"]
+    if df.empty:
+        return []
+    return _records(df[df.asset == asset])
+
+
+@app.get("/hedge")
+def hedge(asset: str) -> list[dict]:
+    df = D.load_results()["hedge"]
+    if df.empty:
+        return []
+    return _records(df[df.asset == asset])
+
+
+@app.get("/regimes/{asset}")
+def regimes(asset: str, limit: int = Query(2000, le=5000)) -> dict:
+    cfg = load_config()
+    _check_asset(asset, cfg["assets"])
+    series = D.regime_series(asset, limit=limit)
+    corr = D.load_results()["regime"]
+    corr = corr[corr.asset == asset] if not corr.empty else corr
+    return {"series": _records(series), "correlations": _records(corr)}

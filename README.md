@@ -21,6 +21,8 @@ contributors is in [`CLAUDE.md`](CLAUDE.md).
 | 5 | Decision layer — FRTB ES-IMA capital, position limits, PLA test, perp hedge, estimation-risk band | ✅ |
 | 6 | Results report (`docs/results.md`) + 17 model cards + figures | ✅ |
 | 7 | Portfolio extension — 4-asset basket (BTC/ETH/SOL/BNB), copula tail dependence | ✅ |
+| — | Dashboard — Streamlit risk terminal (live price + VaR/ES band, model comparison, capital, portfolio, regimes) | ✅ |
+| — | API — FastAPI read-only REST API over the same outputs, independent of the dashboard | ✅ |
 
 Data: BTC & ETH, daily 2018-01 → present, plus **1.8M 5-minute bars** for the
 realized measures. Out-of-sample period is frozen at **2019-05-16 → present**
@@ -63,6 +65,12 @@ make regime-id     # MS-GARCH regime identification from cached preds
 make decide        # decision layer → decision_*.csv + decision_summary.md
 make report        # assemble docs/results.md + docs/model_cards/ + docs/figures/
 make portfolio     # 4-asset basket VaR/ES with a copula tail → portfolio_* + docs/portfolio.md
+
+.venv/Scripts/python -m pip install -e ".[dashboard]"
+make dashboard     # Streamlit risk terminal → http://localhost:8501
+
+.venv/Scripts/python -m pip install -e ".[api]"
+make api           # FastAPI REST API → http://localhost:8000/docs
 ```
 
 The headline result is the FZ0 ranking + 90% Model Confidence Set per
@@ -85,6 +93,8 @@ src/cryptorisk/
                   · subperiods · regime_identification · run_decision
   decision/       capital (ES-IMA) · limits · pnl_attribution (PLA) · hedge · estimation_risk
   portfolio/      marginal (GARCH-t filter) · copula_var (k-dim Gaussian/t/Clayton)
+  dashboard/      Streamlit terminal (optional extra: pip install -e ".[dashboard]")
+  api/            FastAPI REST API, independent of dashboard/ (optional extra: pip install -e ".[api]")
 config/study.yaml seed, assets, frozen OOS start, windows, alphas, MCS params, ...
 msgarch/          R script + notes for the MS-GARCH bridge
 tests/            one known-answer test per statistical test; test_integration is
@@ -94,6 +104,42 @@ docs/             V2_PLAN.md (scope) · methodology.tex (maths) · results.md +
 ```
 
 `src/` layout: `from cryptorisk.backtest.coverage import kupiec_pof`.
+
+## Dashboard
+
+`make dashboard` (after `pip install -e ".[dashboard]"`) launches a Streamlit
+terminal at `localhost:8501`:
+
+- **Overview** — live BTC/ETH spot price (polled from Binance, no key) next to
+  the FZ0-best model's VaR/ES band, re-fit on demand for a same-session
+  forecast; a trailing price chart with the walk-forward VaR/ES cone and
+  marked OOS violations.
+- **Model Comparison** — FZ0 ranking + 90% MCS, coverage tests, Acerbi–Székely
+  ES tests, Giacomini–White CPA, per (asset, α).
+- **Portfolio** — the 4-asset basket's FZ0/MCS ranking (copula families vs.
+  independence vs. direct univariate models) and live basket composition.
+- **Capital & Decision** — the FRTB capital stack (point ES → model-risk
+  add-on → estimation-risk add-on), position limits, perp hedge.
+- **Regimes** — MS-GARCH crisis probability vs. realized vol, labelled
+  in-sample vs. walk-forward per the caveat in `CLAUDE.md`.
+
+Everything is read-only over `data/results/` and the store, except the live
+"implied range" ticker, which re-fits the selected model in-session — clearly
+badged **LIVE re-fit** vs. **FROZEN backtest** so it's never confused with the
+study's own frozen, versioned numbers.
+
+## API
+
+`make api` (after `pip install -e ".[api]"`) launches a read-only FastAPI
+server at `localhost:8000` (`/docs` for interactive Swagger). It mirrors the
+dashboard's data as JSON — `/config`, `/models`, `/price/{asset}`,
+`/forecast/{asset}` (live re-fit, same semantics as the dashboard's ticker),
+`/models/comparison`, `/coverage`, `/es-tests`, `/gw-cpa`, `/backtests`,
+`/portfolio/eval`, `/portfolio/composition`, `/capital`, `/estimation-risk`,
+`/limits`, `/hedge`, `/regimes/{asset}` — for a custom frontend or any other
+consumer. It's a separate process from the dashboard (no shared code, no
+Streamlit import) so either can run without the other. No auth: a local,
+read-only, personal-research tool, not meant to be exposed on an open network.
 
 ## Data & reproducibility
 

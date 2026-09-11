@@ -32,6 +32,14 @@ dev = [
     "pytest-cov==7.0.0",
     "ruff==0.16.6",
 ]
+dashboard = [
+    "streamlit==1.63.0",
+    "plotly==6.1.2",
+]
+api = [
+    "fastapi==0.141.1",
+    "uvicorn[standard]==0.52.4",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/cryptorisk"]

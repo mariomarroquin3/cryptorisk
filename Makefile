@@ -13,7 +13,7 @@ help:
 	@echo "test      - pytest"
 	@echo "lint      - ruff check"
 	@echo "fmt       - ruff format"
-	@echo "data      - ingest daily/intraday/context/microstructure into the store (Phase 1)"
+	@echo "data      - ingest daily/intraday/context/microstructure + portfolio-basket dailies (Phase 1)"
 	@echo "realized  - compute realized measures from 5-min bars (Phase 1)"
 	@echo "backtest  - walk-forward for all models -> data/results/ (Phase 3)"
 	@echo "evaluate  - full evaluation battery -> data/results/eval_*.csv (Phase 3)"

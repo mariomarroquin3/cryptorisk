@@ -41,7 +41,7 @@ data:
 	$(PY) -m cryptorisk.study.run_ingest
 
 realized:
-	$(PY) -m cryptorisk.data.realized
+	$(PY) -m cryptorisk.study.run_realized
 
 msgarch:
 	$(PY) -m cryptorisk.study.run_msgarch

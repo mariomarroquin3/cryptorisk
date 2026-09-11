@@ -26,6 +26,7 @@ import pandas as pd
 from cryptorisk.backtest.coverage import basel_traffic_light
 from cryptorisk.config import load_config, repo_root
 from cryptorisk.decision import capital as cap
+from cryptorisk.decision import estimation_risk as er
 from cryptorisk.decision import hedge as hg
 from cryptorisk.decision import limits as lim
 from cryptorisk.decision import pnl_attribution as pla
@@ -183,6 +184,59 @@ def pla_table(bt, mcs, cfg) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def estimation_risk_table(cfg) -> pd.DataFrame:
+    """Parameter / sampling uncertainty on the *final* estimation window, for
+    three archetypes (HS, GARCH-t, FHS). The capital delta uses the Basel base
+    multiplier so the three are comparable -- it isolates the estimation-risk
+    contribution, not the absolute capital."""
+    import duckdb
+
+    d = cfg["decision"]
+    N, LH, base = d["notional_usd"], d["liquidity_horizon_days"], d["basel_multiplier_base"]
+    w = int(cfg["walk_forward"]["windows"][0])
+    a_cap = _A_CAPITAL
+    seed = cfg["seed"]
+
+    con = duckdb.connect(str(repo_root() / cfg["paths"]["store"]), read_only=True)
+    rows = []
+    for asset in cfg["assets"]:
+        r = con.execute(
+            "SELECT log_return FROM returns_daily WHERE asset = ? ORDER BY date", [asset]
+        ).df()["log_return"].to_numpy(float)
+        r = r[np.isfinite(r)][-w:]
+        if r.size < w:
+            continue
+        bands = {
+            "HS": er.hs_band(r, [a_cap], seed=seed)[0],
+            "GARCH-t": er.garch_t_band(r, [a_cap], seed=seed)[0],
+            "FHS": er.fhs_band(r, [a_cap], seed=seed)[0],
+        }
+        for name, b in bands.items():
+            rows.append(
+                {
+                    "asset": asset,
+                    "estimator": name,
+                    "alpha": a_cap,
+                    "n_draws": b.n_draws,
+                    "var_point": b.var_point,
+                    "es_point": b.es_point,
+                    "es_se": b.es_se,
+                    "es_lo_p5": b.es_lo,
+                    "es_hi_p95": b.es_hi,
+                    "es_prudent_p5": b.es_prudent,
+                    "es_widening_frac": b.es_widening(),
+                    "capital_point_usd": cap.es_capital(
+                        b.es_point, liquidity_horizon=LH, multiplier=base, notional=N
+                    ),
+                    "estimation_risk_addon_usd": er.capital_addon(
+                        b, liquidity_horizon=LH, multiplier=base, notional=N
+                    ),
+                }
+            )
+    con.close()
+    return pd.DataFrame(rows)
+
+
 def hedge_table(ret_oos, fund_oos, cfg) -> pd.DataFrame:
     N = cfg["decision"]["notional_usd"]
     rows = []
@@ -215,7 +269,7 @@ def hedge_table(ret_oos, fund_oos, cfg) -> pd.DataFrame:
 
 
 # --------------------------------------------------------------------------- #
-def _summary_md(capdf, limdf, pladf, hgdf, cfg) -> str:
+def _summary_md(capdf, limdf, pladf, hgdf, erdf, cfg) -> str:
     d = cfg["decision"]
     o = ["# Decision layer", ""]
     o.append("_`python -m cryptorisk.study.run_decision`._\n")
@@ -240,6 +294,30 @@ def _summary_md(capdf, limdf, pladf, hgdf, cfg) -> str:
                 f"\n{asset}: model-risk add-on (capital spread across the MCS) = "
                 f"${a['model_risk_addon_usd'].iloc[0]:,.0f}.\n"
             )
+
+    if erdf is not None and not erdf.empty:
+        o.append("## Estimation-risk band (final estimation window)\n")
+        o.append(
+            "Parameter / sampling uncertainty on the last "
+            f"{cfg['walk_forward']['windows'][0]}-day window, three archetypes: HS "
+            "(stationary block bootstrap), GARCH-t (draw from the fitted "
+            "asymptotic covariance, re-forecast), FHS (parameter draw + residual "
+            "resample). `ES 97.5% p5` is the prudent (conservative) draw; the "
+            "add-on is `capital(prudent ES) - capital(point ES)` at the Basel "
+            "base multiplier, so it isolates estimation risk.\n"
+        )
+        o.append(
+            "| asset | estimator | ES 97.5% point | ES s.e. | ES 97.5% p5 (prudent) | "
+            "abs-ES widening | est.-risk add-on $ |"
+        )
+        o.append("|:--|:--|--:|--:|--:|--:|--:|")
+        for _, r in erdf.sort_values(["asset", "estimator"]).iterrows():
+            o.append(
+                f"| {r['asset']} | {r['estimator']} | {r['es_point']:.4f} | "
+                f"{r['es_se']:.4f} | {r['es_prudent_p5']:.4f} | "
+                f"{r['es_widening_frac']:+.4f} | {r['estimation_risk_addon_usd']:,.0f} |"
+            )
+        o.append("")
 
     o.append("## Position limit N* (mean 1-day 99% ES = budget) + framework backtest\n")
     o.append(
@@ -324,8 +402,12 @@ def main() -> None:
     hgdf = hedge_table(ret_oos, fund_oos, cfg)
     hgdf.to_csv(res_dir / "decision_hedge.csv", index=False)
 
+    print("[decision] estimation risk ...", flush=True)
+    erdf = estimation_risk_table(cfg)
+    erdf.to_csv(res_dir / "decision_estimation_risk.csv", index=False)
+
     (res_dir / "decision_summary.md").write_text(
-        _summary_md(capdf, limdf, pladf, hgdf, cfg), "utf-8"
+        _summary_md(capdf, limdf, pladf, hgdf, erdf, cfg), "utf-8"
     )
     print(f"[decision] wrote decision_*.csv + decision_summary.md -> {res_dir}")
     print(capdf[capdf.in_mcs][["asset", "model", "m_c", "capital_usd"]].to_string(index=False))

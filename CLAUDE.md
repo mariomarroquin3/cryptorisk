@@ -43,7 +43,7 @@ src/cryptorisk/
     scoring.py         FZ0, QLIKE, Diebold-Mariano, MCS, Giacomini-White CPA
     pit.py             PIT cleaning + Berkowitz LR
   study/               orchestrators, one per `make` target (see Pipeline)
-  decision/            capital (FRTB ES-IMA), limits, pnl_attribution (PLA), hedge
+  decision/            capital (FRTB ES-IMA), limits, pnl_attribution (PLA), hedge, estimation_risk
 config/study.yaml      seed, assets, frozen OOS start, windows, alphas, MCS params,
                        sub-periods, decision-layer knobs
 msgarch/               R scripts + notes for the bridge
@@ -137,9 +137,20 @@ Non-obvious, still-relevant facts:
   (Basel traffic-light) is a **99% concept** → exception count comes from the
   α=0.01 violations. `hedge.funding_carry_*` sign: funding > 0 ⇒ longs pay
   shorts, and the hedge is *short* the perp, so positive carry = **income**. No
-  perp price in the store → perp return proxied by spot (ratios ≈ 1, basis risk
-  unavailable). PLA `implied_rtpl` maps the realized outcome through the model's
-  CDF, so Spearman ≈ 1 by construction — the KS is the discriminating metric.
+  perp price in the store → perp return proxied by spot; with the proxy the
+  ES-min hedge is degenerate (`h→1` zeroes the series) so `ratio_es_min` /
+  `es_hedged` / `es_reduction` are set to NaN → rendered `n/a`. PLA
+  `implied_rtpl` maps the realized outcome through the model's CDF, so Spearman
+  ≈ 1 by construction — the KS is the discriminating metric.
+- **Phase 5 estimation risk** `decision/estimation_risk.py` (`estimation_risk_table`
+  in `run_decision` → `decision_estimation_risk.csv`, §8 of the report): bootstrap
+  the **final** estimation window for 3 archetypes — HS (stationary block
+  bootstrap), GARCH-t (draw θ*~N(θ̂,Σ̂) from `arch`'s `param_cov`, re-`forecast`
+  with `params=θ*`, no refit), FHS (θ* for the vol path + residual resample).
+  Prudent = 5th-pct ES draw; add-on = `es_capital(prudent) − es_capital(point)`
+  at the Basel base multiplier. On this sample $32k–$73k (vs a ~$228k model-risk
+  add-on) → second-order. Closes the "estimation risk not propagated" §9 caveat
+  (now "bounded, not propagated").
 - **Phase 6** `study.report` is a pure assembler: it reads `data/results/*.csv`
   + the store, writes `docs/results.md` (versioned), `docs/model_cards/*.md`
   (versioned, 16 + README) and `docs/figures/*.png` (**gitignored**). Per-model

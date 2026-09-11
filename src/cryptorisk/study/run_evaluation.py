@@ -70,7 +70,10 @@ def evaluate_coverage(
     for asset, window, alpha in _grid(bt, assets):
         sub = _slice(bt, asset, window, alpha)
         for model, g in sub.groupby("model", observed=True):
-            viol = g["violation"].to_numpy(bool)
+            # `violation` is NaN (not True/False) on a day the engine could not
+            # form a finite VaR; `.to_numpy(bool)` would upcast that NaN to
+            # True and silently count a non-forecast as a breach.
+            viol = g["violation"].fillna(False).to_numpy(bool)
             var = g["var"].to_numpy(float)
             kp = kupiec_pof(viol, alpha)
             ci = christoffersen_independence(viol)

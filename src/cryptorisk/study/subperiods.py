@@ -130,11 +130,24 @@ def evaluate_gw_cpa(bt: pd.DataFrame, assets: list[str], cfg: dict) -> pd.DataFr
                 piv_e = sl.pivot_table(index="date", columns="model", values="es").dropna(axis=1)
                 models = sorted(set(piv_v.columns) & set(piv_e.columns))
                 idx = piv_v.index
+                # drop days where ANY surviving model emitted a degenerate
+                # forecast (non-negative VaR / ES not strictly negative) --
+                # same rule as evaluate_fz0_mcs, so a numerical artefact can't
+                # dominate the mean FZ0 gap or the GW statistic.
+                ok = np.ones(len(idx), dtype=bool)
+                for m in models:
+                    v = piv_v.loc[idx, m].to_numpy(float)
+                    e = piv_e.loc[idx, m].to_numpy(float)
+                    ok &= np.isfinite(v) & np.isfinite(e) & (v < 0) & (e < -1e-6)
+                idx = idx[ok]
                 realized = (
                     sl.drop_duplicates("date").set_index("date")["realized"].reindex(idx)
                 ).to_numpy(float)
                 losses = {
-                    m: fz0_loss(realized, piv_v[m].to_numpy(float), piv_e[m].to_numpy(float), alpha)
+                    m: fz0_loss(
+                        realized, piv_v.loc[idx, m].to_numpy(float),
+                        piv_e.loc[idx, m].to_numpy(float), alpha,
+                    )
                     for m in models
                 }
                 best = min(models, key=lambda m: float(np.nanmean(losses[m])))

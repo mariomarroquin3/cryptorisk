@@ -78,7 +78,9 @@ def capital_table(bt, mcs, cfg) -> pd.DataFrame:
         sl = bt[(bt.asset == asset) & (bt.window == 500) & (bt.alpha == _A_CAPITAL)]
         sl99 = bt[(bt.asset == asset) & (bt.window == 500) & (bt.alpha == _A_LIMIT)]
         viol99 = {
-            m: g.sort_values("date")["violation"].to_numpy(bool) for m, g in sl99.groupby("model")
+            # NaN (non-finite VaR that day) -> not a violation, not `.to_numpy(bool)`'s True
+            m: g.sort_values("date")["violation"].fillna(False).to_numpy(bool)
+            for m, g in sl99.groupby("model")
         }
         members = mcs.get((asset, _A_CAPITAL), sorted(sl.model.unique()))
         caps: dict[str, float] = {}

@@ -163,6 +163,7 @@ def test_run_decision_tables_are_wellformed():
             & (bt.model == row["model"])
         ]
         .sort_values("date")["violation"]
+        .fillna(False)
         .to_numpy(bool)
     )
     assert row["exceptions_250d"] == basel_traffic_light(v99).exceptions

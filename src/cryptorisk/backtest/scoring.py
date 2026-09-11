@@ -72,7 +72,14 @@ def _nw_var(d: np.ndarray, lag: int) -> float:
     return acc / n
 
 
-def diebold_mariano(loss_a, loss_b, *, hac_lag: int | None = None) -> DMResult:
+def diebold_mariano(
+    loss_a, loss_b, *, hac_lag: int | None = None, horizon: int = 1
+) -> DMResult:
+    """``horizon`` is the forecast horizon ``h`` (1 for every model here — all
+    are one-step-ahead), used only in the Harvey-Leybourne-Newbold small-sample
+    correction. It is deliberately *not* the HAC truncation lag: HLN (1997)
+    correct for the horizon, and conflating the two over-shrinks the statistic
+    when the HAC lag (~n^(1/3)) is larger than h, which it always is here."""
     a = np.asarray(loss_a, float)
     b = np.asarray(loss_b, float)
     if a.shape != b.shape:
@@ -85,7 +92,8 @@ def diebold_mariano(loss_a, loss_b, *, hac_lag: int | None = None) -> DMResult:
         return DMResult(np.nan, np.nan, float(d.mean()))
     dm = float(d.mean() / np.sqrt(var))
     # Harvey, Leybourne & Newbold (1997) small-sample correction
-    corr = np.sqrt((n + 1 - 2 * lag + lag * (lag - 1) / n) / n)
+    h = horizon
+    corr = np.sqrt((n + 1 - 2 * h + h * (h - 1) / n) / n)
     dm_hln = dm * corr
     p = 2.0 * float(stats.t.sf(abs(dm_hln), df=n - 1))
     return DMResult(dm_hln, p, float(d.mean()))

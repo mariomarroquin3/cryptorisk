@@ -65,7 +65,7 @@ Pass every coverage test: AWHS, CAViaR-AS, CAViaR-X-AS, EGARCH-t, FHS, GARCH-X, 
 | HAR-RV | 0.027 | 0.611 | 0.675 | 0.912 | - | yes |
 | HARQ | 0.035 | 0.002 | 0.004 | 0.000 | - | NO |
 | HS | 0.023 | 0.543 | 0.769 | 0.058 | - | yes |
-| Jump-Diffusion | 0.023 | 0.462 | 0.716 | 0.064 | - | yes |
+| Jump-Diffusion | 0.024 | 0.722 | 0.841 | 0.104 | - | yes |
 | MS-GARCH | 0.023 | 0.462 | 0.716 | 0.922 | - | yes |
 | Realized-GARCH | 0.028 | 0.384 | 0.684 | 0.618 | - | yes |
 
@@ -88,7 +88,7 @@ Pass every coverage test: AWHS, CAViaR-AS, CAViaR-X-AS, EGARCH-t, EWMA, FHS, GAR
 | HAR-RV | 0.019 | 0.000 | 0.000 | 0.000 | amber | NO |
 | HARQ | 0.023 | 0.000 | 0.000 | 0.000 | green | NO |
 | HS | 0.012 | 0.419 | 0.110 | 0.000 | green | NO |
-| Jump-Diffusion | 0.013 | 0.125 | 0.071 | 0.000 | green | NO |
+| Jump-Diffusion | 0.013 | 0.087 | 0.058 | 0.000 | green | NO |
 | MS-GARCH | 0.011 | 0.534 | 0.531 | 0.039 | green | NO |
 | Realized-GARCH | 0.012 | 0.321 | 0.429 | 0.358 | green | yes |
 
@@ -111,7 +111,7 @@ Pass every coverage test: CAViaR-X-AS, EGARCH-t, GARCH-EVT, GARCH-X, GARCH-t, GJ
 | HAR-RV | 0.030 | 0.090 | 0.223 | 0.133 | - | yes |
 | HARQ | 0.036 | 0.000 | 0.002 | 0.000 | - | NO |
 | HS | 0.025 | 0.887 | 0.031 | 0.000 | - | NO |
-| Jump-Diffusion | 0.023 | 0.543 | 0.161 | 0.000 | - | NO |
+| Jump-Diffusion | 0.024 | 0.630 | 0.188 | 0.000 | - | NO |
 | MS-GARCH | 0.024 | 0.630 | 0.188 | 0.064 | - | yes |
 | Realized-GARCH | 0.030 | 0.143 | 0.312 | 0.110 | - | yes |
 
@@ -135,7 +135,7 @@ Acerbi&ndash;Sz&eacute;kely Z1 (conditional on a breach) and Z2 (joint frequency
 | MS-GARCH | 28 | -0.170 | -0.225 | 0.197 |  |
 | CAViaR-X-AS | 30 | -0.080 | -0.211 | 0.197 |  |
 | AWHS | 29 | -0.108 | -0.202 | 0.214 |  |
-| Jump-Diffusion | 31 | -0.022 | -0.185 | 0.217 |  |
+| Jump-Diffusion | 31 | -0.027 | -0.191 | 0.212 |  |
 | EGARCH-t | 23 | -0.290 | -0.109 | 0.380 |  |
 | GARCH-t | 30 | 0.055 | -0.060 | 0.387 |  |
 | GJR-GARCH-t | 29 | 0.047 | -0.034 | 0.435 |  |
@@ -159,8 +159,8 @@ Acerbi&ndash;Sz&eacute;kely Z1 (conditional on a breach) and Z2 (joint frequency
 | EGARCH-t | 61 | -0.110 | -0.012 | 0.474 |  |
 | FHS | 64 | -0.056 | -0.011 | 0.467 |  |
 | MS-GARCH | 61 | -0.107 | -0.010 | 0.474 |  |
+| Jump-Diffusion | 64 | -0.053 | -0.008 | 0.476 |  |
 | AWHS | 62 | -0.080 | -0.002 | 0.495 |  |
-| Jump-Diffusion | 61 | -0.058 | +0.034 | 0.600 |  |
 | GJR-GARCH-t | 65 | 0.010 | +0.037 | 0.612 |  |
 | HS | 62 | -0.024 | +0.051 | 0.648 |  |
 | GARCH-X | 51 | -0.007 | +0.232 | 0.981 |  |
@@ -173,7 +173,7 @@ Acerbi&ndash;Sz&eacute;kely Z1 (conditional on a breach) and Z2 (joint frequency
 | HARQ | 62 | -0.175 | -1.724 | 0.000 | yes |
 | HAR-RV | 52 | -0.139 | -1.215 | 0.000 | yes |
 | AWHS | 37 | -0.061 | -0.468 | 0.037 | yes |
-| Jump-Diffusion | 35 | -0.018 | -0.332 | 0.086 |  |
+| Jump-Diffusion | 36 | -0.018 | -0.370 | 0.066 |  |
 | MS-GARCH | 30 | -0.116 | -0.252 | 0.154 |  |
 | CAViaR-AS | 32 | -0.028 | -0.230 | 0.158 |  |
 | CAViaR-X-AS | 32 | -0.022 | -0.224 | 0.167 |  |
@@ -203,7 +203,7 @@ Acerbi&ndash;Sz&eacute;kely Z1 (conditional on a breach) and Z2 (joint frequency
 | HS | 68 | -0.021 | -0.038 | 0.389 |  |
 | MS-GARCH | 63 | -0.095 | -0.032 | 0.410 |  |
 | EGARCH-t | 71 | 0.033 | -0.027 | 0.417 |  |
-| Jump-Diffusion | 62 | -0.071 | +0.007 | 0.519 |  |
+| Jump-Diffusion | 63 | -0.074 | -0.012 | 0.464 |  |
 | GJR-GARCH-t | 68 | 0.027 | +0.010 | 0.532 |  |
 | GARCH-X | 69 | 0.045 | +0.015 | 0.548 |  |
 
@@ -215,84 +215,84 @@ The Fissler&ndash;Ziegel FZ0 loss is strictly consistent for the (VaR, ES) pair,
 
 | rank | model | mean FZ0 | in MCS | MCS p | DM vs best p |
 |--:|:--|--:|:--:|--:|--:|
-| 1 | Realized-GARCH (best) | -2.1894 | yes | 0.243 | - |
-| 2 | FHS | -2.1600 | yes | 0.243 | 0.470 |
-| 3 | CAViaR-X-AS | -2.1541 | yes | 0.243 | 0.617 |
-| 4 | HAR-RV | -2.1355 | yes | 0.243 | 0.508 |
-| 5 | Jump-Diffusion | -2.1292 | yes | 0.243 | 0.231 |
-| 6 | HS | -2.1159 | yes | 0.243 | 0.128 |
-| 7 | GJR-GARCH-t | -2.1128 | yes | 0.243 | 0.010 |
-| 8 | GARCH-t | -2.1087 | yes | 0.243 | 0.003 |
-| 9 | CAViaR-AS | -2.1016 | yes | 0.243 | 0.270 |
-| 10 | MS-GARCH | -2.0979 | yes | 0.243 | 0.222 |
-| 11 | AWHS | -2.0947 | yes | 0.243 | 0.112 |
-| 12 | GARCH-EVT | -2.0922 | yes | 0.243 | 0.005 |
-| 13 | GARCH-X | -2.0900 | yes | 0.243 | 0.034 |
-| 14 | EWMA | -1.8349 | yes | 0.243 | 0.014 |
-| 15 | EGARCH-t | -1.8132 | yes | 0.243 | 0.155 |
-| 16 | HARQ | -1.7779 | yes | 0.243 | 0.012 |
+| 1 | Realized-GARCH (best) | -2.1894 | yes | 0.244 | - |
+| 2 | FHS | -2.1600 | yes | 0.244 | 0.468 |
+| 3 | CAViaR-X-AS | -2.1541 | yes | 0.244 | 0.616 |
+| 4 | HAR-RV | -2.1355 | yes | 0.244 | 0.506 |
+| 5 | Jump-Diffusion | -2.1279 | yes | 0.244 | 0.224 |
+| 6 | HS | -2.1159 | yes | 0.244 | 0.126 |
+| 7 | GJR-GARCH-t | -2.1128 | yes | 0.244 | 0.009 |
+| 8 | GARCH-t | -2.1087 | yes | 0.244 | 0.003 |
+| 9 | CAViaR-AS | -2.1016 | yes | 0.244 | 0.268 |
+| 10 | MS-GARCH | -2.0979 | yes | 0.244 | 0.219 |
+| 11 | AWHS | -2.0947 | yes | 0.244 | 0.110 |
+| 12 | GARCH-EVT | -2.0922 | yes | 0.244 | 0.005 |
+| 13 | GARCH-X | -2.0900 | yes | 0.244 | 0.033 |
+| 14 | EWMA | -1.8349 | yes | 0.244 | 0.014 |
+| 15 | EGARCH-t | -1.8132 | yes | 0.244 | 0.153 |
+| 16 | HARQ | -1.7779 | yes | 0.244 | 0.011 |
 
 ### BTC &mdash; 97.5%   (dropped 2 degenerate days)
 
 | rank | model | mean FZ0 | in MCS | MCS p | DM vs best p |
 |--:|:--|--:|:--:|--:|--:|
-| 1 | Realized-GARCH (best) | -2.4638 | yes | 0.788 | - |
-| 2 | HAR-RV | -2.4583 | yes | 0.788 | 0.849 |
-| 3 | GJR-GARCH-t | -2.4180 | yes | 0.788 | 0.040 |
-| 4 | FHS | -2.4172 | yes | 0.788 | 0.055 |
-| 5 | MS-GARCH | -2.4098 | yes | 0.788 | 0.132 |
-| 6 | GARCH-t | -2.4043 | yes | 0.788 | 0.006 |
-| 7 | HS | -2.3984 | yes | 0.788 | 0.039 |
-| 8 | Jump-Diffusion | -2.3973 | yes | 0.788 | 0.031 |
-| 9 | CAViaR-AS | -2.3957 | yes | 0.788 | 0.047 |
-| 10 | CAViaR-X-AS | -2.3948 | yes | 0.788 | 0.119 |
-| 11 | AWHS | -2.3930 | yes | 0.788 | 0.040 |
-| 12 | GARCH-EVT | -2.3907 | yes | 0.788 | 0.002 |
-| 13 | GARCH-X | -2.3718 | yes | 0.788 | 0.003 |
-| 14 | EWMA | -2.3322 | yes | 0.788 | 0.017 |
-| 15 | HARQ | -2.2933 | yes | 0.788 | 0.027 |
-| 16 | EGARCH-t | -2.2596 | yes | 0.788 | 0.137 |
+| 1 | Realized-GARCH (best) | -2.4638 | yes | 0.786 | - |
+| 2 | HAR-RV | -2.4583 | yes | 0.786 | 0.848 |
+| 3 | GJR-GARCH-t | -2.4180 | yes | 0.786 | 0.039 |
+| 4 | FHS | -2.4172 | yes | 0.786 | 0.054 |
+| 5 | MS-GARCH | -2.4098 | yes | 0.786 | 0.130 |
+| 6 | GARCH-t | -2.4043 | yes | 0.786 | 0.005 |
+| 7 | HS | -2.3984 | yes | 0.786 | 0.038 |
+| 8 | Jump-Diffusion | -2.3974 | yes | 0.786 | 0.031 |
+| 9 | CAViaR-AS | -2.3957 | yes | 0.786 | 0.046 |
+| 10 | CAViaR-X-AS | -2.3948 | yes | 0.786 | 0.118 |
+| 11 | AWHS | -2.3930 | yes | 0.786 | 0.039 |
+| 12 | GARCH-EVT | -2.3907 | yes | 0.786 | 0.002 |
+| 13 | GARCH-X | -2.3718 | yes | 0.786 | 0.003 |
+| 14 | EWMA | -2.3322 | yes | 0.786 | 0.017 |
+| 15 | HARQ | -2.2933 | yes | 0.786 | 0.027 |
+| 16 | EGARCH-t | -2.2596 | yes | 0.786 | 0.135 |
 
 ### ETH &mdash; 99.0%   (dropped 0 degenerate days)
 
 | rank | model | mean FZ0 | in MCS | MCS p | DM vs best p |
 |--:|:--|--:|:--:|--:|--:|
-| 1 | Realized-GARCH (best) | -1.9197 | yes | 0.134 | - |
-| 2 | GARCH-t | -1.9020 | yes | 0.134 | 0.628 |
-| 3 | GJR-GARCH-t | -1.8924 | yes | 0.134 | 0.481 |
-| 4 | CAViaR-X-AS | -1.8855 | yes | 0.134 | 0.406 |
-| 5 | GARCH-X | -1.8851 | yes | 0.134 | 0.348 |
-| 6 | GARCH-EVT | -1.8850 | yes | 0.134 | 0.248 |
-| 7 | CAViaR-AS | -1.8838 | yes | 0.134 | 0.407 |
-| 8 | HAR-RV | -1.8753 | yes | 0.134 | 0.453 |
-| 9 | EGARCH-t | -1.8751 | yes | 0.134 | 0.279 |
-| 10 | MS-GARCH | -1.8690 | yes | 0.134 | 0.304 |
-| 11 | FHS | -1.8569 | yes | 0.134 | 0.067 |
-| 12 | Jump-Diffusion | -1.7756 | yes | 0.134 | 0.009 |
-| 13 | AWHS | -1.7730 | yes | 0.134 | 0.019 |
-| 14 | HS | -1.7634 | yes | 0.134 | 0.002 |
-| 15 | HARQ | -1.7481 | yes | 0.134 | 0.030 |
-| 16 | EWMA | -1.6308 | yes | 0.134 | 0.008 |
+| 1 | Realized-GARCH (best) | -1.9197 | yes | 0.135 | - |
+| 2 | GARCH-t | -1.9020 | yes | 0.135 | 0.626 |
+| 3 | GJR-GARCH-t | -1.8924 | yes | 0.135 | 0.479 |
+| 4 | CAViaR-X-AS | -1.8855 | yes | 0.135 | 0.404 |
+| 5 | GARCH-X | -1.8851 | yes | 0.135 | 0.345 |
+| 6 | GARCH-EVT | -1.8850 | yes | 0.135 | 0.246 |
+| 7 | CAViaR-AS | -1.8838 | yes | 0.135 | 0.404 |
+| 8 | HAR-RV | -1.8753 | yes | 0.135 | 0.450 |
+| 9 | EGARCH-t | -1.8751 | yes | 0.135 | 0.276 |
+| 10 | MS-GARCH | -1.8690 | yes | 0.135 | 0.302 |
+| 11 | FHS | -1.8569 | yes | 0.135 | 0.066 |
+| 12 | Jump-Diffusion | -1.7732 | yes | 0.135 | 0.008 |
+| 13 | AWHS | -1.7730 | yes | 0.135 | 0.018 |
+| 14 | HS | -1.7634 | yes | 0.135 | 0.002 |
+| 15 | HARQ | -1.7481 | yes | 0.135 | 0.030 |
+| 16 | EWMA | -1.6308 | yes | 0.135 | 0.008 |
 
 ### ETH &mdash; 97.5%   (dropped 0 degenerate days)
 
 | rank | model | mean FZ0 | in MCS | MCS p | DM vs best p |
 |--:|:--|--:|:--:|--:|--:|
 | 1 | HAR-RV (best) | -2.1832 | yes | 0.186 | - |
-| 2 | Realized-GARCH | -2.1646 | yes | 0.186 | 0.361 |
-| 3 | GARCH-t | -2.1572 | yes | 0.186 | 0.389 |
-| 4 | GJR-GARCH-t | -2.1569 | yes | 0.186 | 0.393 |
-| 5 | GARCH-X | -2.1558 | yes | 0.186 | 0.422 |
-| 6 | CAViaR-X-AS | -2.1549 | yes | 0.186 | 0.456 |
-| 7 | GARCH-EVT | -2.1510 | yes | 0.186 | 0.250 |
-| 8 | MS-GARCH | -2.1481 | yes | 0.186 | 0.151 |
-| 9 | EGARCH-t | -2.1379 | yes | 0.186 | 0.178 |
-| 10 | FHS | -2.1346 | yes | 0.186 | 0.060 |
-| 11 | HARQ | -2.1201 | yes | 0.186 | 0.050 |
-| 12 | CAViaR-AS | -2.1182 | yes | 0.186 | 0.105 |
+| 2 | Realized-GARCH | -2.1646 | yes | 0.186 | 0.359 |
+| 3 | GARCH-t | -2.1572 | yes | 0.186 | 0.387 |
+| 4 | GJR-GARCH-t | -2.1569 | yes | 0.186 | 0.391 |
+| 5 | GARCH-X | -2.1558 | yes | 0.186 | 0.420 |
+| 6 | CAViaR-X-AS | -2.1549 | yes | 0.186 | 0.454 |
+| 7 | GARCH-EVT | -2.1510 | yes | 0.186 | 0.248 |
+| 8 | MS-GARCH | -2.1481 | yes | 0.186 | 0.149 |
+| 9 | EGARCH-t | -2.1379 | yes | 0.186 | 0.176 |
+| 10 | FHS | -2.1346 | yes | 0.186 | 0.059 |
+| 11 | HARQ | -2.1201 | yes | 0.186 | 0.049 |
+| 12 | CAViaR-AS | -2.1182 | yes | 0.186 | 0.103 |
 | 13 | AWHS | -2.0842 | yes | 0.186 | 0.003 |
 | 14 | HS | -2.0684 | no | 0.029 | 0.001 |
-| 15 | Jump-Diffusion | -2.0668 | no | 0.029 | 0.001 |
+| 15 | Jump-Diffusion | -2.0671 | no | 0.030 | 0.001 |
 | 16 | EWMA | -2.0617 | yes | 0.186 | 0.002 |
 
 ![FZ0 and MCS](figures/fig03_fz0_mcs.png)
@@ -361,7 +361,7 @@ On the PIT `u_t = F_t(r_t)`: transform to `z_t = Phi^-1(u_t)`, fit an AR(1), LR-
 | EWMA | 17.23 | 0.001 | +0.028 | 1.098 | yes |
 | GARCH-X | 42.04 | 0.000 | +0.013 | 0.838 | yes |
 | HARQ | 63.76 | 0.000 | +0.019 | 1.223 | yes |
-| Jump-Diffusion | 86.40 | 0.000 | -0.028 | 0.769 | yes |
+| Jump-Diffusion | 86.00 | 0.000 | -0.028 | 0.769 | yes |
 
 ### ETH
 
@@ -379,7 +379,7 @@ On the PIT `u_t = F_t(r_t)`: transform to `z_t = Phi^-1(u_t)`, fit an AR(1), LR-
 | AWHS | 8.92 | 0.030 | -0.052 | 1.032 | yes |
 | EWMA | 11.75 | 0.008 | +0.009 | 1.089 | yes |
 | HARQ | 32.07 | 0.000 | +0.000 | 1.158 | yes |
-| Jump-Diffusion | 87.23 | 0.000 | -0.039 | 0.771 | yes |
+| Jump-Diffusion | 86.79 | 0.000 | -0.039 | 0.770 | yes |
 
 ![PIT histograms](figures/fig07_pit.png)
 
@@ -437,18 +437,18 @@ Giacomini&ndash;White test of equal *conditional* predictive ability (FZ0 loss, 
 
 | asset | a | best vs challenger | mean gap | GW p | slope t | slope p | edge vs RV |
 |:--|--:|:--|--:|--:|--:|--:|:--|
-| BTC | 0.01 | Realized-GARCH vs MS-GARCH | -0.0916 | 0.519 | -1.00 | 0.316 | flat |
-| BTC | 0.01 | Realized-GARCH vs HS | -0.0736 | 0.260 | +0.51 | 0.607 | flat |
-| BTC | 0.01 | Realized-GARCH vs EWMA | -0.3544 | 0.029 | -0.64 | 0.523 | flat |
-| BTC | 0.01 | Realized-GARCH vs HARQ | -0.4113 | 0.005 | +0.29 | 0.770 | flat |
-| BTC | 0.01 | Realized-GARCH vs GARCH-t | -0.0808 | 0.009 | +1.39 | 0.164 | flat |
-| BTC | 0.01 | Realized-GARCH vs HAR-RV | -0.0538 | 0.068 | +1.36 | 0.173 | flat |
-| BTC | 0.025 | Realized-GARCH vs MS-GARCH | -0.0541 | 0.399 | -0.83 | 0.406 | flat |
-| BTC | 0.025 | Realized-GARCH vs HS | -0.0654 | 0.130 | +0.39 | 0.695 | flat |
-| BTC | 0.025 | Realized-GARCH vs EWMA | -0.1314 | 0.042 | -0.48 | 0.634 | flat |
-| BTC | 0.025 | Realized-GARCH vs HARQ | -0.1704 | 0.028 | +0.08 | 0.938 | flat |
-| BTC | 0.025 | Realized-GARCH vs GARCH-t | -0.0596 | 0.027 | +0.34 | 0.732 | flat |
-| BTC | 0.025 | Realized-GARCH vs HAR-RV | -0.0055 | 0.152 | +1.63 | 0.103 | flat |
+| BTC | 0.01 | Realized-GARCH vs MS-GARCH | -0.0916 | 0.520 | -1.00 | 0.316 | flat |
+| BTC | 0.01 | Realized-GARCH vs HS | -0.0736 | 0.261 | +0.51 | 0.608 | flat |
+| BTC | 0.01 | Realized-GARCH vs EWMA | -0.3546 | 0.029 | -0.64 | 0.523 | flat |
+| BTC | 0.01 | Realized-GARCH vs HARQ | -0.4115 | 0.005 | +0.29 | 0.770 | flat |
+| BTC | 0.01 | Realized-GARCH vs GARCH-t | -0.0807 | 0.009 | +1.39 | 0.165 | flat |
+| BTC | 0.01 | Realized-GARCH vs HAR-RV | -0.0539 | 0.068 | +1.36 | 0.173 | flat |
+| BTC | 0.025 | Realized-GARCH vs MS-GARCH | -0.0540 | 0.401 | -0.83 | 0.405 | flat |
+| BTC | 0.025 | Realized-GARCH vs HS | -0.0653 | 0.131 | +0.39 | 0.697 | flat |
+| BTC | 0.025 | Realized-GARCH vs EWMA | -0.1315 | 0.042 | -0.48 | 0.632 | flat |
+| BTC | 0.025 | Realized-GARCH vs HARQ | -0.1705 | 0.028 | +0.08 | 0.938 | flat |
+| BTC | 0.025 | Realized-GARCH vs GARCH-t | -0.0595 | 0.028 | +0.34 | 0.737 | flat |
+| BTC | 0.025 | Realized-GARCH vs HAR-RV | -0.0054 | 0.152 | +1.63 | 0.103 | flat |
 | ETH | 0.01 | Realized-GARCH vs MS-GARCH | -0.0508 | 0.369 | -1.65 | 0.099 | flat |
 | ETH | 0.01 | Realized-GARCH vs HS | -0.1564 | 0.012 | +0.02 | 0.984 | flat |
 | ETH | 0.01 | Realized-GARCH vs EWMA | -0.2889 | 0.015 | -1.72 | 0.086 | flat |
@@ -495,7 +495,7 @@ The capital amount uses the 97.5% ES; the multiplier `m_c` (Basel base + traffic
 | BTC | HARQ | 1.90 | -0.2264 | -0.2904 | 430,177 |
 | BTC | AWHS | 1.50 | -0.2873 | -0.2904 | 430,936 |
 | BTC | FHS | 1.50 | -0.2882 | -0.2904 | 432,358 |
-| BTC | Jump-Diffusion | 1.50 | -0.2946 | -0.2904 | 441,826 |
+| BTC | Jump-Diffusion | 1.50 | -0.2928 | -0.2904 | 439,183 |
 | BTC | Realized-GARCH | 1.50 | -0.2954 | -0.2904 | 443,045 |
 | BTC | HS | 1.50 | -0.2971 | -0.2904 | 445,654 |
 | BTC | GJR-GARCH-t | 1.50 | -0.3060 | -0.2904 | 458,928 |
@@ -553,7 +553,7 @@ The estimation-risk add-on ranges $32k&ndash;$73k across the three archetypes an
 | BTC | GARCH-EVT | 927,391 | 6.80 | 0.0026 | 0.0045 | 436,396 |
 | BTC | Realized-GARCH | 949,269 | 5.25 | 0.0030 | 0.0022 | 446,691 |
 | BTC | HS | 985,070 | 1.69 | 0.0030 | 0.0026 | 463,538 |
-| BTC | Jump-Diffusion | 996,274 | 1.75 | 0.0030 | 0.0034 | 468,810 |
+| BTC | Jump-Diffusion | 1,000,905 | 1.75 | 0.0030 | 0.0037 | 470,989 |
 | BTC | FHS | 1,021,097 | 8.89 | 0.0034 | 0.0041 | 480,491 |
 | BTC | AWHS | 1,040,083 | 2.64 | 0.0041 | 0.0052 | 489,425 |
 | BTC | CAViaR-AS | 1,088,694 | 4.59 | 0.0049 | 0.0060 | 512,299 |
@@ -566,8 +566,8 @@ The estimation-risk add-on ranges $32k&ndash;$73k across the three archetypes an
 | ETH | GARCH-X | 686,656 | 8.57 | 0.0022 | 0.0030 | 388,382 |
 | ETH | GJR-GARCH-t | 711,250 | 5.86 | 0.0022 | 0.0037 | 402,293 |
 | ETH | GARCH-t | 712,339 | 6.26 | 0.0022 | 0.0030 | 402,909 |
-| ETH | Jump-Diffusion | 720,263 | 1.74 | 0.0022 | 0.0049 | 407,391 |
 | ETH | HS | 722,694 | 1.64 | 0.0022 | 0.0045 | 408,766 |
+| ETH | Jump-Diffusion | 724,453 | 1.74 | 0.0022 | 0.0052 | 409,761 |
 | ETH | Realized-GARCH | 748,858 | 6.81 | 0.0037 | 0.0030 | 423,565 |
 | ETH | AWHS | 767,016 | 2.10 | 0.0041 | 0.0056 | 433,835 |
 | ETH | FHS | 773,430 | 7.02 | 0.0045 | 0.0052 | 437,463 |
@@ -588,7 +588,7 @@ RTPL is the realized outcome mapped through the model's predictive CDF, so Spear
 | BTC | EWMA | 1.000 | 0.001 | green |
 | BTC | HARQ | 1.000 | 0.006 | green |
 | BTC | HAR-RV | 1.000 | 0.006 | green |
-| BTC | Jump-Diffusion | 0.998 | 0.024 | green |
+| BTC | Jump-Diffusion | 0.998 | 0.031 | green |
 | BTC | Realized-GARCH | 0.998 | 0.064 | green |
 | BTC | GARCH-X | 0.998 | 0.064 | green |
 | BTC | GJR-GARCH-t | 0.995 | 0.085 | green |

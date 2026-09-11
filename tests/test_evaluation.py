@@ -81,6 +81,26 @@ def test_coverage_flags_the_miscalibrated_models(panel):
     assert at1.loc["tight", "basel_zone"] == "red"
 
 
+def test_coverage_treats_nan_violation_as_no_breach():
+    """A day the engine could not form a finite VaR is recorded as `violation
+    = NaN` (see backtest/engine.py); it must not be upcast to True by a naive
+    `.to_numpy(bool)` and counted as a breach."""
+    n = 200
+    dates = pd.bdate_range("2019-05-16", periods=n)
+    bt = pd.DataFrame({
+        "date": dates, "asset": "BTC", "model": "m", "window": 500, "alpha": 0.025,
+        "var": -0.02, "es": -0.03, "realized": 0.0, "violation": False, "pit": 0.5,
+    })
+    # a non-finite-VaR day (as the engine would record it): object dtype so it
+    # can hold True/False/NaN, same as the real backtests.parquet column.
+    bt["violation"] = bt["violation"].astype(object)
+    bt.loc[bt.index[0], "violation"] = np.nan
+    cov = evaluate_coverage(bt, ["BTC"], level=0.05, dq_lags=4)
+    row = cov.iloc[0]
+    assert row["n"] == n
+    assert row["hit_rate"] == pytest.approx(0.0)  # not 1/n from the NaN row
+
+
 def test_es_battery_direction(panel):
     es = evaluate_es(panel, ["BTC"]).set_index(["model", "alpha"])
     # 'tight' ES is optimistic -> Z2 < 0 and the approx p-value rejects

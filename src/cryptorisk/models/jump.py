@@ -1,8 +1,11 @@
 """Merton jump-diffusion (Merton, 1976), V2_PLAN §3.
 
-r = (mu - 0.5 sigma^2 - lam k_bar) + sigma * eps + sum of N ~ Poisson(lam) jumps,
-each ~ N(mu_j, sig_j^2). Parameters by MLE on the window (vectorized mixture
-likelihood, ported from v1). The one-step predictive distribution is an
+r = (mu - lam k_bar) + sigma * eps + sum of N ~ Poisson(lam) jumps, each ~
+N(mu_j, sig_j^2), with ``mu`` the sample mean of the log-return (no extra
+-0.5*sigma^2: that would double-count an Ito correction that does not apply to
+an already-fitted log-return mean -- see the fit_predict comment). Parameters
+by MLE on the window (vectorized mixture likelihood, ported from v1). The
+one-step predictive distribution is an
 :class:`EmpiricalDist` over a large Monte-Carlo sample of next-day returns, so
 VaR/ES/CDF work at any level; ``sigma2`` is the closed-form total variance.
 """
@@ -80,6 +83,11 @@ class JumpDiffusion:
             rng.normal(jp.mu_j * n_jumps, jp.sig_j * np.sqrt(np.maximum(n_jumps, 1))),
             0.0,
         )
-        sim = (mu - 0.5 * sigma**2 - jp.lam * k_bar) + sigma * eps + jump
+        # No extra -0.5*sigma**2 term: `mu` is already the sample mean of the
+        # log-return (estimate_jump_params anchors its n=0 mixture component at
+        # `mu - lam*k_bar`, not `mu - 0.5*sigma**2 - lam*k_bar`); adding it here
+        # would double-count an Ito correction that does not apply to an
+        # already-fitted log-return mean.
+        sim = (mu - jp.lam * k_bar) + sigma * eps + jump
         total_var = sigma**2 + jp.lam * (jp.mu_j**2 + jp.sig_j**2)
         return EmpiricalDist(sample=sim, sigma2_value=float(total_var))

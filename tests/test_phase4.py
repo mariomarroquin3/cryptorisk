@@ -77,6 +77,65 @@ def test_subperiods_full_oos_matches_and_windows_present():
         assert (g["fz0_rank"] == 1).sum() == 1
 
 
+def test_gw_cpa_drops_degenerate_forecast_days(tmp_path):
+    """A single positive-VaR (degenerate) day for a model must not survive
+    into the FZ0 loss / GW statistic -- same rule as evaluate_fz0_mcs."""
+    from scipy import stats
+
+    from cryptorisk.data import store
+    from cryptorisk.study.subperiods import evaluate_gw_cpa
+
+    n = 300
+    dates = pd.bdate_range("2019-05-16", periods=n)
+    rng = np.random.default_rng(3)
+    sig = 0.03
+    r = rng.normal(0, sig, n)
+    r[0] = -0.10  # a genuine breach on day 0, to pair with the degenerate ES
+    a = 0.025
+    z = stats.norm.ppf(a)
+    es_z = -stats.norm.pdf(z) / a
+
+    db = tmp_path / "t.duckdb"
+    con = store.connect(str(db))
+    store.write_realized_daily(con, "BTC", pd.DataFrame({
+        "date": dates, "rv": sig**2, "bv": sig**2, "rsv_pos": (sig / 2) ** 2,
+        "rsv_neg": (sig / 2) ** 2, "jump": 0.0, "rq": 1e-6, "n_bars": 288,
+    }))
+    con.close()
+
+    def mk(model, var, es):
+        return pd.DataFrame({
+            "date": dates, "asset": "BTC", "model": model, "window": 500,
+            "alpha": a, "var": var, "es": es, "realized": r,
+        })
+
+    # HS: correctly calibrated to the true N(0, sig) DGP -> should win FZ0
+    # decisively over 299 draws. Day 0 is degenerate the way EGARCH-t's
+    # collapsed-log-variance bug produced it: VaR still (barely) negative but
+    # ES essentially zero -- a breach that day divides by e -> e0 in fz0_loss.
+    v_hs, e_hs = np.full(n, sig * z), np.full(n, sig * es_z)
+    v_hs[0], e_hs[0] = -1e-7, -1e-8
+    # HAR-RV: badly mis-specified (half the true vol) -> clearly worse.
+    v_har, e_har = np.full(n, 0.5 * sig * z), np.full(n, 0.5 * sig * es_z)
+
+    bt = pd.concat([mk("HS", v_hs, e_hs), mk("HAR-RV", v_har, e_har)], ignore_index=True)
+    cfg = {
+        "paths": {"store": str(db)},
+        "sample": {"oos_start": "2019-05-16"},
+        "evaluation": {"test_level": 0.05},
+    }
+    gw = evaluate_gw_cpa(bt, ["BTC"], cfg)
+    assert not gw.empty
+    row = gw.iloc[0]
+    assert row["model_a"] == "HS" and row["model_b"] == "HAR-RV"
+    # a raw (unfiltered) FZ0 loss on the degenerate day would be ~O(1e6+)
+    # (a breach divided by e0), swamping the mean; with it dropped the gap
+    # stays in the range implied by the other 299 days (HS genuinely, but not
+    # astronomically, better).
+    assert abs(row["mean_fz0_gap"]) < 50.0
+    assert np.isfinite(row["gw_stat"])
+
+
 @pytest.mark.skipif(not (_PARQUET.exists() and _DB.exists()), reason="needs parquet + store")
 def test_gw_cpa_table_is_wellformed():
     from cryptorisk.study.subperiods import evaluate_gw_cpa

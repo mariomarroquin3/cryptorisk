@@ -204,10 +204,19 @@ Non-obvious, still-relevant facts:
   computed and stored but **nothing downstream reads them**.
 - `config/study.yaml` `refit_every` is **documentation only** — `run_backtests`
   refits every model every day; MS-GARCH's cadence is in the R script.
-- **`jump` column**: fixed the tripower-quarticity constant `_MU_43` in
-  `realized.py` (was ~1.7× too big → jump Z over-fired). Nothing reads `jump`,
-  so results are unaffected, but the **stored column is stale until
-  `make realized` re-runs**.
+- **`jump` column**: the tripower-quarticity constant `_MU_43` in `realized.py`
+  was fixed earlier (was ~1.7× too big → jump Z over-fired) but the stored
+  column stayed stale because `make realized` was a no-op (see below) — never
+  actually recomputed until `study.run_realized` existed to run it. Refreshed:
+  BTC/ETH jump-day share ~41.5% → ~32.6%/32.7%. Still nothing reads `jump`.
+- **`make realized` was a silent no-op**: it shelled to
+  `python -m cryptorisk.data.realized`, a pure-function module with no
+  `__main__` (every orchestrator in this repo lives under `cryptorisk.study.*`
+  — `data/*` modules never have their own CLI, matching `data/quality.py`,
+  `data/ingest/*.py`). Added `study/run_realized.py` (reads cached `bars_5m`,
+  recomputes `realized_daily`, no re-fetch) and pointed the Makefile target at
+  it. `--assets` narrows it; safe to re-run (idempotent, same DELETE+INSERT
+  pattern as every other store writer).
 - FRED (fed funds / CPI) is blocked from some networks → those `context_daily`
   columns stay NULL; descriptive only, never VaR features.
 - Quality: first ingest raises ~71 flags, **all allow-listed** (USDT/USD basis

@@ -815,7 +815,9 @@ def results_md(D: dict, figs: dict[str, str]) -> str:
         "`make data && make msgarch && make backtest && make evaluate && "
         "make subperiods && make regime-id && make decide && make report && "
         "make portfolio` rebuilds every artefact from the sources, "
-        "deterministically (seed in `config/study.yaml`). The store and "
+        "deterministically (seed in `config/study.yaml`). `make data` also "
+        "daily-ingests the portfolio basket's extra assets, so `make portfolio` "
+        "needs nothing further. The store and "
         "`data/results/` are gitignored; the text of this report, the model "
         "cards and `portfolio.md` are versioned, the figures are regenerated.\n"
     )

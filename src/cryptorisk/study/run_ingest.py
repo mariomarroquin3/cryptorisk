@@ -24,28 +24,46 @@ def _log(msg: str) -> None:
     print(f"[ingest] {msg}", flush=True)
 
 
-def run(assets: list[str], start: str, end: str | None, *, skip_intraday: bool, db_path: str) -> None:
+def _ingest_daily(con, asset, start, end, per_asset_daily, per_asset_sources) -> None:
+    ref_name, c = prices_daily.fetch_reference_daily(asset, start, end)
+    _log(f"{asset}: daily prices (Binance + {ref_name})")
+    b = prices_daily.fetch_binance_daily(asset, start, end)
+    store.write_prices_daily(con, asset, "binance", b)
+    store.write_prices_daily(
+        con, asset, ref_name,
+        c.assign(open=pd.NA, high=pd.NA, low=pd.NA, volume=pd.NA)[
+            ["date", "open", "high", "low", "close", "volume"]
+        ],
+    )
+    ret = prices_daily.build_returns(b, c, reference_name=ref_name)
+    store.write_returns_daily(con, asset, ret)
+    per_asset_daily[asset] = ret.merge(b[["date", "volume"]], on="date", how="left")
+    per_asset_sources[asset] = (b[["date", "close"]], c[["date", "close"]])
+    _log(f"{asset}: {len(ret)} daily returns {ret['date'].min().date()} -> {ret['date'].max().date()}")
+
+
+def run(
+    assets: list[str],
+    start: str,
+    end: str | None,
+    *,
+    skip_intraday: bool,
+    db_path: str,
+    daily_only: list[str] = (),
+) -> None:
+    """``assets`` get the full treatment (daily + 5-min bars + realized);
+    ``daily_only`` (the portfolio basket's extra assets) get only
+    ``returns_daily`` -- the copula marginals are plain GARCH-t and the
+    ``Direct-*`` models are return-only, so that is all ``make portfolio``
+    needs."""
     con = store.connect(db_path)
     per_asset_daily: dict[str, pd.DataFrame] = {}
     per_asset_sources: dict[str, tuple[pd.DataFrame, pd.DataFrame]] = {}
     per_asset_realized: dict[str, pd.DataFrame] = {}
+    all_assets = [*assets, *[a for a in daily_only if a not in assets]]
 
-    for asset in assets:
-        ref_name, c = prices_daily.fetch_reference_daily(asset, start, end)
-        _log(f"{asset}: daily prices (Binance + {ref_name})")
-        b = prices_daily.fetch_binance_daily(asset, start, end)
-        store.write_prices_daily(con, asset, "binance", b)
-        store.write_prices_daily(
-            con, asset, ref_name,
-            c.assign(open=pd.NA, high=pd.NA, low=pd.NA, volume=pd.NA)[
-                ["date", "open", "high", "low", "close", "volume"]
-            ],
-        )
-        ret = prices_daily.build_returns(b, c, reference_name=ref_name)
-        store.write_returns_daily(con, asset, ret)
-        per_asset_daily[asset] = ret.merge(b[["date", "volume"]], on="date", how="left")
-        per_asset_sources[asset] = (b[["date", "close"]], c[["date", "close"]])
-        _log(f"{asset}: {len(ret)} daily returns {ret['date'].min().date()} -> {ret['date'].max().date()}")
+    for asset in all_assets:
+        _ingest_daily(con, asset, start, end, per_asset_daily, per_asset_sources)
 
     if not skip_intraday:
         for asset in assets:
@@ -72,7 +90,7 @@ def run(assets: list[str], start: str, end: str | None, *, skip_intraday: bool, 
     _log("context (hashrate/difficulty, SPX/DXY, fed/CPI)")
     store.write_context_daily(con, context.build_context(start, end))
 
-    for asset in assets:
+    for asset in all_assets:
         _log(f"{asset}: microstructure (funding, OI - partial)")
         store.write_microstructure_daily(con, asset, microstructure.build_microstructure(asset, start, end))
 
@@ -132,18 +150,30 @@ def main() -> None:
     ap.add_argument("--start", default=cfg["sample"]["start"])
     ap.add_argument("--end", default=cfg["sample"]["end"])
     ap.add_argument("--skip-intraday", action="store_true")
+    ap.add_argument("--skip-portfolio-extras", action="store_true",
+                    help="do not also daily-ingest config.portfolio.assets not in --assets")
     ap.add_argument("--quality-only", action="store_true",
                     help="re-run quality checks against the existing store, no fetching")
     ap.add_argument("--db", default=str(repo_root() / cfg["paths"]["store"]))
     args = ap.parse_args()
     Path(args.db).parent.mkdir(parents=True, exist_ok=True)
 
+    # The portfolio basket (config.portfolio.assets) needs returns_daily for
+    # assets outside the single-asset study universe. Ingest them daily-only
+    # unless the caller narrowed --assets or opted out, so `make data` alone
+    # sets up everything `make portfolio` reads.
+    extras: list[str] = []
+    if not args.skip_portfolio_extras and args.assets == cfg["assets"]:
+        pa = (cfg.get("portfolio") or {}).get("assets", [])
+        extras = [a for a in pa if a not in args.assets]
+
     if args.quality_only:
         con = store.connect(args.db, read_only=True)
-        run_quality(con, *_read_quality_frames(con, args.assets))
+        run_quality(con, *_read_quality_frames(con, [*args.assets, *extras]))
         con.close()
         return
-    run(args.assets, args.start, args.end, skip_intraday=args.skip_intraday, db_path=args.db)
+    run(args.assets, args.start, args.end, skip_intraday=args.skip_intraday,
+        db_path=args.db, daily_only=extras)
 
 
 if __name__ == "__main__":

@@ -160,7 +160,10 @@ Non-obvious, still-relevant facts:
   `config.portfolio.assets` (default BTC/ETH/SOL/BNB, equal weight) — a **separate
   list from the top-level single-asset `assets`**. Basket assets need only
   `returns_daily` in the store (copula marginals are plain GARCH-t, `Direct-*`
-  are return-only) — no 5-min bars / realized / MS-GARCH. `portfolio/marginal.py`
+  are return-only) — no 5-min bars / realized / MS-GARCH. `make data` /
+  `run_ingest` **auto-ingests the `portfolio.assets` not in `assets`
+  daily-only** (unless `--assets` is narrowed or `--skip-portfolio-extras`), so
+  the reproducibility chain works from a clean checkout. `portfolio/marginal.py`
   = GARCH(1,1)-t vol filter (refit every `config.portfolio.refit_every` days);
   `portfolio/copula_var.py` = FHS residual inversion + a **k-dimensional** copula
   (independence / gaussian / student_t [fixed df] / clayton) via

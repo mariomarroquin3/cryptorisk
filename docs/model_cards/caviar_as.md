@@ -7,10 +7,10 @@
 
 | asset | a | hit rate | coverage | ES Z2 | ES ok | FZ0 rank | in MCS |
 |:--|--:|--:|:--:|--:|:--:|--:|:--:|
-| BTC | 0.01 | 0.011 | pass | -0.24 | yes | 9/16 | yes |
-| BTC | 0.025 | 0.026 | pass | -0.12 | yes | 9/16 | yes |
-| ETH | 0.01 | 0.012 | FAIL | -0.23 | yes | 7/16 | yes |
-| ETH | 0.025 | 0.028 | FAIL | -0.16 | yes | 12/16 | yes |
+| BTC | 0.01 | 0.011 | pass | -0.24 | yes | 10/17 | yes |
+| BTC | 0.025 | 0.026 | pass | -0.12 | yes | 9/17 | yes |
+| ETH | 0.01 | 0.012 | FAIL | -0.23 | yes | 7/17 | yes |
+| ETH | 0.025 | 0.028 | FAIL | -0.16 | yes | 12/17 | yes |
 
 **Density:** no full predictive density (quantile-only model).
 

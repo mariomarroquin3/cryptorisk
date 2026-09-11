@@ -124,6 +124,14 @@ _MODEL_NOTES: dict[str, tuple[str, list[str]]] = {
             "The exogenous term is a single contemporaneous lag.",
         ],
     ),
+    "CAViaR-SAV": (
+        "Autoregression of the quantile itself (symmetric absolute value), fit by the tick loss.",
+        [
+            "No full density: no PIT / Berkowitz, and ES is a scaled quantile.",
+            "Symmetric news impact -- unlike AS it cannot react differently to good vs bad days.",
+            "Fit separately per alpha; cross-alpha monotonicity is repaired ex-post.",
+        ],
+    ),
     "CAViaR-AS": (
         "Autoregression of the quantile itself (asymmetric slope), fit by the tick loss.",
         [
@@ -162,6 +170,7 @@ _METHOD_FAMILY = {
     "HARQ": "Realized-measure",
     "Realized-GARCH": "Realized-measure",
     "GARCH-X": "Exogenous / conditional",
+    "CAViaR-SAV": "Exogenous / conditional",
     "CAViaR-AS": "Exogenous / conditional",
     "CAViaR-X-AS": "Exogenous / conditional",
     "MS-GARCH": "Regime-switching",
@@ -788,7 +797,7 @@ def results_md(D: dict, figs: dict[str, str]) -> str:
         "assets, a longer sample, or a rolling-origin MCS stability analysis."
     )
     P(
-        "- **Multiple testing.** 16 models x 2 assets x 2 alpha, no family-wise "
+        "- **Multiple testing.** 17 models x 2 assets x 2 alpha, no family-wise "
         "correction; the sub-period split makes this worse (n drops fast)."
     )
     P(

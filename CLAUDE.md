@@ -44,6 +44,8 @@ src/cryptorisk/
     pit.py             PIT cleaning + Berkowitz LR
   study/               orchestrators, one per `make` target (see Pipeline)
   decision/            capital (FRTB ES-IMA), limits, pnl_attribution (PLA), hedge, estimation_risk
+  dashboard/           Streamlit terminal over data/results/ + a live price feed (`make dashboard`)
+  api/                 FastAPI read-only REST API, independent of dashboard/ (`make api`)
 config/study.yaml      seed, assets, frozen OOS start, windows, alphas, MCS params,
                        sub-periods, decision-layer knobs
 msgarch/               R scripts + notes for the bridge
@@ -104,6 +106,9 @@ make subperiods  # stress/calm re-eval + Giacomini-White CPA -> eval_subperiods.
 make regime-id   # MS-GARCH regime-prob vs vol state -> regime_identification.*
 make decide      # FRTB capital / limits / PLA / hedge -> decision_*.csv + decision_summary.md
 make report      # assemble docs/results.md + docs/model_cards/ + docs/figures/
+make portfolio   # 4-asset basket VaR/ES with a copula tail -> portfolio_*
+make dashboard   # Streamlit terminal (pip install -e ".[dashboard]" first) -> localhost:8501
+make api         # FastAPI REST API (pip install -e ".[api]" first) -> localhost:8000/docs
 make test lint fmt
 ```
 
@@ -224,6 +229,28 @@ Non-obvious, still-relevant facts:
   non-zero on any *unexplained* flag.
 - `test_integration` needs the store; skipped otherwise, so CI stays green
   without data.
+- **`dashboard/`** (2026-09, `make dashboard`) is read-only over `data/results/`
+  + the store, plus a polled Binance spot price (no key). The one exception is
+  `dashboard/data.py::today_forecast`, which **re-fits** the selected model on
+  the latest cached window for a live one-step-ahead band next to the live
+  price -- explicitly badged "LIVE re-fit" vs. "FROZEN backtest" in the UI so
+  it's never mistaken for the study's own frozen numbers. Falls back to the
+  last stored backtest row if the live re-fit isn't supported (no ppf on a
+  `QuantileDist` model just means no upper bound, not a failure -- shown as
+  a one-sided "VaR floor" instead of a two-sided range). `streamlit`/`plotly`
+  are an **optional** extra (`pip install -e ".[dashboard]"`), not in the core
+  `dependencies` -- the study pipeline itself has no UI dependency.
+- **`api/`** (2026-09, `make api`) is a FastAPI read-only REST API mirroring
+  the dashboard's data (VaR/ES, FZ0/MCS, coverage/ES tests, portfolio,
+  capital, regimes) plus a live price and `/forecast/{asset}` (same live
+  re-fit semantics as the dashboard's ticker: `source: "live_refit"` vs.
+  `"frozen_backtest"`). Deliberately does **not** import `cryptorisk.dashboard`
+  or Streamlit -- `api/data.py` duplicates the small amount of read logic
+  instead, so the two surfaces can run as fully independent processes. Its own
+  optional extra (`pip install -e ".[api]"`: `fastapi`, `uvicorn`). No auth --
+  local/personal use only; `/docs` for interactive Swagger. Caching is a
+  hand-rolled in-process TTL dict (`api/cache.py`), not Streamlit's
+  `st.cache_data` (unavailable outside a Streamlit run).
 
 ## Review backlog (2026-09 full-project review — all six items fixed)
 

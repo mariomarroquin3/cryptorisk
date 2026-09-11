@@ -43,6 +43,7 @@ def phase2b_models(alphas: tuple[float, ...] | None = None) -> list[Model]:
         HAR(harq=True),
         RealizedGARCH(),
         GarchX(),
+        CAViaR(alphas, spec="SAV"),
         CAViaR(alphas, spec="AS"),
         CAViaR(alphas, spec="AS", exog=True),
     ]

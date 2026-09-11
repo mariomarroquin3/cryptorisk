@@ -6,7 +6,7 @@ findings live in `data/results/*_summary.md` — don't duplicate either here.
 
 ## What this is
 
-Comparative out-of-sample study of ~16 volatility / tail-risk models for crypto
+Comparative out-of-sample study of ~17 volatility / tail-risk models for crypto
 (BTC + ETH), VaR & ES, ranked with statistical significance (Model Confidence
 Set). v1 (`cubo-btc-risk`, separate repo) was the proof of concept.
 
@@ -65,11 +65,11 @@ calls it once per OOS day, queries the dist at each `alpha`.
   (weighted sample), `QuantileDist` ((VaR,ES) pairs only — CAViaR, MS-GARCH
   bridge; no `cdf`/`sigma2`). `sigma2/cdf/ppf` may raise `NotImplementedError`.
 
-### The 16 models & their quirks
+### The 17 models & their quirks
 
 HS, AWHS · EWMA · GARCH-t, GJR-GARCH-t, EGARCH-t · FHS · GARCH-EVT ·
-Jump-Diffusion · HAR-RV, HARQ · Realized-GARCH · GARCH-X · CAViaR-AS,
-CAViaR-X-AS · MS-GARCH.
+Jump-Diffusion · HAR-RV, HARQ · Realized-GARCH · GARCH-X · CAViaR-SAV,
+CAViaR-AS, CAViaR-X-AS · MS-GARCH.
 
 - GARCH family uses a **standardized** Student-t: rescale the scipy-t quantile
   by `sqrt((nu-2)/nu)` (`_dist.student_t_z`) — the factor v1 dropped.
@@ -79,6 +79,11 @@ CAViaR-X-AS · MS-GARCH.
   the window's empirical quantile on any failure.
 - **CAViaR** is fit **per alpha** → built with the study's alpha list; returns a
   `QuantileDist` (with a positive-VaR guard and quantile-crossing repair).
+  **CAViaR-SAV** (symmetric news impact, no `(r)+`/`(r)-` split) added in the
+  2026-09 hardening pass — `methodology.tex` had described it since Phase 6 but
+  the registry only ever instantiated AS. Its rank swings hard by cell (BTC
+  1%: 2/17; ETH 2.5%: 17/17, fails coverage+ES) — the asymmetry AS adds is not
+  cosmetic for ETH.
 - AR(1) recursions in CAViaR / Realized-GARCH / GARCH-X use `scipy.signal.lfilter`,
   not Python loops (Realized-GARCH: 751s → 37s/window).
 - **MS-GARCH** runs its whole walk-forward in **R** (`make msgarch`), caches
@@ -115,7 +120,7 @@ make test lint fmt
 
 | # | scope | state |
 |---|---|---|
-| 0-2 | setup · data layer · 16 models + engine + R bridge | ✅ |
+| 0-2 | setup · data layer · 17 models + engine + R bridge | ✅ |
 | 3 | evaluation battery (`run_evaluation`, `vol_forecast_eval`) | ✅ |
 | 4 | sub-periods + Giacomini-White CPA + MS-GARCH regime identification | ✅ |
 | 5 | decision layer (`run_decision`) | ✅ |
@@ -210,8 +215,6 @@ Non-obvious, still-relevant facts:
   non-zero on any *unexplained* flag.
 - `test_integration` needs the store; skipped otherwise, so CI stays green
   without data.
-- `methodology.tex` describes CAViaR-**SAV**, but only the **AS** spec is in
-  `registry.py` (→ reconcile the doc or add SAV before Phase 6).
 
 ## Review backlog (known, not yet fixed)
 

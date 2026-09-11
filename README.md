@@ -15,11 +15,11 @@ contributors is in [`CLAUDE.md`](CLAUDE.md).
 |---|---|---|
 | 0 | Setup — pinned deps, config, CI, test harness | ✅ |
 | 1 | Data layer — DuckDB store, ingestion, realized measures, quality checks | ✅ |
-| 2 | Models — 16 models + the walk-forward engine | ✅ |
+| 2 | Models — 17 models + the walk-forward engine | ✅ |
 | 3 | **Backtesting battery** — coverage + DQ + Basel, Acerbi–Székely ES, FZ0 loss + **Model Confidence Set**, PIT, vol-forecast eval | ✅ |
 | 4 | Sub-periods (calm vs stress) + Giacomini–White CPA + MS-GARCH identification study | ✅ |
 | 5 | Decision layer — FRTB ES-IMA capital, position limits, PLA test, perp hedge, estimation-risk band | ✅ |
-| 6 | Results report (`docs/results.md`) + 16 model cards + figures | ✅ |
+| 6 | Results report (`docs/results.md`) + 17 model cards + figures | ✅ |
 | 7 | Portfolio extension — 4-asset basket (BTC/ETH/SOL/BNB), copula tail dependence | ✅ |
 
 Data: BTC & ETH, daily 2018-01 → present, plus **1.8M 5-minute bars** for the
@@ -28,7 +28,7 @@ realized measures. Out-of-sample period is frozen at **2019-05-16 → present**
 = Coinbase, since it is not on the CoinMetrics community tier); its joint OOS
 starts later (SOL-bound, ~2020-08).
 
-## The 16 models
+## The 17 models
 
 | Family | Models |
 |---|---|
@@ -38,7 +38,7 @@ starts later (SOL-bound, ~2020-08).
 | Semiparametric tail | Filtered Historical Simulation, GARCH-EVT (McNeil–Frey) |
 | Discontinuous | Merton jump-diffusion |
 | Realized-measure | HAR-RV, HARQ, Realized GARCH |
-| Exogenous / conditional | GARCH-X, CAViaR-AS, CAViaR-X-AS |
+| Exogenous / conditional | GARCH-X, CAViaR-SAV, CAViaR-AS, CAViaR-X-AS |
 | Regime-switching | MS-GARCH (2-state, via an R bridge) |
 
 Each returns a one-step predictive distribution through a common interface

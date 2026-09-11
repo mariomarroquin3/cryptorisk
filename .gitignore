@@ -27,3 +27,11 @@ data/results/
 # generated binaries are not
 methodology.pdf
 docs/figures/
+# LaTeX build by-products
+docs/*.aux
+docs/*.log
+docs/*.out
+docs/*.toc
+docs/*.fls
+docs/*.fdb_latexmk
+docs/*.synctex.gz

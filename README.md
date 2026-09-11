@@ -18,7 +18,7 @@ contributors is in [`CLAUDE.md`](CLAUDE.md).
 | 2 | Models — 16 models + the walk-forward engine | ✅ |
 | 3 | **Backtesting battery** — coverage + DQ + Basel, Acerbi–Székely ES, FZ0 loss + **Model Confidence Set**, PIT, vol-forecast eval | ✅ |
 | 4 | Sub-periods (calm vs stress) + Giacomini–White CPA + MS-GARCH identification study | ✅ |
-| 5 | Decision layer — FRTB ES-IMA capital, position limits, PLA test, perp hedge | ✅ |
+| 5 | Decision layer — FRTB ES-IMA capital, position limits, PLA test, perp hedge, estimation-risk band | ✅ |
 | 6 | Results report (`docs/results.md`) + 16 model cards + figures | ✅ |
 | 7 | Portfolio extension — 4-asset basket (BTC/ETH/SOL/BNB), copula tail dependence | ✅ |
 
@@ -83,7 +83,7 @@ src/cryptorisk/
   backtest/       engine.py (walk-forward) · coverage · es_tests · scoring (FZ0/DM/MCS/GW) · pit
   study/          run_ingest · run_msgarch · run_backtests · run_evaluation · vol_forecast_eval
                   · subperiods · regime_identification · run_decision
-  decision/       capital (ES-IMA) · limits · pnl_attribution (PLA) · hedge
+  decision/       capital (ES-IMA) · limits · pnl_attribution (PLA) · hedge · estimation_risk
   portfolio/      marginal (GARCH-t filter) · copula_var (k-dim Gaussian/t/Clayton)
 config/study.yaml seed, assets, frozen OOS start, windows, alphas, MCS params, ...
 msgarch/          R script + notes for the MS-GARCH bridge

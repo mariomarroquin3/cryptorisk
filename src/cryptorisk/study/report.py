@@ -218,6 +218,7 @@ def _load() -> dict:
         "lim": csv("decision_limits.csv"),
         "pla": csv("decision_pla.csv"),
         "hedge": csv("decision_hedge.csv"),
+        "er": csv("decision_estimation_risk.csv"),
     }
 
 
@@ -691,6 +692,41 @@ def results_md(D: dict, figs: dict[str, str]) -> str:
                 P(f"\n{a}: model-risk add-on = ${gg['model_risk_addon_usd'].iloc[0]:,.0f}.")
         P("")
         P(_fig(figs, "capital", "capital"))
+
+    erd = D.get("er", pd.DataFrame())
+    if not erd.empty:
+        P("### Estimation risk (final estimation window)\n")
+        P(
+            "Parameter / sampling uncertainty on the last "
+            f"{cfg['walk_forward']['windows'][0]}-day window, for three archetypes. "
+            "HS is a stationary block bootstrap of the window; GARCH-t draws the "
+            "parameters from the fitted asymptotic covariance and re-forecasts "
+            "(no refit); FHS combines a parameter draw for the vol path with a "
+            "residual resample. `ES p5` is the prudent (5th-percentile) draw; the "
+            "add-on is `capital(prudent ES) &minus; capital(point ES)` at the "
+            "Basel base multiplier, isolating the estimation-risk contribution.\n"
+        )
+        P("| asset | estimator | ES 97.5% point | ES s.e. | ES p5 (prudent) | est.-risk add-on $ |")
+        P("|:--|:--|--:|--:|--:|--:|")
+        for _, r in erd.sort_values(["asset", "estimator"]).iterrows():
+            P(
+                f"| {r['asset']} | {r['estimator']} | {r['es_point']:.4f} | "
+                f"{r['es_se']:.4f} | {r['es_prudent_p5']:.4f} | "
+                f"{r['estimation_risk_addon_usd']:,.0f} |"
+            )
+        add = erd["estimation_risk_addon_usd"].dropna()
+        mr = cap.groupby("asset")["model_risk_addon_usd"].first() if not cap.empty else None
+        mr_txt = (
+            f" &mdash; smaller than the model-risk add-on (${mr.max() / 1e3:,.0f}k)"
+            if mr is not None and len(mr)
+            else ""
+        )
+        P(
+            f"\nThe estimation-risk add-on ranges ${add.min() / 1e3:,.0f}k&ndash;"
+            f"${add.max() / 1e3:,.0f}k across the three archetypes and two assets"
+            f"{mr_txt}. It bounds the §9 caveat: estimation risk is real but, at "
+            "the decision layer, second-order.\n"
+        )
     if not D["lim"].empty:
         P("### Position limit N* and the framework backtest\n")
         P(
@@ -756,8 +792,11 @@ def results_md(D: dict, figs: dict[str, str]) -> str:
         "correction; the sub-period split makes this worse (n drops fast)."
     )
     P(
-        "- **Estimation risk is not propagated.** VaR/ES are at the parameter "
-        "point estimates; parameter uncertainty would widen the intervals."
+        "- **Estimation risk is only bounded, not propagated.** The daily "
+        "backtests use the parameter point estimate. §8 quantifies the "
+        "parameter / sampling uncertainty on the final estimation window for "
+        "three archetypes (a prudent-percentile capital add-on); it is not "
+        "carried through every day of every model."
     )
     P("- **ES p-values are approximate** (asymptotic normal, not simulated).")
     P(

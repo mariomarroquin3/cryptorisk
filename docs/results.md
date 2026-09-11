@@ -525,6 +525,21 @@ ETH: model-risk add-on = $185,306.
 
 ![capital](figures/fig06_capital.png)
 
+### Estimation risk (final estimation window)
+
+Parameter / sampling uncertainty on the last 500-day window, for three archetypes. HS is a stationary block bootstrap of the window; GARCH-t draws the parameters from the fitted asymptotic covariance and re-forecasts (no refit); FHS combines a parameter draw for the vol path with a residual resample. `ES p5` is the prudent (5th-percentile) draw; the add-on is `capital(prudent ES) &minus; capital(point ES)` at the Basel base multiplier, isolating the estimation-risk contribution.
+
+| asset | estimator | ES 97.5% point | ES s.e. | ES p5 (prudent) | est.-risk add-on $ |
+|:--|:--|--:|--:|--:|--:|
+| BTC | FHS | -0.0480 | 0.0062 | -0.0584 | 49,370 |
+| BTC | GARCH-t | -0.0533 | 0.0048 | -0.0600 | 32,157 |
+| BTC | HS | -0.0595 | 0.0090 | -0.0735 | 66,396 |
+| ETH | FHS | -0.0807 | 0.0115 | -0.0961 | 72,933 |
+| ETH | GARCH-t | -0.0884 | 0.0132 | -0.1017 | 62,913 |
+| ETH | HS | -0.0913 | 0.0100 | -0.1053 | 66,183 |
+
+The estimation-risk add-on ranges $32k&ndash;$73k across the three archetypes and two assets &mdash; smaller than the model-risk add-on ($228k). It bounds the §9 caveat: estimation risk is real but, at the decision layer, second-order.
+
 ### Position limit N* and the framework backtest
 
 `mean util` is 1.00 by construction; the breach rates and `max util` carry the signal.
@@ -608,7 +623,7 @@ Funding carry is annualised; **positive = the short-perp hedge earns it** (longs
 
 - **The MCS is wide.** With one asset-pair and ~2,700 heavy-tailed days the test cannot rank the middle of the field. A firmer answer needs more assets, a longer sample, or a rolling-origin MCS stability analysis.
 - **Multiple testing.** 16 models x 2 assets x 2 alpha, no family-wise correction; the sub-period split makes this worse (n drops fast).
-- **Estimation risk is not propagated.** VaR/ES are at the parameter point estimates; parameter uncertainty would widen the intervals.
+- **Estimation risk is only bounded, not propagated.** The daily backtests use the parameter point estimate. §8 quantifies the parameter / sampling uncertainty on the final estimation window for three archetypes (a prudent-percentile capital add-on); it is not carried through every day of every model.
 - **ES p-values are approximate** (asymptotic normal, not simulated).
 - **The main study is one asset at a time, spot only** &mdash; no options and the perp hedge uses spot as a price proxy. A fixed-weight 4-asset basket (BTC/ETH/SOL/BNB) with a k-dimensional copula tail is the Phase-7 extension in [`portfolio.md`](portfolio.md).
 - Model-specific caveats are in the model cards and in [`methodology.tex`](methodology.tex) §9.

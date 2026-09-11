@@ -1293,8 +1293,9 @@ footnote.}
 %======================================================================
 \section{What the mathematics does not fix}\label{sec:limits}
 
-Three limitations are properties of the crypto data, not implementation errors,
-and the FZ0/MCS machinery is precisely what surfaces them.
+The first three limitations are properties of the crypto data, not
+implementation errors, and the FZ0/MCS machinery is precisely what surfaces
+them; the fourth is a scope choice.
 
 \paragraph{(i) MS-GARCH regime identification.} As the two regimes' parameters
 $(\omega_k,\alpha_k,\beta_k,\nu_k)$ approach each other the mixture collapses and
@@ -1324,7 +1325,23 @@ residuals close to normal, so $\hat\nu$ tends to be large and the $1\%$ quantile
 too shallow. Both are visible as breach rates well above $\alpha$ at
 $\alpha = 0.01$.
 
-None of these are bugs. They are what the comparative study is for: to say,
+\paragraph{(iv) Estimation risk is bounded, not propagated.} The daily VaR/ES
+use the parameter point estimate $\hat\theta$, so the reported one-day interval
+is conditional on $\hat\theta=\theta$. The sampling distribution of $\hat\theta$
+would widen it (Christoffersen \& Gon\c{c}alves, 2005). We bound the effect on
+the \emph{final} estimation window for three archetypes --- Historical
+Simulation (a stationary block bootstrap of the window), GARCH-$t$ (draw
+$\theta^\star\sim\mathcal{N}(\hat\theta,\widehat{\Sigma}_{\hat\theta})$ from the fitted
+asymptotic covariance and re-forecast $\sigma_{t+1}$ without refitting), and
+Filtered HS (a parameter draw for the volatility path plus a residual
+resample). The prudent ($5$th-percentile) ES draw feeds an
+estimation-risk capital add-on, $\mathrm{Cap}(\mathrm{ES}^{\mathrm{prudent}})
+-\mathrm{Cap}(\widehat{\mathrm{ES}})$, reported next to the model-risk add-on in
+\S7. On this sample it is \$32k--\$73k, an order of magnitude below the
+model-risk term: real, but second-order at the decision layer. It is not
+carried through every day of every model.
+
+None of (i)--(iii) are bugs. They are what the comparative study is for: to say,
 with a Model Confidence Set rather than a narrative, which models one can
 actually stand behind.
 
@@ -1343,6 +1360,7 @@ actually stand behind.
 \item Bollerslev, T., Patton, A.\ \& Quaedvlieg, R.\ (2016). Exploiting the errors: a simple approach for improved volatility forecasting. \emph{J.\ Econometrics} 192.
 \item Boudoukh, J., Richardson, M.\ \& Whitelaw, R.\ (1998). The best of both worlds. \emph{Risk} 11.
 \item Christoffersen, P.\ (1998). Evaluating interval forecasts. \emph{International Economic Review} 39.
+\item Christoffersen, P.\ \& Gon\c{c}alves, S.\ (2005). Estimation risk in financial risk management. \emph{J.\ Risk} 7.
 \item Corsi, F.\ (2009). A simple approximate long-memory model of realized volatility. \emph{J.\ Financial Econometrics} 7.
 \item Diebold, F.\ \& Mariano, R.\ (1995). Comparing predictive accuracy. \emph{J.\ Business \& Economic Statistics} 13.
 \item Engle, R.\ \& Manganelli, S.\ (2004). CAViaR: conditional autoregressive value at risk by regression quantiles. \emph{J.\ Business \& Economic Statistics} 22.

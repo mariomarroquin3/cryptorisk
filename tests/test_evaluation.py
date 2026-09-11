@@ -147,6 +147,27 @@ def test_vol_forecast_mz_and_mcs(panel):
     assert 0.7 < vf.loc["good", "mz_b"] < 1.3  # roughly calibrated slope
 
 
+def test_vol_forecast_drops_a_sparse_model_without_shrinking_the_others(panel):
+    """A model with even one missing sigma2 must be dropped as a *column*
+    (matching evaluate_fz0_mcs's rule), not silently force a row-wise dropna
+    that shrinks every other model's sample too."""
+    rng = np.random.default_rng(11)
+    lat = panel.drop_duplicates("date").set_index("date")["_latent_var"]
+    rv = pd.DataFrame(
+        {"asset": "BTC", "date": lat.index, "rv": lat.to_numpy() * rng.lognormal(0.0, 0.3, lat.size)}
+    )
+
+    amin = panel["alpha"].min()
+    sparse = panel.copy()
+    one_row = sparse.index[(sparse["model"] == "good") & (sparse["alpha"] == amin)][0]
+    sparse.loc[one_row, "sigma2"] = np.nan  # a single gap, not "always missing"
+
+    vf = evaluate_vol_forecasts(sparse, rv, asset="BTC", window=500, mcs_cfg=MCS_CFG, seed=3)
+    assert "good" not in set(vf["model"])          # dropped outright, not half-missing
+    assert set(vf["model"]) == {"tight", "wide"}
+    assert (vf.set_index("model")["n"] == lat.size).all()  # neither lost a day
+
+
 def test_asymptotic_es_pvalues_are_probabilities():
     rng = np.random.default_rng(4)
     r = rng.normal(0, 0.02, 4000)

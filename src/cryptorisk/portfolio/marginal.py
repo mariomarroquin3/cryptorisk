@@ -26,7 +26,10 @@ _SCALE = 100.0
 class MarginalFit:
     mu_next: float          # one-step conditional mean of the log-return
     sigma_next: float       # one-step conditional s.d.
-    z_resid: np.ndarray     # standardized residuals over the window (finite)
+    z_resid: np.ndarray     # standardized residuals over the window (finite).
+                             # CopulaVaR.fit_predict pairs these day-for-day
+                             # across assets, so every asset's z_resid must be
+                             # the same length -- see its docstring/comment.
     nu: float               # fitted Student-t d.o.f. (np.inf for the EWMA fallback)
     ok: bool                # False if the GARCH fit was rejected
 

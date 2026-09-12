@@ -2,9 +2,11 @@
 
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/Badge";
+import { ConeChart, ConeSeries } from "@/components/ConeChart";
 import { MetricCard } from "@/components/MetricCard";
 import { PriceChart, PricePoint } from "@/components/PriceChart";
-import { fmtConfidence, fmtDate, fmtUsd } from "@/lib/format";
+import { ForecastResponse } from "@/lib/api";
+import { fmtConfidence, fmtDate, fmtPct, fmtUsd } from "@/lib/format";
 import {
   useBacktests,
   useConfig,
@@ -14,6 +16,25 @@ import {
   usePrice,
   usePrices,
 } from "@/lib/hooks";
+
+function buildConeSeries(forecast: ForecastResponse | undefined): ConeSeries[] {
+  const cone = forecast?.cone;
+  if (!cone) return [];
+  const series: ConeSeries[] = [
+    { key: "jd", label: "Jump-Diffusion", color: "var(--amber)", points: cone.jump_diffusion ?? [] },
+    { key: "evt", label: "GARCH-EVT", color: "var(--violet)", points: cone.garch_evt ?? [] },
+  ];
+  if (cone.crisis_scenario) {
+    series.push({
+      key: "crisis",
+      label: "MS-GARCH crisis scenario",
+      color: "var(--red)",
+      dash: "4 3",
+      points: cone.crisis_scenario,
+    });
+  }
+  return series;
+}
 
 function buildBand(
   prices: { date: string; close: number }[],
@@ -70,6 +91,8 @@ export default function OverviewPage() {
     const { varLine, esLine, breaches } = buildBand(prices ?? [], backtests ?? []);
     return { priceLine, varLine, esLine, breaches };
   }, [prices, backtests]);
+
+  const coneSeries = useMemo(() => buildConeSeries(forecast), [forecast]);
 
   if (!config || !effAsset) {
     return <div className="text-muted">Loading config from the API...</div>;
@@ -167,6 +190,23 @@ export default function OverviewPage() {
         )}
       </div>
 
+      {forecast && forecast.var_price != null && (
+        <p className="rounded border border-grid bg-panel px-4 py-3 text-sm">
+          Right now, {forecast.model} estimates a{" "}
+          <span className="font-semibold text-amber">~{fmtPct(effAlpha, 1)} chance</span> that{" "}
+          {effAsset} closes tomorrow below{" "}
+          <span className="font-semibold">{fmtUsd(forecast.var_price)}</span>
+          {forecast.es_price != null && (
+            <>
+              . If that happens, the expected loss beyond that point (ES) is
+              around <span className="font-semibold">{fmtUsd(forecast.es_price)}</span>
+            </>
+          )}
+          . The forward cone below extends this to 5/10/30 days using three
+          different specialized models.
+        </p>
+      )}
+
       {forecast && (
         <div className="flex items-center gap-2 text-sm text-muted">
           {forecast.source === "live_refit" ? (
@@ -206,11 +246,14 @@ export default function OverviewPage() {
         )}
       </div>
       <p className="text-xs text-muted">
-        VaR/ES lines are the {effModel ?? "selected model"} walk-forward
-        forecast for that day&apos;s close, plotted against the prior close (a
-        rolling one-step-ahead cone). Markers = realized OOS violations
-        (realized &lt; VaR).
+        Amber/red lines are the {effModel ?? "selected model"} walk-forward
+        VaR/ES for that day&apos;s close, plotted against the prior close.
+        Markers = realized OOS violations (realized &lt; VaR).
       </p>
+
+      {coneSeries.length > 0 && forecast?.last_close != null && (
+        <ConeChart series={coneSeries} lastClose={forecast.last_close} />
+      )}
     </div>
   );
 }

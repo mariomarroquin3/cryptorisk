@@ -5,12 +5,11 @@
 project, deployed for a single known frontend origin (see ``CORS_ORIGINS``
 below), not a multi-tenant service.
 
-Every endpoint reads already-computed `data/results/` output or the DuckDB
-store; the one exception is `/forecast/{asset}`, which re-fits the chosen
-model in-process for a live, one-step-ahead band (`source: "live_refit"` in
-the response) and falls back to the last frozen backtest row
-(`source: "frozen_backtest"`) if that re-fit isn't supported. See
-`cryptorisk.api.data.today_forecast`.
+Every endpoint reads already-computed `data/results/` output; the one
+exception is `/forecast/{asset}`, which re-fits the chosen model in-process
+for a live, one-step-ahead band (`source: "live_refit"` in the response) and
+falls back to the last frozen backtest row (`source: "frozen_backtest"`) if
+that re-fit isn't supported. See `cryptorisk.api.data.today_forecast`.
 """
 
 from __future__ import annotations
@@ -24,7 +23,9 @@ import pandas as pd
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
+from cryptorisk.api import cone as C
 from cryptorisk.api import data as D
+from cryptorisk.api.cache import ttl_cache
 from cryptorisk.config import load_config
 
 app = FastAPI(
@@ -67,6 +68,63 @@ def _price(last_close: float, log_return: float | None) -> float | None:
     if log_return is None or not math.isfinite(log_return):
         return None
     return last_close * math.exp(log_return)
+
+
+_CONE_HORIZONS_DAYS = (1, 5, 10, 30)
+
+
+def _dist_row(last: float, days: int, dist, alpha: float) -> dict:
+    if dist is None:
+        return {"days": days, "var_price": None, "es_price": None, "upper_price": None}
+    try:
+        var, es, upper = dist.var(alpha), dist.es(alpha), dist.ppf(1 - alpha)
+    except Exception:  # noqa: BLE001
+        return {"days": days, "var_price": None, "es_price": None, "upper_price": None}
+    return {
+        "days": days,
+        "var_price": _price(last, var),
+        "es_price": _price(last, es),
+        "upper_price": _price(last, upper),
+    }
+
+
+@ttl_cache(600)
+def _ensemble_cone(asset: str, last: float, alpha: float) -> dict:
+    """The three-model forward cone: Jump-Diffusion and GARCH-EVT re-fit live
+    on the current window and extended to each horizon (see ``api.cone``),
+    plus an optional MS-GARCH crisis-regime scenario. Deliberately
+    independent of the `model` query param -- see ``api.cone``'s docstring
+    for why MS-GARCH itself isn't re-fit live for this."""
+    horizons = list(_CONE_HORIZONS_DAYS)
+    returns = D.window_returns(asset)
+    if returns is None:
+        empty = [{"days": h, "var_price": None, "es_price": None, "upper_price": None} for h in horizons]
+        return {"horizons_days": horizons, "jump_diffusion": empty, "garch_evt": empty, "crisis_scenario": None}
+
+    jd = C.jump_diffusion_cone(returns, horizons)
+    evt = C.garch_evt_cone(returns, horizons)
+    crisis_rows = []
+    any_crisis = False
+    for h in horizons:
+        sc = C.regime_scenario(asset, h, alpha)
+        if sc is None:
+            crisis_rows.append({"days": h, "var_price": None, "es_price": None, "upper_price": None})
+        else:
+            any_crisis = True
+            crisis_rows.append(
+                {
+                    "days": h,
+                    "var_price": _price(last, sc["var"]),
+                    "es_price": _price(last, sc["es"]),
+                    "upper_price": _price(last, sc["upper"]),
+                }
+            )
+    return {
+        "horizons_days": horizons,
+        "jump_diffusion": [_dist_row(last, h, jd.get(h), alpha) for h in horizons],
+        "garch_evt": [_dist_row(last, h, evt.get(h), alpha) for h in horizons],
+        "crisis_scenario": crisis_rows if any_crisis else None,
+    }
 
 
 def _check_asset(asset: str, assets: list[str]) -> None:
@@ -161,6 +219,7 @@ def forecast(
             "var_price": _price(last, lo),
             "es_price": _price(last, es),
             "upper_price": _price(last, hi),
+            "cone": _ensemble_cone(asset, last, alpha),
         }
 
     bt = D.load_backtests()

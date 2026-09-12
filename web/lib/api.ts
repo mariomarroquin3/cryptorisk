@@ -58,6 +58,28 @@ export interface ForecastResponse {
   var_price?: number | null;
   es_price?: number | null;
   upper_price?: number | null;
+  cone?: ForecastCone;
+}
+
+export interface ConePoint {
+  days: number;
+  var_price: number | null;
+  es_price: number | null;
+  upper_price: number | null;
+}
+
+export interface ForecastCone {
+  horizons_days: number[];
+  /** Merton jump-diffusion, compounded exactly to each horizon (Poisson jump
+   * count scales with days, diffusion variance scales with days). */
+  jump_diffusion: ConePoint[];
+  /** GARCH-EVT: cumulative variance is the sum of arch's per-step forecasts
+   * (mean-reverting), same fitted GPD tail rescaled per horizon. */
+  garch_evt: ConePoint[];
+  /** "If the MS-GARCH crisis regime's own stationary vol applied and
+   * persisted" -- a labeled scenario, not a forecast. Null if
+   * data/results/msgarch_regime_params.csv doesn't cover this asset. */
+  crisis_scenario: ConePoint[] | null;
 }
 
 export interface Fz0Row {

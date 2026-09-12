@@ -102,6 +102,19 @@ def price(asset: str) -> dict:
     return {"asset": asset, **p}
 
 
+@app.get("/prices/{asset}")
+def prices(asset: str, limit: int = Query(365, le=5000)) -> list[dict]:
+    """Historical daily close/log-return -- for a frontend to draw its own
+    price chart, since only the dashboard (Streamlit) can read the store
+    directly. Not the study's estimation window; just close+return history."""
+    cfg = load_config()
+    _check_asset(asset, cfg["assets"])
+    win = D.load_price_window(asset, n=limit)
+    if win.empty:
+        return []
+    return _records(win[["date", "close", "log_return"]])
+
+
 @app.get("/forecast/{asset}")
 def forecast(
     asset: str,

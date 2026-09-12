@@ -46,6 +46,7 @@ src/cryptorisk/
   decision/            capital (FRTB ES-IMA), limits, pnl_attribution (PLA), hedge, estimation_risk
   dashboard/           Streamlit terminal over data/results/ + a live price feed (`make dashboard`)
   api/                 FastAPI read-only REST API, independent of dashboard/ (`make api`)
+web/                   Next.js + TS + Tailwind frontend over api/, its own npm project (`make web`)
 config/study.yaml      seed, assets, frozen OOS start, windows, alphas, MCS params,
                        sub-periods, decision-layer knobs
 msgarch/               R scripts + notes for the bridge
@@ -109,6 +110,7 @@ make report      # assemble docs/results.md + docs/model_cards/ + docs/figures/
 make portfolio   # 4-asset basket VaR/ES with a copula tail -> portfolio_*
 make dashboard   # Streamlit terminal (pip install -e ".[dashboard]" first) -> localhost:8501
 make api         # FastAPI REST API (pip install -e ".[api]" first) -> localhost:8000/docs
+make web         # Next.js frontend (needs `make api` running; npm install first) -> localhost:3000
 make test lint fmt
 ```
 
@@ -250,7 +252,21 @@ Non-obvious, still-relevant facts:
   optional extra (`pip install -e ".[api]"`: `fastapi`, `uvicorn`). No auth --
   local/personal use only; `/docs` for interactive Swagger. Caching is a
   hand-rolled in-process TTL dict (`api/cache.py`), not Streamlit's
-  `st.cache_data` (unavailable outside a Streamlit run).
+  `st.cache_data` (unavailable outside a Streamlit run). Added a
+  `/prices/{asset}` endpoint (date/close/log_return history) that neither the
+  Streamlit dashboard nor the original API design needed -- the dashboard
+  reads the store directly, but a decoupled frontend can't, so it's the one
+  read the API had to grow to support `web/`.
+- **`web/`** (2026-09, `make web` from `cryptorisk/web/`) is a separate
+  Next.js + TypeScript + Tailwind v4 app, a third, independent front-end over
+  the same `api/` (not the dashboard). Client-rendered (no server-side data
+  fetching) via SWR hooks in `web/lib/hooks.ts` polling `web/lib/api.ts`'s
+  typed client against `NEXT_PUBLIC_API_BASE_URL` (`web/.env.local`, gitignored;
+  `.env.example` is the committed template). Recharts for bar/area/line charts,
+  `lightweight-charts` (TradingView's library) for the Overview page's
+  price+VaR/ES cone with breach markers. Its own `node_modules`/`package.json`
+  -- not part of the Python package or its dependency groups; run
+  `npm install` once in `web/`, then `npm run dev` (or `make web`).
 
 ## Review backlog (2026-09 full-project review — all six items fixed)
 

@@ -23,6 +23,7 @@ contributors is in [`CLAUDE.md`](CLAUDE.md).
 | 7 | Portfolio extension — 4-asset basket (BTC/ETH/SOL/BNB), copula tail dependence | ✅ |
 | — | Dashboard — Streamlit risk terminal (live price + VaR/ES band, model comparison, capital, portfolio, regimes) | ✅ |
 | — | API — FastAPI read-only REST API over the same outputs, independent of the dashboard | ✅ |
+| — | Web — Next.js + TypeScript + Tailwind frontend over the API (its own npm project) | ✅ |
 
 Data: BTC & ETH, daily 2018-01 → present, plus **1.8M 5-minute bars** for the
 realized measures. Out-of-sample period is frozen at **2019-05-16 → present**
@@ -71,6 +72,9 @@ make dashboard     # Streamlit risk terminal → http://localhost:8501
 
 .venv/Scripts/python -m pip install -e ".[api]"
 make api           # FastAPI REST API → http://localhost:8000/docs
+
+cd web && npm install
+make web           # Next.js frontend (needs `make api` running) → http://localhost:3000
 ```
 
 The headline result is the FZ0 ranking + 90% Model Confidence Set per
@@ -95,6 +99,7 @@ src/cryptorisk/
   portfolio/      marginal (GARCH-t filter) · copula_var (k-dim Gaussian/t/Clayton)
   dashboard/      Streamlit terminal (optional extra: pip install -e ".[dashboard]")
   api/            FastAPI REST API, independent of dashboard/ (optional extra: pip install -e ".[api]")
+web/              Next.js + TypeScript + Tailwind frontend over api/ (its own npm project)
 config/study.yaml seed, assets, frozen OOS start, windows, alphas, MCS params, ...
 msgarch/          R script + notes for the MS-GARCH bridge
 tests/            one known-answer test per statistical test; test_integration is
@@ -140,6 +145,28 @@ dashboard's data as JSON — `/config`, `/models`, `/price/{asset}`,
 consumer. It's a separate process from the dashboard (no shared code, no
 Streamlit import) so either can run without the other. No auth: a local,
 read-only, personal-research tool, not meant to be exposed on an open network.
+
+## Web
+
+`web/` is a separate Next.js + TypeScript + Tailwind v4 app (its own
+`package.json`, not part of the Python project) — a third front-end over the
+`api/` (not the dashboard), for anyone who wants richer, custom visuals than
+Streamlit gives out of the box and a stack that's easy to deploy (e.g.
+Vercel). Same five views as the dashboard (Overview, Model Comparison,
+Portfolio, Capital & Decision, Regimes), client-rendered via
+[SWR](https://swr.vercel.app) polling the API, charted with
+[Recharts](https://recharts.org) (bars/areas) and
+[`lightweight-charts`](https://tradingview.github.io/lightweight-charts/)
+(the Overview page's price + VaR/ES cone with breach markers, TradingView's
+own charting library):
+
+```bash
+# start the API first (a separate process, see above)
+cd web
+npm install
+cp .env.example .env.local   # NEXT_PUBLIC_API_BASE_URL, defaults to localhost:8000
+npm run dev                   # http://localhost:3000
+```
 
 ## Data & reproducibility
 

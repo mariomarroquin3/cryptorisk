@@ -19,6 +19,8 @@ from __future__ import annotations
 
 import numpy as np
 
+from cryptorisk.backtest.coverage import basel_zone_and_addon
+
 
 def es_horizon_sqrt_time(es_1d: float, horizon_days: int) -> float:
     """Square-root-of-time scaling of a 1-day ES to ``horizon_days``."""
@@ -74,16 +76,10 @@ def es_capital(
 def basel_multiplier(exceptions_250d: int, *, base: float = 1.5) -> float:
     """``base`` + the Basel traffic-light capital add-on for the exception
     count over the last 250 days (green 0-4 -> +0, amber 5-9 -> +0.40..0.85,
-    red >=10 -> +1.0)."""
-    x = int(exceptions_250d)
-    addon = {5: 0.40, 6: 0.50, 7: 0.65, 8: 0.75, 9: 0.85}
-    if x <= 4:
-        a = 0.0
-    elif x <= 9:
-        a = addon[x]
-    else:
-        a = 1.0
-    return float(base) + a
+    red >=10 -> +1.0). Delegates to :func:`cryptorisk.backtest.coverage.
+    basel_zone_and_addon` -- the single source of truth for the add-on table."""
+    _, addon = basel_zone_and_addon(exceptions_250d)
+    return float(base) + addon
 
 
 def model_risk_addon(capital_by_model: dict[str, float], mcs_included: list[str]) -> float:

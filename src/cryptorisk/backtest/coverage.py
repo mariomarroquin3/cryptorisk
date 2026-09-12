@@ -153,17 +153,25 @@ class BaselResult:
     multiplier_addon: float
 
 
+def basel_zone_and_addon(exceptions: int) -> tuple[str, float]:
+    """Zone + capital multiplier add-on for an exception count (single source
+    of truth -- also used by :func:`cryptorisk.decision.capital.basel_multiplier`,
+    which takes an already-computed exception count rather than a violation
+    series)."""
+    x = int(exceptions)
+    if x <= 4:
+        return "green", 0.0
+    if x <= 9:
+        return "amber", _BASEL_ADDON[x]
+    return "red", 1.0
+
+
 def basel_traffic_light(violations, window: int = 250) -> BaselResult:
     """Zone and capital multiplier add-on from the exception count over the
     last ``window`` days. Defined for a 99% VaR (alpha = 0.01)."""
     v = _as_bits(violations)
     x = int(v[-window:].sum()) if v.size >= window else int(v.sum())
-    if x <= 4:
-        zone, addon = "green", 0.0
-    elif x <= 9:
-        zone, addon = "amber", _BASEL_ADDON[x]
-    else:
-        zone, addon = "red", 1.0
+    zone, addon = basel_zone_and_addon(x)
     return BaselResult(x, min(window, v.size), zone, addon)
 
 

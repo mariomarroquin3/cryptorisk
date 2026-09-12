@@ -1,0 +1,17 @@
+# Normalize line endings to LF for everything text -- this Windows dev machine
+# has flipped the Makefile to CRLF before (breaks recipe tabs, see CLAUDE.md),
+# and the same risk applies to any shell/YAML file. Binary artifacts (parquet,
+# duckdb, images) are left alone.
+* text=auto eol=lf
+
+Makefile text eol=lf
+*.py text eol=lf
+*.sh text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.R text eol=lf
+
+*.parquet binary
+*.duckdb binary
+*.png binary
+*.pdf binary

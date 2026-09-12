@@ -6,7 +6,7 @@ ifeq ($(OS),)
   PY := .venv/bin/python
 endif
 
-.PHONY: help install test lint fmt data realized msgarch backtest evaluate subperiods regime-id decide report portfolio dashboard api web dev clean
+.PHONY: help install test lint fmt data realized msgarch backtest evaluate subperiods regime-id decide report portfolio price-snapshot dashboard api web dev clean
 
 help:
 	@echo "install   - create .venv and install (editable) with dev extras"
@@ -22,6 +22,7 @@ help:
 	@echo "decide    - decision layer: capital / limits / PLA / hedge -> decision_*.csv (Phase 5)"
 	@echo "report    - assemble docs/results.md + model_cards + figures (Phase 6)"
 	@echo "portfolio - BTC+ETH basket VaR/ES with a copula tail -> portfolio_* (Phase 7)"
+	@echo "price-snapshot - export data/results/price_history.parquet for the API (run after data/realized change; commit the diff before deploying)"
 	@echo "dashboard - Streamlit live risk terminal over data/results/ + a live price feed"
 	@echo "api       - FastAPI read-only REST API over data/results/ -> http://localhost:8000/docs"
 	@echo "web       - Next.js frontend (npm install first, in web/) -> http://localhost:3000"
@@ -70,6 +71,9 @@ report:
 
 portfolio:
 	$(PY) -m cryptorisk.study.run_portfolio
+
+price-snapshot:
+	$(PY) -m cryptorisk.study.export_price_history
 
 dashboard:
 	$(PY) -m streamlit run src/cryptorisk/dashboard/app.py

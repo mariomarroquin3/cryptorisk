@@ -1,0 +1,3 @@
+asset,ratio_min_var,ratio_es_min,es_unhedged,es_hedged,es_reduction,funding_carry_annual_frac,funding_carry_annual_usd,note
+BTC,1.0,,-0.09615954958053524,,,0.11583371600860046,115833.71600860046,"perp return proxied by spot (no perp price in store); ES-min hedge and ES reduction not meaningful, basis risk unavailable"
+ETH,1.0,,-0.1269430274974187,,,0.1383864399798387,138386.4399798387,"perp return proxied by spot (no perp price in store); ES-min hedge and ES reduction not meaningful, basis risk unavailable"

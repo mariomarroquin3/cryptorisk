@@ -108,6 +108,7 @@ make regime-id   # MS-GARCH regime-prob vs vol state -> regime_identification.*
 make decide      # FRTB capital / limits / PLA / hedge -> decision_*.csv + decision_summary.md
 make report      # assemble docs/results.md + docs/model_cards/ + docs/figures/
 make portfolio   # 4-asset basket VaR/ES with a copula tail -> portfolio_*
+make price-snapshot  # data/results/price_history.parquet for the API (deploy-only; commit after data/realized changes)
 make dashboard   # Streamlit terminal (pip install -e ".[dashboard]" first) -> localhost:8501
 make api         # FastAPI REST API (pip install -e ".[api]" first) -> localhost:8000/docs
 make web         # Next.js frontend (needs `make api` running; npm install first) -> localhost:3000
@@ -198,9 +199,11 @@ Non-obvious, still-relevant facts:
 
 ## Gotchas
 
-- `data/store/*.duckdb`, `data/results/`, `data/raw/`, `*.parquet`,
-  `methodology.pdf` are **gitignored** — rebuild with the pipeline. Source,
-  config, docs, tests are versioned.
+- `data/store/*.duckdb`, `data/raw/`, `methodology.pdf` are **gitignored** —
+  rebuild with the pipeline. **`data/results/` is versioned** (2026-09,
+  deploy prep): the deployed API ships from this snapshot alone, since Render
+  has no free persistent disk for the 100+MB store. Re-run the pipeline +
+  `make price-snapshot` and commit the diff to refresh it.
 - **Store schema change**: bump `store.SCHEMA_VERSION` and add
   `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` to `_DDL` (DuckDB won't add columns
   via `CREATE TABLE IF NOT EXISTS`). `asof` is a **DuckDB reserved keyword** —
@@ -249,14 +252,26 @@ Non-obvious, still-relevant facts:
   `"frozen_backtest"`). Deliberately does **not** import `cryptorisk.dashboard`
   or Streamlit -- `api/data.py` duplicates the small amount of read logic
   instead, so the two surfaces can run as fully independent processes. Its own
-  optional extra (`pip install -e ".[api]"`: `fastapi`, `uvicorn`). No auth --
-  local/personal use only; `/docs` for interactive Swagger. Caching is a
-  hand-rolled in-process TTL dict (`api/cache.py`), not Streamlit's
-  `st.cache_data` (unavailable outside a Streamlit run). Added a
+  optional extra (`pip install -e ".[api]"`: `fastapi`, `uvicorn`). No auth
+  (read-only, so a public deploy risks availability, not data exposure);
+  `CORS_ORIGINS` env var (comma-separated, defaults to the local dev ports)
+  restricts which browser origins may call it. `/docs` for interactive
+  Swagger. Caching is a hand-rolled in-process TTL dict (`api/cache.py`), not
+  Streamlit's `st.cache_data` (unavailable outside a Streamlit run). Added a
   `/prices/{asset}` endpoint (date/close/log_return history) that neither the
   Streamlit dashboard nor the original API design needed -- the dashboard
   reads the store directly, but a decoupled frontend can't, so it's the one
   read the API had to grow to support `web/`.
+  **Deploy prep (2026-09):** `api/data.py` used to query the DuckDB store
+  directly for `load_price_window`/`regime_series` (fine locally; wrong for
+  Render, which has no free persistent disk and can't be handed a
+  100+MB gitignored file). `study/export_price_history.py`
+  (`make price-snapshot`) now dumps just the daily columns those two
+  endpoints need to `data/results/price_history.parquet`; `regime_series`
+  reads the already-existing `data/results/msgarch_pred_{asset}.csv` instead
+  of the store's `msgarch_predictions` table. The API now runs off
+  `data/results/` alone, matching its own docstring, and has no DuckDB
+  dependency at runtime. See `render.yaml` and the README's Deploy section.
 - **`web/`** (2026-09, `make web` from `cryptorisk/web/`) is a separate
   Next.js + TypeScript + Tailwind v4 app, a third, independent front-end over
   the same `api/` (not the dashboard). Client-rendered (no server-side data

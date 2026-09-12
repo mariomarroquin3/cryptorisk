@@ -1,0 +1,108 @@
+kind,asset,date,detail
+extreme_return,BNB,2018-01-05,log_return=+0.5116
+source_divergence,BNB,2018-01-10,"|ln(a/b)|=0.0228 > max(0.02, day |ret|=0.0034)"
+source_divergence,BTC,2018-01-18,"|ln(a/b)|=0.0256 > max(0.02, day |ret|=0.0077)"
+source_divergence,ETH,2018-01-18,"|ln(a/b)|=0.0246 > max(0.02, day |ret|=0.0060)"
+source_divergence,BNB,2018-01-28,"|ln(a/b)|=0.0261 > max(0.02, day |ret|=0.0186)"
+source_divergence,BTC,2018-01-31,"|ln(a/b)|=0.0231 > max(0.02, day |ret|=0.0091)"
+source_divergence,BNB,2018-01-31,"|ln(a/b)|=0.0327 > max(0.02, day |ret|=0.0180)"
+few_intraday_bars,BTC,2018-02-08,6/288 bars (2%)
+few_intraday_bars,ETH,2018-02-08,6/288 bars (2%)
+few_intraday_bars,BTC,2018-02-09,168/288 bars (58%)
+few_intraday_bars,ETH,2018-02-09,168/288 bars (58%)
+source_divergence,BNB,2018-03-19,"|ln(a/b)|=0.0202 > max(0.02, day |ret|=0.0079)"
+source_divergence,BNB,2018-04-11,"|ln(a/b)|=0.0258 > max(0.02, day |ret|=0.0030)"
+few_intraday_bars,BTC,2018-06-26,167/288 bars (58%)
+few_intraday_bars,ETH,2018-06-26,168/288 bars (58%)
+few_intraday_bars,BTC,2018-07-04,195/288 bars (68%)
+few_intraday_bars,ETH,2018-07-04,195/288 bars (68%)
+source_divergence,BTC,2018-10-13,"|ln(a/b)|=0.0216 > max(0.02, day |ret|=0.0010)"
+source_divergence,ETH,2018-10-13,"|ln(a/b)|=0.0234 > max(0.02, day |ret|=0.0123)"
+source_divergence,BNB,2018-10-13,"|ln(a/b)|=0.0249 > max(0.02, day |ret|=0.0014)"
+source_divergence,BTC,2018-10-14,"|ln(a/b)|=0.0250 > max(0.02, day |ret|=0.0024)"
+source_divergence,ETH,2018-10-14,"|ln(a/b)|=0.0253 > max(0.02, day |ret|=0.0235)"
+source_divergence,BNB,2018-10-14,"|ln(a/b)|=0.0217 > max(0.02, day |ret|=0.0063)"
+source_divergence,BTC,2018-10-15,"|ln(a/b)|=0.0470 > max(0.02, day |ret|=0.0412)"
+source_divergence,BTC,2018-10-16,"|ln(a/b)|=0.0450 > max(0.02, day |ret|=0.0030)"
+source_divergence,ETH,2018-10-16,"|ln(a/b)|=0.0447 > max(0.02, day |ret|=0.0041)"
+source_divergence,BNB,2018-10-16,"|ln(a/b)|=0.0463 > max(0.02, day |ret|=0.0244)"
+source_divergence,BTC,2018-10-17,"|ln(a/b)|=0.0452 > max(0.02, day |ret|=0.0030)"
+source_divergence,ETH,2018-10-17,"|ln(a/b)|=0.0445 > max(0.02, day |ret|=0.0102)"
+source_divergence,BNB,2018-10-17,"|ln(a/b)|=0.0460 > max(0.02, day |ret|=0.0039)"
+source_divergence,BTC,2018-10-18,"|ln(a/b)|=0.0342 > max(0.02, day |ret|=0.0072)"
+source_divergence,ETH,2018-10-18,"|ln(a/b)|=0.0352 > max(0.02, day |ret|=0.0223)"
+source_divergence,BNB,2018-10-18,"|ln(a/b)|=0.0340 > max(0.02, day |ret|=0.0189)"
+source_divergence,BTC,2018-10-19,"|ln(a/b)|=0.0226 > max(0.02, day |ret|=0.0021)"
+source_divergence,ETH,2018-10-19,"|ln(a/b)|=0.0238 > max(0.02, day |ret|=0.0054)"
+source_divergence,BNB,2018-10-19,"|ln(a/b)|=0.0236 > max(0.02, day |ret|=0.0082)"
+source_divergence,BTC,2018-10-20,"|ln(a/b)|=0.0277 > max(0.02, day |ret|=0.0039)"
+source_divergence,ETH,2018-10-20,"|ln(a/b)|=0.0258 > max(0.02, day |ret|=0.0121)"
+source_divergence,BNB,2018-10-20,"|ln(a/b)|=0.0281 > max(0.02, day |ret|=0.0008)"
+source_divergence,BTC,2018-10-21,"|ln(a/b)|=0.0269 > max(0.02, day |ret|=0.0011)"
+source_divergence,ETH,2018-10-21,"|ln(a/b)|=0.0258 > max(0.02, day |ret|=0.0021)"
+source_divergence,BNB,2018-10-21,"|ln(a/b)|=0.0304 > max(0.02, day |ret|=0.0028)"
+source_divergence,BTC,2018-10-22,"|ln(a/b)|=0.0267 > max(0.02, day |ret|=0.0011)"
+source_divergence,ETH,2018-10-22,"|ln(a/b)|=0.0279 > max(0.02, day |ret|=0.0060)"
+source_divergence,BNB,2018-10-22,"|ln(a/b)|=0.0274 > max(0.02, day |ret|=0.0009)"
+source_divergence,BTC,2018-10-23,"|ln(a/b)|=0.0243 > max(0.02, day |ret|=0.0019)"
+source_divergence,ETH,2018-10-23,"|ln(a/b)|=0.0233 > max(0.02, day |ret|=0.0006)"
+source_divergence,BNB,2018-10-23,"|ln(a/b)|=0.0249 > max(0.02, day |ret|=0.0062)"
+source_divergence,BTC,2018-10-24,"|ln(a/b)|=0.0234 > max(0.02, day |ret|=0.0028)"
+source_divergence,ETH,2018-10-24,"|ln(a/b)|=0.0237 > max(0.02, day |ret|=0.0028)"
+source_divergence,BNB,2018-10-24,"|ln(a/b)|=0.0245 > max(0.02, day |ret|=0.0042)"
+source_divergence,ETH,2018-10-25,"|ln(a/b)|=0.0201 > max(0.02, day |ret|=0.0034)"
+source_divergence,BTC,2018-10-26,"|ln(a/b)|=0.0208 > max(0.02, day |ret|=0.0003)"
+source_divergence,ETH,2018-10-26,"|ln(a/b)|=0.0212 > max(0.02, day |ret|=0.0038)"
+source_divergence,BNB,2018-10-26,"|ln(a/b)|=0.0227 > max(0.02, day |ret|=0.0014)"
+source_divergence,BNB,2018-11-11,"|ln(a/b)|=0.0210 > max(0.02, day |ret|=0.0104)"
+source_divergence,BTC,2018-11-12,"|ln(a/b)|=0.0207 > max(0.02, day |ret|=0.0023)"
+source_divergence,ETH,2018-11-12,"|ln(a/b)|=0.0218 > max(0.02, day |ret|=0.0037)"
+source_divergence,BNB,2018-11-12,"|ln(a/b)|=0.0238 > max(0.02, day |ret|=0.0107)"
+source_divergence,BTC,2018-11-13,"|ln(a/b)|=0.0298 > max(0.02, day |ret|=0.0084)"
+source_divergence,ETH,2018-11-13,"|ln(a/b)|=0.0301 > max(0.02, day |ret|=0.0227)"
+source_divergence,BNB,2018-11-13,"|ln(a/b)|=0.0305 > max(0.02, day |ret|=0.0165)"
+few_intraday_bars,BTC,2018-11-14,204/288 bars (71%)
+few_intraday_bars,ETH,2018-11-14,204/288 bars (71%)
+source_divergence,BTC,2018-11-15,"|ln(a/b)|=0.0381 > max(0.02, day |ret|=0.0064)"
+source_divergence,ETH,2018-11-15,"|ln(a/b)|=0.0374 > max(0.02, day |ret|=0.0051)"
+source_divergence,BNB,2018-11-15,"|ln(a/b)|=0.0417 > max(0.02, day |ret|=0.0180)"
+source_divergence,BTC,2018-11-16,"|ln(a/b)|=0.0287 > max(0.02, day |ret|=0.0077)"
+source_divergence,BTC,2018-11-17,"|ln(a/b)|=0.0229 > max(0.02, day |ret|=0.0009)"
+source_divergence,ETH,2018-11-17,"|ln(a/b)|=0.0222 > max(0.02, day |ret|=0.0017)"
+source_divergence,BNB,2018-11-17,"|ln(a/b)|=0.0256 > max(0.02, day |ret|=0.0165)"
+source_divergence,ETH,2018-11-18,"|ln(a/b)|=0.0231 > max(0.02, day |ret|=0.0148)"
+source_divergence,BTC,2018-11-23,"|ln(a/b)|=0.0300 > max(0.02, day |ret|=0.0032)"
+source_divergence,ETH,2018-11-23,"|ln(a/b)|=0.0289 > max(0.02, day |ret|=0.0286)"
+source_divergence,ETH,2018-11-25,"|ln(a/b)|=0.0373 > max(0.02, day |ret|=0.0277)"
+source_divergence,BNB,2018-11-25,"|ln(a/b)|=0.0431 > max(0.02, day |ret|=0.0129)"
+source_divergence,BTC,2018-11-27,"|ln(a/b)|=0.0258 > max(0.02, day |ret|=0.0204)"
+source_divergence,BNB,2018-11-27,"|ln(a/b)|=0.0258 > max(0.02, day |ret|=0.0080)"
+source_divergence,BTC,2018-12-29,"|ln(a/b)|=0.0340 > max(0.02, day |ret|=0.0150)"
+source_divergence,ETH,2018-12-29,"|ln(a/b)|=0.0528 > max(0.02, day |ret|=0.0354)"
+source_divergence,BNB,2018-12-29,"|ln(a/b)|=0.0315 > max(0.02, day |ret|=0.0146)"
+source_divergence,BNB,2019-02-03,"|ln(a/b)|=0.0211 > max(0.02, day |ret|=0.0200)"
+few_intraday_bars,BTC,2019-03-12,215/288 bars (75%)
+few_intraday_bars,ETH,2019-03-12,216/288 bars (75%)
+source_divergence,BTC,2019-04-26,"|ln(a/b)|=0.0313 > max(0.02, day |ret|=0.0044)"
+source_divergence,ETH,2019-04-26,"|ln(a/b)|=0.0321 > max(0.02, day |ret|=0.0060)"
+source_divergence,BNB,2019-04-26,"|ln(a/b)|=0.0297 > max(0.02, day |ret|=0.0206)"
+source_divergence,BTC,2019-04-27,"|ln(a/b)|=0.0217 > max(0.02, day |ret|=0.0061)"
+source_divergence,ETH,2019-04-27,"|ln(a/b)|=0.0227 > max(0.02, day |ret|=0.0179)"
+source_divergence,BNB,2019-04-27,"|ln(a/b)|=0.0234 > max(0.02, day |ret|=0.0210)"
+source_divergence,BTC,2019-04-28,"|ln(a/b)|=0.0304 > max(0.02, day |ret|=0.0064)"
+source_divergence,ETH,2019-04-28,"|ln(a/b)|=0.0296 > max(0.02, day |ret|=0.0160)"
+source_divergence,BNB,2019-04-28,"|ln(a/b)|=0.0292 > max(0.02, day |ret|=0.0201)"
+few_intraday_bars,BTC,2019-05-15,168/288 bars (58%)
+few_intraday_bars,ETH,2019-05-15,167/288 bars (58%)
+few_intraday_bars,BTC,2019-08-15,192/288 bars (67%)
+few_intraday_bars,ETH,2019-08-15,192/288 bars (67%)
+few_intraday_bars,BTC,2020-02-19,217/288 bars (75%)
+few_intraday_bars,ETH,2020-02-19,217/288 bars (75%)
+extreme_return,BTC,2020-03-12,log_return=-0.4706
+extreme_return,ETH,2020-03-12,log_return=-0.5656
+extreme_return,BNB,2020-03-12,log_return=-0.5318
+source_divergence,BNB,2020-09-14,"|ln(a/b)|=0.0221 > max(0.02, day |ret|=0.0109)"
+source_divergence,BNB,2020-09-18,"|ln(a/b)|=0.0247 > max(0.02, day |ret|=0.0040)"
+extreme_return,BNB,2021-02-19,log_return=+0.5407
+extreme_return,SOL,2021-05-19,log_return=-0.4699
+extreme_return,SOL,2022-11-09,log_return=-0.5548

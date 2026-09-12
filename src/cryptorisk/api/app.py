@@ -1,9 +1,9 @@
 """FastAPI app: read-only REST endpoints over the study's pipeline outputs.
 
 ``make api`` (or ``uvicorn cryptorisk.api.app:app --reload``), then
-``/docs`` for interactive Swagger docs. No auth -- this is a local,
-read-only, personal-research tool. Do not expose it on an open network
-without adding auth first.
+``/docs`` for interactive Swagger docs. No auth -- read-only personal
+project, deployed for a single known frontend origin (see ``CORS_ORIGINS``
+below), not a multi-tenant service.
 
 Every endpoint reads already-computed `data/results/` output or the DuckDB
 store; the one exception is `/forecast/{asset}`, which re-fits the chosen
@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 from typing import Any
 
 import pandas as pd
@@ -37,9 +38,19 @@ app = FastAPI(
     version="1.0.0",
 )
 
+# CORS_ORIGINS: comma-separated allowed origins (e.g. the deployed Vercel
+# URL). Defaults to the two local dev ports so `make dev` / `make web` keep
+# working out of the box; set explicitly in production.
+_cors_env = os.environ.get("CORS_ORIGINS", "").strip()
+_cors_origins = (
+    [o.strip() for o in _cors_env.split(",") if o.strip()]
+    if _cors_env
+    else ["http://localhost:3000", "http://127.0.0.1:3000"]
+)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_cors_origins,
     allow_methods=["GET"],
     allow_headers=["*"],
 )

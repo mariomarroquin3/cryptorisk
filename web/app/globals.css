@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #0b0e11;
+  --panel: #12161a;
+  --grid: #1e242b;
+  --text: #d7dce1;
+  --muted: #7b8794;
+  --amber: #ffb020;
+  --green: #3ddc84;
+  --red: #ff4d4f;
+  --blue: #4dabf7;
+  --violet: #b083f0;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-panel: var(--panel);
+  --color-grid: var(--grid);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-amber: var(--amber);
+  --color-green: var(--green);
+  --color-red: var(--red);
+  --color-blue: var(--blue);
+  --color-violet: var(--violet);
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-mono);
+}
+
+::selection {
+  background: var(--amber);
+  color: var(--bg);
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: var(--grid);
+  border-radius: 3px;
+}
+
+.select {
+  background: var(--panel);
+  border: 1px solid var(--grid);
+  color: var(--text);
+  border-radius: 0.25rem;
+  padding: 0.4rem 0.6rem;
+  font-family: inherit;
+  font-size: 0.875rem;
+}
+.select:focus {
+  outline: 1px solid var(--amber);
+}

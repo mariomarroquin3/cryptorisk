@@ -1,0 +1,213 @@
+"use client";
+
+import { useState } from "react";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Column, DataTable } from "@/components/DataTable";
+import { MetricCard } from "@/components/MetricCard";
+import { fmtPct, fmtUsd } from "@/lib/format";
+import { CapitalRow, LimitsRow } from "@/lib/api";
+import { useCapital, useConfig, useEstimationRisk, useHedge, useLimits } from "@/lib/hooks";
+
+export default function CapitalPage() {
+  const { data: config } = useConfig();
+  const assets = config?.assets ?? [];
+  const [asset, setAsset] = useState<string | null>(null);
+  const effAsset = asset ?? assets[0] ?? null;
+
+  const { data: capital } = useCapital(effAsset);
+  const { data: estRisk } = useEstimationRisk(effAsset);
+  const { data: limits } = useLimits(effAsset);
+  const { data: hedge } = useHedge(effAsset);
+
+  const inMcs = capital?.filter((r) => r.in_mcs) ?? [];
+  const row =
+    (inMcs.length > 0
+      ? [...inMcs].sort((a, b) => a.capital_usd - b.capital_usd)[0]
+      : capital?.[0]) ?? null;
+
+  const pointCapital = row?.capital_usd ?? 0;
+  const modelAddon = row?.model_risk_addon_usd ?? 0;
+  const estAddonMedian =
+    estRisk && estRisk.length > 0
+      ? median(estRisk.map((r) => r.estimation_risk_addon_usd))
+      : 0;
+  const totalCapital = pointCapital + modelAddon;
+
+  const stackData = [
+    { name: "Point ES capital", value: pointCapital, fill: "#4dabf7" },
+    { name: "+ model-risk add-on", value: modelAddon, fill: "#ffb020" },
+    { name: "+ estimation-risk add-on (median)", value: estAddonMedian, fill: "#ff4d4f" },
+  ];
+
+  const capitalCols: Column<CapitalRow>[] = [
+    { key: "model", label: "model" },
+    { key: "in_mcs", label: "in MCS" },
+    { key: "es_975_1d", label: "ES 97.5% (1d)" },
+    { key: "es_10d_sqrt", label: "ES (10d, sqrt-t)" },
+    { key: "es_10d_bootstrap", label: "ES (10d, bootstrap)" },
+    { key: "exceptions_250d", label: "exceptions" },
+    { key: "m_c", label: "Basel m_c" },
+    { key: "capital_usd", label: "capital $", render: (r) => fmtUsd(r.capital_usd) },
+    {
+      key: "model_risk_addon_usd",
+      label: "model-risk add-on $",
+      render: (r) => fmtUsd(r.model_risk_addon_usd),
+    },
+  ];
+
+  const limitsCols: Column<LimitsRow>[] = [
+    { key: "model", label: "model" },
+    { key: "in_mcs", label: "in MCS" },
+    { key: "n_star_usd", label: "limit $", render: (r) => fmtUsd(r.n_star_usd) },
+    { key: "bind_rate", label: "bind rate" },
+    { key: "mean_utilisation", label: "avg util." },
+    { key: "budget_breach_rate", label: "budget breach rate" },
+    { key: "worst_loss_usd", label: "worst loss $", render: (r) => fmtUsd(r.worst_loss_usd) },
+  ];
+
+  const h = hedge?.[0];
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-semibold">Capital &amp; Decision</h1>
+        <p className="mt-1 text-sm text-muted">
+          FRTB ES-IMA capital, position limits, estimation-risk add-on, perp
+          hedge.
+        </p>
+      </div>
+
+      <Field label="Asset">
+        <select className="select" value={effAsset ?? ""} onChange={(e) => setAsset(e.target.value)}>
+          {assets.map((a) => (
+            <option key={a} value={a}>
+              {a}
+            </option>
+          ))}
+        </select>
+      </Field>
+
+      {row && (
+        <>
+          <div className="rounded border border-grid bg-panel p-3">
+            <div className="mb-2 text-sm text-muted">
+              {effAsset} capital stack — {row.model}
+            </div>
+            <ResponsiveContainer width="100%" height={320}>
+              <BarChart data={stackData} margin={{ top: 10, right: 10, left: 0, bottom: 10 }}>
+                <CartesianGrid stroke="var(--grid)" vertical={false} />
+                <XAxis dataKey="name" tick={{ fill: "var(--muted)", fontSize: 11 }} />
+                <YAxis tick={{ fill: "var(--muted)", fontSize: 11 }} width={80} />
+                <Tooltip
+                  contentStyle={{ background: "var(--bg)", border: "1px solid var(--grid)" }}
+                  formatter={(v) => fmtUsd(Number(v))}
+                />
+                <Bar dataKey="value" radius={[3, 3, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+            <MetricCard label="Model" value={row.model} />
+            <MetricCard
+              label="Point + model-risk capital"
+              value={fmtUsd(totalCapital)}
+              title="This model's own point ES capital plus the MCS spread add-on."
+            />
+            <MetricCard
+              label="Model-risk add-on"
+              value={fmtUsd(modelAddon)}
+              title="Capital spread (max - min) across the in-MCS models for this asset."
+            />
+            <MetricCard
+              label="Basel exceptions (250d)"
+              value={`${row.exceptions_250d} (${row.m_c}x)`}
+            />
+          </div>
+
+          <DataTable
+            columns={capitalCols}
+            rows={[...(capital ?? [])].sort((a, b) => a.capital_usd - b.capital_usd)}
+            keyField="model"
+          />
+        </>
+      )}
+
+      <div>
+        <h2 className="mb-2 text-lg font-medium">Estimation-risk band (parameter-uncertainty bootstrap)</h2>
+        {estRisk && estRisk.length > 0 ? (
+          <div className="rounded border border-grid bg-panel p-3">
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={estRisk} margin={{ top: 10, right: 10, left: 0, bottom: 10 }}>
+                <CartesianGrid stroke="var(--grid)" vertical={false} />
+                <XAxis dataKey="estimator" tick={{ fill: "var(--muted)", fontSize: 11 }} />
+                <YAxis tick={{ fill: "var(--muted)", fontSize: 11 }} width={80} />
+                <Tooltip
+                  contentStyle={{ background: "var(--bg)", border: "1px solid var(--grid)" }}
+                  formatter={(v) => fmtUsd(Number(v))}
+                />
+                <Bar dataKey="capital_point_usd" stackId="a" name="point capital" fill="#4dabf7" />
+                <Bar
+                  dataKey="estimation_risk_addon_usd"
+                  stackId="a"
+                  name="estimation-risk add-on"
+                  fill="#ff4d4f"
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        ) : (
+          <div className="text-sm text-muted">No estimation-risk output for this asset.</div>
+        )}
+        <p className="mt-2 text-xs text-muted">
+          Prudent ES = 5th-percentile of the bootstrap draws (HS: block
+          bootstrap; GARCH-t / FHS: parameter draw from the fitted covariance,
+          no refit). Add-on is second-order next to the model-risk add-on
+          above.
+        </p>
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-2">
+        <div>
+          <h2 className="mb-2 text-lg font-medium">Position limits</h2>
+          <DataTable columns={limitsCols} rows={limits ?? []} keyField="model" />
+        </div>
+        <div>
+          <h2 className="mb-2 text-lg font-medium">Perp hedge</h2>
+          {h ? (
+            <div className="space-y-3">
+              <MetricCard label="Min-variance hedge ratio" value={h.ratio_min_var.toFixed(3)} />
+              <MetricCard
+                label="Funding carry (annualised)"
+                value={fmtPct(h.funding_carry_annual_frac)}
+                delta={fmtUsd(h.funding_carry_annual_usd) + "/yr"}
+              />
+              {h.es_reduction != null ? (
+                <MetricCard label="ES reduction from hedge" value={fmtPct(h.es_reduction)} />
+              ) : (
+                <div className="text-xs text-muted">Note: {h.note ?? "n/a"}</div>
+              )}
+            </div>
+          ) : (
+            <div className="text-sm text-muted">No hedge output for this asset.</div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function median(xs: number[]): number {
+  const s = [...xs].sort((a, b) => a - b);
+  const mid = Math.floor(s.length / 2);
+  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="flex flex-col gap-1 text-xs text-muted">
+      {label}
+      {children}
+    </label>
+  );
+}

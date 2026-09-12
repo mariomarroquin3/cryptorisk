@@ -92,21 +92,55 @@ run_asset <- function(d) {
   # backtest -- see V2_PLAN §5.5)
   ff <- tryCatch(FitML(spec = spec, data = d$log_return), error = function(e) NULL)
   ins <- data.frame(date = d$date, prob_crisis_insample = NA_real_)
+  regimes <- NULL
   if (!is.null(ff)) {
     st <- tryCatch(State(ff), error = function(e) NULL)
     if (!is.null(st$FiltProb)) {
       k <- crisis_k(ff$par)
       ins$prob_crisis_insample <- as.numeric(st$FiltProb[seq_len(nrow(d)), 1, k])
     }
+    regimes <- regime_params(ff, crisis_k(ff$par))
   }
-  merge(out, ins, by = "date", all.x = TRUE)
+  list(preds = merge(out, ins, by = "date", all.x = TRUE), regimes = regimes)
+}
+
+# Per-regime GARCH params from the full-sample fit `ff` (descriptive only, same
+# fit used for `prob_crisis_insample`) -- for a labeled "if a crisis regime
+# persists" scenario band, NOT a walk-forward forecast (see the module
+# docstring's OOS-weakness caveat). `stat_vol` is the regime-conditional
+# stationary vol sqrt(alpha0/(1-alpha1-beta)) (same formula as `crisis_k`'s
+# labeling rule); `p_stay` is the regime's self-transition probability
+# (TransMat diagonal) -- how persistent that regime is once entered.
+regime_params <- function(fit, ck) {
+  stat_vol <- function(k) {
+    a0 <- as.numeric(fit$par[[sprintf("alpha0_%d", k)]])
+    a1 <- as.numeric(fit$par[[sprintf("alpha1_%d", k)]])
+    b  <- as.numeric(fit$par[[sprintf("beta_%d",   k)]])
+    d  <- 1 - a1 - b
+    if (!is.finite(d) || d <= 0) NA_real_ else sqrt(a0 / d)
+  }
+  tm <- tryCatch(TransMat(fit), error = function(e) NULL)
+  p_stay <- function(k) if (is.null(tm)) NA_real_ else as.numeric(tm[k, k])
+  filt_vol_end <- tryCatch(tail(as.numeric(Volatility(fit)), 1), error = function(e) NA_real_)
+  data.frame(
+    regime = c(if (ck == 1) "crisis" else "normal", if (ck == 2) "crisis" else "normal"),
+    alpha0 = c(fit$par[["alpha0_1"]], fit$par[["alpha0_2"]]),
+    alpha1 = c(fit$par[["alpha1_1"]], fit$par[["alpha1_2"]]),
+    beta   = c(fit$par[["beta_1"]],   fit$par[["beta_2"]]),
+    nu     = c(fit$par[["nu_1"]],     fit$par[["nu_2"]]),
+    stat_vol = c(stat_vol(1), stat_vol(2)),
+    p_stay   = c(p_stay(1), p_stay(2)),
+    filt_vol_end = filt_vol_end
+  )
 }
 
 df <- read.csv(IN_CSV, stringsAsFactors = FALSE)
 df$date <- as.Date(df$date)
+all_regimes <- vector("list", 0)
 for (a in unique(df$asset)) {
   cat(sprintf("MS-GARCH walk-forward: %s\n", a))
-  res <- run_asset(df[df$asset == a, ])
+  out <- run_asset(df[df$asset == a, ])
+  res <- out$preds
   res$asset <- a
   res <- res[order(res$date), c("asset", "prev_date", "date", "var_0025", "es_0025",
                                 "var_001", "es_001", "sigma2",
@@ -116,5 +150,17 @@ for (a in unique(df$asset)) {
   write.csv(res, fp, row.names = FALSE)
   cat(sprintf("  wrote %s (%d rows, %s -> %s)\n", fp, nrow(res),
               min(res$date), max(res$date)))
+  if (!is.null(out$regimes)) {
+    out$regimes$asset <- a
+    all_regimes[[length(all_regimes) + 1]] <- out$regimes
+  }
+}
+if (length(all_regimes) > 0) {
+  rp <- do.call(rbind, all_regimes)
+  rp <- rp[, c("asset", "regime", "alpha0", "alpha1", "beta", "nu",
+               "stat_vol", "p_stay", "filt_vol_end")]
+  fp <- file.path(OUT_DIR, "msgarch_regime_params.csv")
+  write.csv(rp, fp, row.names = FALSE)
+  cat(sprintf("  wrote %s (%d rows)\n", fp, nrow(rp)))
 }
 cat("Done.\n")

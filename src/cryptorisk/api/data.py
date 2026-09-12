@@ -21,7 +21,7 @@ import pandas as pd
 import requests
 
 from cryptorisk.api.cache import ttl_cache
-from cryptorisk.config import load_config, repo_root
+from cryptorisk.config import repo_root
 from cryptorisk.models.base import Context
 from cryptorisk.models.registry import all_models
 
@@ -80,6 +80,18 @@ def load_price_window(asset: str, n: int = 900) -> pd.DataFrame:
     sub = df[df["asset"] == asset].sort_values("date")
     cols = ["date", "close", "log_return", "rv", "bv", "rsv_pos", "rsv_neg", "jump", "rq"]
     return sub.tail(n)[cols].reset_index(drop=True)
+
+
+@ttl_cache(600)
+def window_returns(asset: str, window: int = 500) -> np.ndarray | None:
+    """The same estimation window ``today_forecast`` re-fits on, as a plain
+    log-return array -- for ``api.cone``'s model-agnostic multi-day cone,
+    which re-fits its own (Jump-Diffusion, GARCH-EVT) models independent of
+    whichever model the `/forecast` `model` query param selected."""
+    win = load_price_window(asset, n=window + 30)
+    if len(win) < window:
+        return None
+    return win.tail(window)["log_return"].to_numpy(float)
 
 
 @ttl_cache(15)

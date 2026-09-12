@@ -272,6 +272,23 @@ Non-obvious, still-relevant facts:
   of the store's `msgarch_predictions` table. The API now runs off
   `data/results/` alone, matching its own docstring, and has no DuckDB
   dependency at runtime. See `render.yaml` and the README's Deploy section.
+  **Forward cone (2026-09):** `api/cone.py` re-fits Jump-Diffusion and
+  GARCH-EVT live on the current window, extended to horizons `(1, 5, 10, 30)`
+  days -- not a sqrt(H)-scaled single-day quantile, but each model's own
+  correct multi-day math (Jump-Diffusion's Poisson-jump count and diffusion
+  variance both scale exactly with H; GARCH-EVT's H-day variance is the sum
+  of `arch`'s per-step forecasts, which mean-reverts, with the same fitted
+  GPD tail rescaled to that variance). Independent of the `/forecast`
+  `model` query param -- it's always these two models plus, if
+  `data/results/msgarch_regime_params.csv` covers the asset, a third
+  **labeled scenario** ("if the MS-GARCH crisis regime's own stationary vol
+  applied and persisted"), *not* a forecast -- MS-GARCH's walk-forward regime
+  probability has ~no OOS predictive power (see `msgarch_bridge`'s
+  docstring), so it is never used as if it could predict which regime holds
+  at day H. `msgarch_regime_params.csv` is written by
+  `fit_msgarch_walkforward.R::regime_params()` from the *same* full-sample
+  fit already computed for `prob_crisis_insample` (no extra R fitting cost) --
+  re-run `make msgarch` to refresh it.
 - **`web/`** (2026-09, `make web` from `cryptorisk/web/`) is a separate
   Next.js + TypeScript + Tailwind v4 app, a third, independent front-end over
   the same `api/` (not the dashboard). Client-rendered (no server-side data

@@ -143,8 +143,10 @@ dashboard's data as JSON — `/config`, `/models`, `/price/{asset}`,
 `/portfolio/eval`, `/portfolio/composition`, `/capital`, `/estimation-risk`,
 `/limits`, `/hedge`, `/regimes/{asset}` — for a custom frontend or any other
 consumer. It's a separate process from the dashboard (no shared code, no
-Streamlit import) so either can run without the other. No auth: a local,
-read-only, personal-research tool, not meant to be exposed on an open network.
+Streamlit import, no DuckDB — it reads only `data/results/`, see
+`make price-snapshot`) so either can run without the other. No auth: it's
+read-only, so the risk of a public deploy is availability, not data
+exposure; restrict `CORS_ORIGINS` to your actual frontend's origin.
 
 ## Web
 
@@ -168,6 +170,32 @@ cp .env.example .env.local   # NEXT_PUBLIC_API_BASE_URL, defaults to localhost:8
 npm run dev                   # http://localhost:3000
 ```
 
+## Deploy
+
+The API (Render, free tier) and the web frontend (Vercel, free tier) deploy
+as two independent services from this one repo.
+
+**API → Render:**
+1. Push this repo to GitHub (Render deploys from a connected repo).
+2. Run `make price-snapshot` locally and commit the result if `data/results/`
+   has changed since the last commit — the deployed API reads only this
+   snapshot, never the (gitignored, 100+MB) DuckDB store.
+3. In the Render dashboard: **New +** → **Blueprint**, connect the repo.
+   Render reads [`render.yaml`](render.yaml) and configures everything
+   (`pip install -e ".[api]"`, `uvicorn ... --port $PORT`, `/health` check).
+4. Note the deployed URL (`https://<name>.onrender.com`). The free plan
+   spins the service down after ~15 min idle — the first request after that
+   takes 30-50s to wake it up; that's expected, not a bug.
+
+**Web → Vercel:**
+1. In Vercel: **New Project**, import the same GitHub repo, set **Root
+   Directory** to `web/` (Vercel auto-detects Next.js from there).
+2. Add env var `NEXT_PUBLIC_API_BASE_URL` = the Render URL from above.
+3. Deploy. Note the resulting `https://<project>.vercel.app` URL.
+4. Back in Render: set the `CORS_ORIGINS` env var to that Vercel URL
+   (Settings → Environment) — the API only accepts browser requests from
+   origins listed there. It redeploys automatically on save.
+
 ## Data & reproducibility
 
 - Two independent daily price sources (Binance spot + CoinMetrics reference
@@ -178,4 +206,6 @@ npm run dev                   # http://localhost:3000
   `config/quality_allowlist.yaml`, and the pipeline fails on any *unexplained*
   flag. See [`docs/data_quality.md`](docs/data_quality.md).
 - Everything random takes a seed from `config/study.yaml`. `data/store/*.duckdb`
-  and `data/results/` are gitignored — rebuild with the `make` targets.
+  is gitignored (rebuild with the `make` targets); `data/results/` **is**
+  versioned — it's the frozen study snapshot the dashboard/API/web all read,
+  and deploying the API depends on it being current (see Deploy above).

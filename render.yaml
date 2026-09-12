@@ -1,0 +1,20 @@
+# Render Blueprint for the read-only FastAPI backend (see src/cryptorisk/api).
+# In the Render dashboard: New + -> Blueprint -> connect this repo -> Apply.
+# Render auto-detects this file; no manual service config needed beyond the
+# CORS_ORIGINS env var below (set it once the frontend's real URL is known).
+services:
+  - type: web
+    name: cryptorisk-api
+    runtime: python
+    plan: free
+    buildCommand: pip install -e ".[api]"
+    startCommand: uvicorn cryptorisk.api.app:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.10
+      - key: CORS_ORIGINS
+        value: http://localhost:3000
+        # After deploying the frontend (Vercel), change this to its real
+        # URL (e.g. https://cryptorisk.vercel.app) in the Render dashboard --
+        # Settings -> Environment -- and it redeploys automatically.

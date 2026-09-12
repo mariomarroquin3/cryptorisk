@@ -1,11 +1,13 @@
-"""Read-only data access for the API: study outputs, the DuckDB store, a
-polled spot price, and an on-demand "today" forecast.
+"""Read-only data access for the API: `data/results/` snapshots, a polled
+spot price, and an on-demand "today" forecast.
 
 Deliberately independent of ``cryptorisk.dashboard.data`` (no Streamlit
-import) even though the logic mirrors it closely -- see the package
-docstring. Keep the two in sync by hand if the underlying study schema
-changes; they're small and simple enough that this is cheaper than forcing a
-shared, framework-agnostic layer through two very different caching models.
+import, and no DuckDB store dependency -- the dashboard reads the store
+directly, the API reads only `data/results/`, see `export_price_history`)
+even though the logic mirrors it closely. Keep the two in sync by hand if
+the underlying study schema changes; they're small and simple enough that
+this is cheaper than forcing a shared, framework-agnostic layer through two
+very different caching models.
 """
 
 from __future__ import annotations
@@ -14,7 +16,6 @@ import time
 from functools import lru_cache
 from typing import Any
 
-import duckdb
 import numpy as np
 import pandas as pd
 import requests
@@ -62,31 +63,23 @@ def load_backtests() -> pd.DataFrame:
 
 
 @lru_cache(maxsize=1)
-def store_path() -> str:
-    cfg = load_config()
-    return str(repo_root() / cfg["paths"]["store"])
+def _price_history() -> pd.DataFrame:
+    path = _RESULTS / "price_history.parquet"
+    if not path.exists():
+        return pd.DataFrame()
+    df = pd.read_parquet(path)
+    df["date"] = pd.to_datetime(df["date"])
+    return df
 
 
 @ttl_cache(300)
 def load_price_window(asset: str, n: int = 900) -> pd.DataFrame:
-    con = duckdb.connect(store_path(), read_only=True)
-    try:
-        df = con.execute(
-            """
-            SELECT r.date, r.close, r.log_return,
-                   x.rv, x.bv, x.rsv_pos, x.rsv_neg, x.jump, x.rq
-            FROM returns_daily r
-            LEFT JOIN realized_daily x USING (asset, date)
-            WHERE r.asset = ?
-            ORDER BY r.date DESC
-            LIMIT ?
-            """,
-            [asset, n],
-        ).df()
-    finally:
-        con.close()
-    df["date"] = pd.to_datetime(df["date"])
-    return df.sort_values("date").reset_index(drop=True)
+    df = _price_history()
+    if df.empty:
+        return df
+    sub = df[df["asset"] == asset].sort_values("date")
+    cols = ["date", "close", "log_return", "rv", "bv", "rsv_pos", "rsv_neg", "jump", "rq"]
+    return sub.tail(n)[cols].reset_index(drop=True)
 
 
 @ttl_cache(15)
@@ -116,24 +109,15 @@ def live_price(asset: str) -> dict[str, float] | None:
 
 @ttl_cache(300)
 def regime_series(asset: str, limit: int = 2000) -> pd.DataFrame:
-    con = duckdb.connect(store_path(), read_only=True)
-    try:
-        exists = con.execute(
-            "SELECT count(*) FROM information_schema.tables WHERE table_name='msgarch_predictions'"
-        ).fetchone()[0]
-        if not exists:
-            return pd.DataFrame()
-        df = con.execute(
-            "SELECT date, sigma2, prob_crisis_insample, prob_crisis_pred "
-            "FROM msgarch_predictions WHERE asset = ? ORDER BY date DESC LIMIT ?",
-            [asset, limit],
-        ).df()
-    finally:
-        con.close()
+    path = _RESULTS / f"msgarch_pred_{asset}.csv"
+    if not path.exists():
+        return pd.DataFrame()
+    df = pd.read_csv(path)
     if df.empty:
         return df
     df["date"] = pd.to_datetime(df["date"])
-    return df.sort_values("date").reset_index(drop=True)
+    cols = ["date", "sigma2", "prob_crisis_insample", "prob_crisis_pred"]
+    return df.sort_values("date").tail(limit)[cols].reset_index(drop=True)
 
 
 def primary_model(asset: str, alpha: float, results: dict[str, pd.DataFrame]) -> str | None:

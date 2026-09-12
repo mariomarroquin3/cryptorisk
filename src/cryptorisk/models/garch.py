@@ -7,8 +7,9 @@
 Returns must be scaled x100 for the optimiser; scaled back afterwards. The
 predictive distribution is location-scale with a **standardized** Student-t
 (see ``_dist.student_t_z``). On a failed fit (or ``nu <= 2``) the model falls
-back to the empirical quantile of the window; ``FALLBACK_COUNT`` tracks how
-often, and the study reports it.
+back to the empirical quantile of the window -- how often is visible after
+the fact via `eval_fz0_mcs.csv`'s `n_degenerate` and the coverage/ES tables,
+not tracked separately here.
 """
 
 from __future__ import annotations
@@ -25,18 +26,10 @@ try:
 except ImportError:  # pragma: no cover
     _ARCH = False
 
-FALLBACK_COUNT = 0
 _SCALE = 100.0
 
 
-def reset_fallback_count() -> None:
-    global FALLBACK_COUNT
-    FALLBACK_COUNT = 0
-
-
 def _fallback(r: np.ndarray) -> PredictiveDist:
-    global FALLBACK_COUNT
-    FALLBACK_COUNT += 1
     return EmpiricalDist(r)
 
 

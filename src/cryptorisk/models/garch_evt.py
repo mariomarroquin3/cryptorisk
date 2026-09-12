@@ -23,13 +23,7 @@ try:
 except ImportError:  # pragma: no cover
     _ARCH = False
 
-FALLBACK_COUNT = 0
 _SCALE = 100.0
-
-
-def reset_fallback_count() -> None:
-    global FALLBACK_COUNT
-    FALLBACK_COUNT = 0
 
 
 class GarchEVT:
@@ -39,10 +33,8 @@ class GarchEVT:
         self.threshold_q = threshold_q
 
     def fit_predict(self, ctx: Context) -> PredictiveDist:
-        global FALLBACK_COUNT
         r = ctx.returns
         if not _ARCH or r.size < 150:
-            FALLBACK_COUNT += 1
             return EmpiricalDist(r)
         try:
             res = arch_model(
@@ -54,9 +46,7 @@ class GarchEVT:
             sigma_next = float(np.sqrt(fc.variance.iloc[-1, 0])) / _SCALE
             mu_next = float(res.params.get("mu", 0.0)) / _SCALE
             if z.size < 150 or not np.isfinite(sigma_next) or sigma_next <= 0:
-                FALLBACK_COUNT += 1
                 return EmpiricalDist(r)
             return GpdTailDist(z, loc=mu_next, scale=sigma_next, threshold_q=self.threshold_q)
         except Exception:  # noqa: BLE001
-            FALLBACK_COUNT += 1
             return EmpiricalDist(r)

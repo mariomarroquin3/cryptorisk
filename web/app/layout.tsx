@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Nav } from "@/components/Nav";
+import { ApiStatusBanner } from "@/components/ApiStatusBanner";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -11,9 +12,12 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className="h-full">
-      <body className="flex min-h-full bg-bg text-text antialiased">
-        <Nav />
-        <main className="min-w-0 flex-1 overflow-x-hidden px-6 py-6">{children}</main>
+      <body className="flex min-h-full flex-col bg-bg text-text antialiased">
+        <ApiStatusBanner />
+        <div className="flex min-h-0 flex-1">
+          <Nav />
+          <main className="min-w-0 flex-1 overflow-x-hidden px-6 py-6">{children}</main>
+        </div>
       </body>
     </html>
   );

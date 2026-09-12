@@ -6,7 +6,7 @@ ifeq ($(OS),)
   PY := .venv/bin/python
 endif
 
-.PHONY: help install test lint fmt data realized msgarch backtest evaluate subperiods regime-id decide report portfolio dashboard api web clean
+.PHONY: help install test lint fmt data realized msgarch backtest evaluate subperiods regime-id decide report portfolio dashboard api web dev clean
 
 help:
 	@echo "install   - create .venv and install (editable) with dev extras"
@@ -25,6 +25,7 @@ help:
 	@echo "dashboard - Streamlit live risk terminal over data/results/ + a live price feed"
 	@echo "api       - FastAPI read-only REST API over data/results/ -> http://localhost:8000/docs"
 	@echo "web       - Next.js frontend (npm install first, in web/) -> http://localhost:3000"
+	@echo "dev       - api + web together (Ctrl+C stops both) -> http://localhost:3000"
 
 install:
 	python -m venv .venv
@@ -78,6 +79,12 @@ api:
 
 web:
 	npm --prefix web run dev
+
+dev:
+	@trap 'kill 0' INT TERM EXIT; \
+	$(PY) -m uvicorn cryptorisk.api.app:app --port 8000 & \
+	npm --prefix web run dev & \
+	wait
 
 clean:
 	rm -rf .pytest_cache .ruff_cache .coverage htmlcov

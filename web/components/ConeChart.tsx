@@ -22,12 +22,16 @@ export interface ConeSeries {
   points: ConePoint[];
 }
 
-/** Three specialized models' forward VaR/upper bounds, each its own
- * line-pair converging on today's price -- deliberately lines, not filled
- * areas, since three overlapping fills would blend into an unreadable
- * color mush. Showing them side by side instead of picking one "the" cone
- * makes model disagreement itself visible -- the same spirit as the
- * study's own model-risk add-on (decision/capital.py). */
+const NOTES: Record<string, string> = {
+  jd: "Poisson jumps + diffusion, compounded exactly to each horizon (jump count and variance both scale with days, not sqrt(days)).",
+  evt: "Mean-reverting GARCH variance term structure (the sum of each step's forecast, not a flat scaling) plus the fitted extreme-value tail.",
+};
+
+/** One specialized model's forward VaR/upper bound, converging on today's
+ * price -- deliberately its own small chart per model (call this once per
+ * series) rather than overlaying several models' lines on one chart, which
+ * gets busy fast. Passing >1 series still works (lines, not filled areas,
+ * so they stay legible layered), for callers that want that instead. */
 export function ConeChart({ series, lastClose }: { series: ConeSeries[]; lastClose: number }) {
   const withData = series.filter((s) => s.points.length > 0);
   const days = Array.from(
@@ -48,12 +52,14 @@ export function ConeChart({ series, lastClose }: { series: ConeSeries[]; lastClo
   const finite = [lastClose, ...allPrices.filter((v): v is number => v != null && Number.isFinite(v))];
   const yDomain: [number, number] = [Math.min(...finite) * 0.96, Math.max(...finite) * 1.04];
 
+  const title =
+    withData.length === 1
+      ? `${withData[0].label} -- forward VaR/upper, today out to ${days[days.length - 1] ?? "?"} days`
+      : `Forward cone -- VaR/upper bound, today out to ${days[days.length - 1] ?? "?"} days`;
+
   return (
     <div className="rounded border border-grid bg-panel p-3">
-      <div className="mb-2 text-sm text-muted">
-        Forward cone -- three models&apos; VaR/upper bound, today out to{" "}
-        {days[days.length - 1] ?? "?"} days
-      </div>
+      <div className="mb-2 text-sm text-muted">{title}</div>
       <ResponsiveContainer width="100%" height={300}>
         <LineChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
           <CartesianGrid stroke="var(--grid)" vertical={false} />
@@ -102,14 +108,11 @@ export function ConeChart({ series, lastClose }: { series: ConeSeries[]; lastClo
         </LineChart>
       </ResponsiveContainer>
       <p className="mt-2 text-xs text-muted">
-        Amber = Jump-Diffusion (Poisson jumps + diffusion, compounded exactly
-        to each horizon). Violet = GARCH-EVT (mean-reverting GARCH variance
-        term structure + the fitted extreme-value tail). Red dashed = a
-        labeled <em>scenario</em>, not a forecast -- &quot;if the MS-GARCH
-        crisis regime&apos;s own stationary volatility applied and
-        persisted&quot;. None of these are Monte Carlo path simulations of a
-        single future; each line is that model&apos;s own estimate of the
-        return distribution at that horizon.
+        {withData.length === 1
+          ? (NOTES[withData[0].key] ?? "")
+          : withData.map((s) => `${s.label}: ${NOTES[s.key] ?? ""}`).join(" ")}{" "}
+        Not a Monte Carlo path simulation of a single future -- this is the
+        model&apos;s own estimate of the return distribution at each horizon.
       </p>
     </div>
   );

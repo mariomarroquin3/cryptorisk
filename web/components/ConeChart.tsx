@@ -38,8 +38,9 @@ export function ConeChart({ series, lastClose }: { series: ConeSeries[]; lastClo
     new Set(withData.flatMap((s) => s.points.map((p) => p.days))),
   ).sort((a, b) => a - b);
 
+  const maxDay = days[days.length - 1] ?? 0;
   const data = [0, ...days].map((d) => {
-    const row: Record<string, number | string | null> = { days: d, label: d === 0 ? "today" : `+${d}d` };
+    const row: Record<string, number | null> = { days: d };
     for (const s of withData) {
       const point = s.points.find((p) => p.days === d);
       row[`${s.key}_var`] = d === 0 ? lastClose : (point?.var_price ?? null);
@@ -47,6 +48,8 @@ export function ConeChart({ series, lastClose }: { series: ConeSeries[]; lastClo
     }
     return row;
   });
+  const dayLabel = (d: number) => (d === 0 ? "today" : `+${d}d`);
+  const xTicks = Array.from(new Set([0, 5, 10, 15, 20, 25, 30, maxDay].filter((t) => t <= maxDay)));
 
   const allPrices = withData.flatMap((s) => s.points.flatMap((p) => [p.var_price, p.upper_price]));
   const finite = [lastClose, ...allPrices.filter((v): v is number => v != null && Number.isFinite(v))];
@@ -54,8 +57,8 @@ export function ConeChart({ series, lastClose }: { series: ConeSeries[]; lastClo
 
   const title =
     withData.length === 1
-      ? `${withData[0].label} -- forward VaR/upper, today out to ${days[days.length - 1] ?? "?"} days`
-      : `Forward cone -- VaR/upper bound, today out to ${days[days.length - 1] ?? "?"} days`;
+      ? `${withData[0].label} -- forward VaR/upper, today out to ${maxDay} days`
+      : `Forward cone -- VaR/upper bound, today out to ${maxDay} days`;
 
   return (
     <div className="rounded border border-grid bg-panel p-3">
@@ -63,7 +66,15 @@ export function ConeChart({ series, lastClose }: { series: ConeSeries[]; lastClo
       <ResponsiveContainer width="100%" height={300}>
         <LineChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
           <CartesianGrid stroke="var(--grid)" vertical={false} />
-          <XAxis dataKey="label" tick={{ fill: "var(--muted)", fontSize: 11 }} axisLine={{ stroke: "var(--grid)" }} />
+          <XAxis
+            dataKey="days"
+            type="number"
+            domain={[0, maxDay]}
+            ticks={xTicks}
+            tickFormatter={dayLabel}
+            tick={{ fill: "var(--muted)", fontSize: 11 }}
+            axisLine={{ stroke: "var(--grid)" }}
+          />
           <YAxis
             tick={{ fill: "var(--muted)", fontSize: 11 }}
             tickFormatter={(v) => fmtUsd(v)}
@@ -75,12 +86,14 @@ export function ConeChart({ series, lastClose }: { series: ConeSeries[]; lastClo
           <Tooltip
             contentStyle={{ background: "var(--bg)", border: "1px solid var(--grid)", fontSize: 12 }}
             labelStyle={{ color: "var(--text)" }}
+            labelFormatter={(d) => dayLabel(Number(d))}
             formatter={(value) => (value == null ? "n/a" : fmtUsd(Number(value)))}
           />
           <Legend wrapperStyle={{ fontSize: 11 }} />
           {withData.map((s) => (
             <Line
               key={`${s.key}_var`}
+              type="monotone"
               dataKey={`${s.key}_var`}
               name={`${s.label} (VaR)`}
               stroke={s.color}
@@ -94,6 +107,7 @@ export function ConeChart({ series, lastClose }: { series: ConeSeries[]; lastClo
           {withData.map((s) => (
             <Line
               key={`${s.key}_upper`}
+              type="monotone"
               dataKey={`${s.key}_upper`}
               name={`${s.label} (upper)`}
               stroke={s.color}

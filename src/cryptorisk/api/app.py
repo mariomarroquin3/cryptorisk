@@ -70,7 +70,7 @@ def _price(last_close: float, log_return: float | None) -> float | None:
     return last_close * math.exp(log_return)
 
 
-_CONE_HORIZONS_DAYS = (1, 5, 10, 30)
+_CONE_HORIZONS_DAYS = tuple(range(1, 31))
 
 
 def _dist_row(last: float, days: int, dist, alpha: float) -> dict:

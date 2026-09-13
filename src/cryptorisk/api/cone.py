@@ -16,21 +16,21 @@ study's specialized models to a longer, honestly-labeled horizon:
   shape carries over to the H-day aggregate), but a materially better one
   than naive sqrt(H) scaling of a single day's quantile.
 
-**MS-GARCH is deliberately not re-fit here for a live forecast**: its
+**MS-GARCH is deliberately not folded into this time-indexed cone**: its
 walk-forward regime signal has ~no out-of-sample predictive power (see
 ``models.msgarch_bridge``'s docstring -- ``prob_crisis_pred`` correlates
-~0.07 with realized vol) and it can't be re-fit outside R anyway. Its
-contribution is a *labeled scenario*, not a forecast: :func:`regime_scenario`
-reads the regime-conditional GARCH params from the full-sample fit already
-computed for ``prob_crisis_insample`` (``data/results/msgarch_regime_params.csv``,
-written by ``msgarch/fit_msgarch_walkforward.R::regime_params``) and asks "if
-that crisis regime's own stationary vol applied and persisted for H days,
-what would VaR/ES look like" -- explicitly not "here is the probability of a
-crisis at day H", which the data does not support. The crisis regime's fitted
+~0.07 with realized vol) and it can't be re-fit outside R anyway, so there is
+no honest way to draw "the regime at day H" as a forecast line. Instead
+:func:`regime_summary` exposes what a normal-regime day and a crisis-regime
+day *statistically look like* -- the full-sample-fitted stationary vol and
+Student-t tail shape per regime (``data/results/msgarch_regime_params.csv``,
+written by ``msgarch/fit_msgarch_walkforward.R::regime_params`` from the same
+fit already computed for ``prob_crisis_insample``) -- as a **distribution
+comparison**, not a horizon-indexed prediction. The crisis regime's fitted
 GARCH persistence sits close enough to the unit-root boundary that its raw
 stationary variance can blow up numerically (v1 hit the identical pathology
--- see its CLAUDE.md's crisis/normal vol ratio cap); :func:`regime_scenario`
-clips the crisis/normal stationary-vol ratio to ``[1.4, 3.0]`` for the same
+-- see its CLAUDE.md's crisis/normal vol ratio cap); :func:`_clipped_crisis_vol`
+caps the crisis/normal stationary-vol ratio to ``[1.4, 3.0]`` for the same
 reason, rather than pass through a nonsensical scenario.
 """
 
@@ -42,7 +42,6 @@ import numpy as np
 import pandas as pd
 
 from cryptorisk.config import repo_root
-from cryptorisk.models._dist import student_t_z
 from cryptorisk.models._gpd import GpdTailDist
 from cryptorisk.models.base import EmpiricalDist, PredictiveDist
 from cryptorisk.models.jump import estimate_jump_params
@@ -126,12 +125,7 @@ def _regime_params() -> pd.DataFrame:
     return pd.read_csv(path) if path.exists() else pd.DataFrame()
 
 
-def regime_scenario(asset: str, horizon_days: int, alpha: float) -> dict[str, float] | None:
-    """"If the crisis regime's own (full-sample-fitted) stationary vol
-    applied and persisted for `horizon_days`" -- a labeled scenario, not a
-    forecast (see the module docstring). Returns None if the regime-params
-    snapshot doesn't have this asset (e.g. it predates this feature, or R
-    wasn't run) or the crisis regime's params don't identify a valid vol/nu."""
+def _regime_rows(asset: str) -> tuple[pd.Series, pd.Series] | None:
     df = _regime_params()
     if df.empty:
         return None
@@ -139,26 +133,39 @@ def regime_scenario(asset: str, horizon_days: int, alpha: float) -> dict[str, fl
     normal = df[(df["asset"] == asset) & (df["regime"] == "normal")]
     if crisis.empty or normal.empty:
         return None
-    r = crisis.iloc[0]
-    stat_vol, nu = float(r["stat_vol"]), float(r["nu"])
-    normal_vol = float(normal.iloc[0]["stat_vol"])
-    if not (np.isfinite(stat_vol) and stat_vol > 0 and np.isfinite(nu) and nu > 2.0):
-        return None
+    return normal.iloc[0], crisis.iloc[0]
+
+
+def _clipped_crisis_vol(normal_vol: float, crisis_vol_raw: float) -> float | None:
+    """The crisis regime's GARCH persistence (alpha1+beta) sits close enough
+    to the unit-root boundary that 1/(1-alpha1-beta) -- and so the
+    "stationary" variance -- can blow up numerically (v1 hit the identical
+    pathology, see its CLAUDE.md: "ratio crisis/normal acotado a
+    [1.4, 3.0]"). Cap the crisis/normal vol ratio the same way rather than
+    pass through a nonsensical scenario (e.g. 75x normal vol)."""
     if not (np.isfinite(normal_vol) and normal_vol > 0):
         return None
-    # The crisis regime's GARCH persistence (alpha1+beta) sits close enough to
-    # the unit-root boundary that 1/(1-alpha1-beta) -- and so the "stationary"
-    # variance -- can blow up numerically (v1 hit the identical pathology, see
-    # its CLAUDE.md: "ratio crisis/normal acotado a [1.4, 3.0]"). Cap the
-    # crisis/normal vol ratio the same way rather than pass through a
-    # nonsensical scenario (e.g. 75x normal vol).
-    ratio = np.clip(stat_vol / normal_vol, 1.4, 3.0)
-    stat_vol = normal_vol * float(ratio)
-    ppf, _cdf, es = student_t_z(nu)
-    scale = stat_vol * float(np.sqrt(horizon_days))
+    if not (np.isfinite(crisis_vol_raw) and crisis_vol_raw > 0):
+        return None
+    ratio = np.clip(crisis_vol_raw / normal_vol, 1.4, 3.0)
+    return normal_vol * float(ratio)
+
+
+def regime_summary(asset: str) -> dict[str, dict[str, float]] | None:
+    """Raw (clipped) regime params for the two-panel "what does a normal day
+    vs. a crisis day look like" distribution comparison -- mean is always 0
+    (the MS-GARCH spec here has no drift term), so only vol (std) and the
+    Student-t degrees of freedom (``nu``, tail shape) vary by regime."""
+    rows = _regime_rows(asset)
+    if rows is None:
+        return None
+    nrow, crow = rows
+    normal_vol, nu_n, p_n = float(nrow["stat_vol"]), float(nrow["nu"]), float(nrow["p_stay"])
+    crisis_vol = _clipped_crisis_vol(normal_vol, float(crow["stat_vol"]))
+    nu_c, p_c = float(crow["nu"]), float(crow["p_stay"])
+    if crisis_vol is None or not (np.isfinite(nu_n) and nu_n > 2.0 and np.isfinite(nu_c) and nu_c > 2.0):
+        return None
     return {
-        "var": scale * float(ppf(alpha)),
-        "es": scale * float(es(alpha)),
-        "upper": scale * float(ppf(1 - alpha)),
-        "p_stay": float(r["p_stay"]) if np.isfinite(r["p_stay"]) else None,
+        "normal": {"vol": normal_vol, "nu": nu_n, "p_stay": p_n if np.isfinite(p_n) else None},
+        "crisis": {"vol": crisis_vol, "nu": nu_c, "p_stay": p_c if np.isfinite(p_c) else None},
     }

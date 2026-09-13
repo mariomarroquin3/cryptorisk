@@ -90,40 +90,24 @@ def _dist_row(last: float, days: int, dist, alpha: float) -> dict:
 
 @ttl_cache(600)
 def _ensemble_cone(asset: str, last: float, alpha: float) -> dict:
-    """The three-model forward cone: Jump-Diffusion and GARCH-EVT re-fit live
-    on the current window and extended to each horizon (see ``api.cone``),
-    plus an optional MS-GARCH crisis-regime scenario. Deliberately
-    independent of the `model` query param -- see ``api.cone``'s docstring
-    for why MS-GARCH itself isn't re-fit live for this."""
+    """The two-model forward cone: Jump-Diffusion and GARCH-EVT re-fit live
+    on the current window and extended to each horizon (see ``api.cone``).
+    Deliberately independent of the `model` query param. MS-GARCH's regime
+    info is *not* folded into this time-indexed cone -- see
+    ``regime_summary`` (a separate, non-horizon distribution comparison) and
+    ``api.cone``'s docstring for why."""
     horizons = list(_CONE_HORIZONS_DAYS)
     returns = D.window_returns(asset)
     if returns is None:
         empty = [{"days": h, "var_price": None, "es_price": None, "upper_price": None} for h in horizons]
-        return {"horizons_days": horizons, "jump_diffusion": empty, "garch_evt": empty, "crisis_scenario": None}
+        return {"horizons_days": horizons, "jump_diffusion": empty, "garch_evt": empty}
 
     jd = C.jump_diffusion_cone(returns, horizons)
     evt = C.garch_evt_cone(returns, horizons)
-    crisis_rows = []
-    any_crisis = False
-    for h in horizons:
-        sc = C.regime_scenario(asset, h, alpha)
-        if sc is None:
-            crisis_rows.append({"days": h, "var_price": None, "es_price": None, "upper_price": None})
-        else:
-            any_crisis = True
-            crisis_rows.append(
-                {
-                    "days": h,
-                    "var_price": _price(last, sc["var"]),
-                    "es_price": _price(last, sc["es"]),
-                    "upper_price": _price(last, sc["upper"]),
-                }
-            )
     return {
         "horizons_days": horizons,
         "jump_diffusion": [_dist_row(last, h, jd.get(h), alpha) for h in horizons],
         "garch_evt": [_dist_row(last, h, evt.get(h), alpha) for h in horizons],
-        "crisis_scenario": crisis_rows if any_crisis else None,
     }
 
 
@@ -220,6 +204,7 @@ def forecast(
             "es_price": _price(last, es),
             "upper_price": _price(last, hi),
             "cone": _ensemble_cone(asset, last, alpha),
+            "regime_summary": C.regime_summary(asset),
         }
 
     bt = D.load_backtests()

@@ -59,6 +59,16 @@ export interface ForecastResponse {
   es_price?: number | null;
   upper_price?: number | null;
   cone?: ForecastCone;
+  /** Normal vs. crisis regime, as a distribution comparison (not a
+   * horizon-indexed forecast) -- see RegimeDistribution.tsx. Null if
+   * data/results/msgarch_regime_params.csv doesn't cover this asset. */
+  regime_summary?: { normal: RegimeParams; crisis: RegimeParams } | null;
+}
+
+export interface RegimeParams {
+  vol: number;
+  nu: number;
+  p_stay: number | null;
 }
 
 export interface ConePoint {
@@ -76,10 +86,6 @@ export interface ForecastCone {
   /** GARCH-EVT: cumulative variance is the sum of arch's per-step forecasts
    * (mean-reverting), same fitted GPD tail rescaled per horizon. */
   garch_evt: ConePoint[];
-  /** "If the MS-GARCH crisis regime's own stationary vol applied and
-   * persisted" -- a labeled scenario, not a forecast. Null if
-   * data/results/msgarch_regime_params.csv doesn't cover this asset. */
-  crisis_scenario: ConePoint[] | null;
 }
 
 export interface Fz0Row {

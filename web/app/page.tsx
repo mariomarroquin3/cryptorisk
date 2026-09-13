@@ -5,6 +5,7 @@ import { Badge } from "@/components/Badge";
 import { ConeChart, ConeSeries } from "@/components/ConeChart";
 import { MetricCard } from "@/components/MetricCard";
 import { PriceChart, PricePoint } from "@/components/PriceChart";
+import { RegimeDistribution } from "@/components/RegimeDistribution";
 import { ForecastResponse } from "@/lib/api";
 import { fmtConfidence, fmtDate, fmtPct, fmtUsd } from "@/lib/format";
 import {
@@ -20,20 +21,10 @@ import {
 function buildConeSeries(forecast: ForecastResponse | undefined): ConeSeries[] {
   const cone = forecast?.cone;
   if (!cone) return [];
-  const series: ConeSeries[] = [
+  return [
     { key: "jd", label: "Jump-Diffusion", color: "var(--amber)", points: cone.jump_diffusion ?? [] },
     { key: "evt", label: "GARCH-EVT", color: "var(--violet)", points: cone.garch_evt ?? [] },
   ];
-  if (cone.crisis_scenario) {
-    series.push({
-      key: "crisis",
-      label: "MS-GARCH crisis scenario",
-      color: "var(--red)",
-      dash: "4 3",
-      points: cone.crisis_scenario,
-    });
-  }
-  return series;
 }
 
 function buildBand(
@@ -202,8 +193,8 @@ export default function OverviewPage() {
               around <span className="font-semibold">{fmtUsd(forecast.es_price)}</span>
             </>
           )}
-          . The forward cone below extends this to 5/10/30 days using three
-          different specialized models.
+          . The panels below extend this to 5/10/30 days (two specialized
+          models) and compare what a normal vs. crisis day looks like.
         </p>
       )}
 
@@ -252,7 +243,18 @@ export default function OverviewPage() {
       </p>
 
       {coneSeries.length > 0 && forecast?.last_close != null && (
-        <ConeChart series={coneSeries} lastClose={forecast.last_close} />
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          {coneSeries.map((s) => (
+            <ConeChart key={s.key} series={[s]} lastClose={forecast.last_close as number} />
+          ))}
+        </div>
+      )}
+
+      {forecast?.regime_summary && (
+        <RegimeDistribution
+          normal={forecast.regime_summary.normal}
+          crisis={forecast.regime_summary.crisis}
+        />
       )}
     </div>
   );

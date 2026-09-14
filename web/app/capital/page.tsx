@@ -6,7 +6,7 @@ import { Column, DataTable } from "@/components/DataTable";
 import { Field } from "@/components/Field";
 import { MetricCard } from "@/components/MetricCard";
 import { ChartSkeleton, MetricCardSkeleton } from "@/components/Skeleton";
-import { ZoneBadge, zoneFromExceptions } from "@/components/ZoneBadge";
+import { ZoneBadge } from "@/components/ZoneBadge";
 import { fmtPct, fmtUsd } from "@/lib/format";
 import { CapitalRow, LimitsRow } from "@/lib/api";
 import { useCapital, useConfig, useEstimationRisk, useHedge, useLimits } from "@/lib/hooks";
@@ -75,10 +75,10 @@ function CapitalPageInner() {
       help: "Number of VaR violations in the last 250 trading days -- drives the Basel traffic-light zone.",
     },
     {
-      key: "exceptions_250d",
+      key: "basel_zone",
       label: "zone",
       help: "Traffic-light zone from the 250-day exception count: green (<=4), amber (5-9), red (>=10).",
-      render: (r) => <ZoneBadge zone={zoneFromExceptions(r.exceptions_250d)} />,
+      render: (r) => <ZoneBadge zone={r.basel_zone} />,
     },
     {
       key: "m_c",
@@ -175,7 +175,7 @@ function CapitalPageInner() {
               <span>
                 {effAsset} capital stack — {row.model}
               </span>
-              <ZoneBadge zone={zoneFromExceptions(row.exceptions_250d)} />
+              <ZoneBadge zone={row.basel_zone} />
             </div>
             <ResponsiveContainer width="100%" height={320}>
               <BarChart data={stackData} margin={{ top: 10, right: 10, left: 0, bottom: 10 }}>

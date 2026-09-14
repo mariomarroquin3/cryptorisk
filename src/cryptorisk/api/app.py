@@ -26,6 +26,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from cryptorisk.api import cone as C
 from cryptorisk.api import data as D
 from cryptorisk.api.cache import ttl_cache
+from cryptorisk.backtest.coverage import basel_zone_and_addon
 from cryptorisk.config import load_config
 from cryptorisk.study.run_portfolio import _read_bullets
 
@@ -306,6 +307,8 @@ def portfolio_narrative(alpha: float) -> list[str]:
     if sub.empty:
         return []
     pcfg = load_config().get("portfolio", {})
+    if not pcfg.get("assets"):
+        return []
     return _read_bullets(sub, pcfg)
 
 
@@ -325,7 +328,9 @@ def capital(asset: str) -> list[dict]:
     df = D.load_results()["capital"]
     if df.empty:
         return []
-    return _records(df[df.asset == asset].sort_values("capital_usd"))
+    out = df[df.asset == asset].sort_values("capital_usd").copy()
+    out["basel_zone"] = out["exceptions_250d"].apply(lambda x: basel_zone_and_addon(int(x))[0])
+    return _records(out)
 
 
 @app.get("/estimation-risk")

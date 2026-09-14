@@ -10,8 +10,11 @@ const ZONE_LABELS: Record<string, string> = {
   red: "Red",
 };
 
-/** Basel traffic-light zone (green/amber/red), computed from the 250-day
- * exception count -- see `backtest/coverage.py::basel_zone_and_addon`. */
+/** Basel traffic-light zone (green/amber/red), computed server-side from the
+ * 250-day exception count -- see `backtest/coverage.py::basel_zone_and_addon`,
+ * the single source of truth. Every endpoint that has an exception count
+ * (coverage, portfolio eval, capital) exposes `basel_zone` directly so this
+ * component never has to re-derive it from thresholds. */
 export function ZoneBadge({ zone }: { zone: string | null | undefined }) {
   if (!zone || !(zone in ZONE_STYLES)) {
     return <span className="text-muted">n/a</span>;
@@ -24,13 +27,4 @@ export function ZoneBadge({ zone }: { zone: string | null | undefined }) {
       {ZONE_LABELS[zone]}
     </span>
   );
-}
-
-/** Mirrors the backend's exceptions -> zone mapping (coverage.py) for
- * endpoints that expose exceptions_250d but not the zone itself (e.g.
- * /capital). Keep thresholds in sync if that function ever changes. */
-export function zoneFromExceptions(exceptions: number): "green" | "amber" | "red" {
-  if (exceptions <= 4) return "green";
-  if (exceptions <= 9) return "amber";
-  return "red";
 }

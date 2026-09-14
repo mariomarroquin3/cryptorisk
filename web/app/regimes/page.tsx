@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useMemo } from "react";
 import {
   Area,
   CartesianGrid,
@@ -12,9 +12,11 @@ import {
   YAxis,
 } from "recharts";
 import { Column, DataTable } from "@/components/DataTable";
+import { Field } from "@/components/Field";
 import { MetricCard } from "@/components/MetricCard";
 import { PriceHistoryRow, RegimeCorrRow } from "@/lib/api";
 import { useConfig, usePrices, useRegimes } from "@/lib/hooks";
+import { useQueryParam } from "@/lib/useQueryParam";
 
 function rollingAbsMean(prices: PriceHistoryRow[], window = 21): Map<string, number> {
   const map = new Map<string, number>();
@@ -28,9 +30,17 @@ function rollingAbsMean(prices: PriceHistoryRow[], window = 21): Map<string, num
 }
 
 export default function RegimesPage() {
+  return (
+    <Suspense>
+      <RegimesPageInner />
+    </Suspense>
+  );
+}
+
+function RegimesPageInner() {
   const { data: config } = useConfig();
   const assets = config?.assets ?? [];
-  const [asset, setAsset] = useState<string | null>(null);
+  const [asset, setAsset] = useQueryParam("asset");
   const effAsset = asset ?? assets[0] ?? null;
 
   const { data: regimes } = useRegimes(effAsset, 3000);
@@ -61,11 +71,31 @@ export default function RegimesPage() {
   const corrCols: Column<RegimeCorrRow>[] = [
     { key: "series", label: "series" },
     { key: "kind", label: "kind" },
-    { key: "corr_absret", label: "corr(|ret|)" },
-    { key: "spearman_absret", label: "spearman(|ret|)" },
-    { key: "corr_rv", label: "corr(RV)" },
-    { key: "spearman_rv21", label: "spearman(RV,21d)" },
-    { key: "mean_prob", label: "mean P(crisis)" },
+    {
+      key: "corr_absret",
+      label: "corr(|ret|)",
+      help: "Correlation between this regime-probability series and same-day absolute return -- how well it tracks realized volatility.",
+    },
+    {
+      key: "spearman_absret",
+      label: "spearman(|ret|)",
+      help: "Rank-correlation version of the same measure, more robust to outliers.",
+    },
+    {
+      key: "corr_rv",
+      label: "corr(RV)",
+      help: "Correlation with same-day realized variance (from 5-minute bars) instead of the daily absolute return.",
+    },
+    {
+      key: "spearman_rv21",
+      label: "spearman(RV,21d)",
+      help: "Rank correlation with a 21-day realized-variance average.",
+    },
+    {
+      key: "mean_prob",
+      label: "mean P(crisis)",
+      help: "Average value of the crisis-probability series over the full sample.",
+    },
   ];
 
   return (
@@ -91,7 +121,7 @@ export default function RegimesPage() {
       </Field>
 
       {priceSeries.length > 0 && (
-        <div className="rounded border border-grid bg-panel p-3">
+        <div className="card p-4">
           <div className="mb-2 text-sm text-muted">{effAsset} price</div>
           <ResponsiveContainer width="100%" height={260}>
             <ComposedChart data={priceSeries}>
@@ -106,7 +136,7 @@ export default function RegimesPage() {
       )}
 
       {merged.length > 0 && (
-        <div className="rounded border border-grid bg-panel p-3">
+        <div className="card p-4">
           <div className="mb-2 text-sm text-muted">
             In-sample crisis probability vs. realized vol proxy
           </div>
@@ -177,14 +207,5 @@ export default function RegimesPage() {
         </p>
       </div>
     </div>
-  );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="flex flex-col gap-1 text-xs text-muted">
-      {label}
-      {children}
-    </label>
   );
 }

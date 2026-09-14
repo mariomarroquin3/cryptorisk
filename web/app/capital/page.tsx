@@ -1,17 +1,27 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense } from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Column, DataTable } from "@/components/DataTable";
+import { Field } from "@/components/Field";
 import { MetricCard } from "@/components/MetricCard";
 import { fmtPct, fmtUsd } from "@/lib/format";
 import { CapitalRow, LimitsRow } from "@/lib/api";
 import { useCapital, useConfig, useEstimationRisk, useHedge, useLimits } from "@/lib/hooks";
+import { useQueryParam } from "@/lib/useQueryParam";
 
 export default function CapitalPage() {
+  return (
+    <Suspense>
+      <CapitalPageInner />
+    </Suspense>
+  );
+}
+
+function CapitalPageInner() {
   const { data: config } = useConfig();
   const assets = config?.assets ?? [];
-  const [asset, setAsset] = useState<string | null>(null);
+  const [asset, setAsset] = useQueryParam("asset");
   const effAsset = asset ?? assets[0] ?? null;
 
   const { data: capital } = useCapital(effAsset);
@@ -41,28 +51,80 @@ export default function CapitalPage() {
 
   const capitalCols: Column<CapitalRow>[] = [
     { key: "model", label: "model" },
-    { key: "in_mcs", label: "in MCS" },
-    { key: "es_975_1d", label: "ES 97.5% (1d)" },
-    { key: "es_10d_sqrt", label: "ES (10d, sqrt-t)" },
-    { key: "es_10d_bootstrap", label: "ES (10d, bootstrap)" },
-    { key: "exceptions_250d", label: "exceptions" },
-    { key: "m_c", label: "Basel m_c" },
-    { key: "capital_usd", label: "capital $", render: (r) => fmtUsd(r.capital_usd) },
+    {
+      key: "in_mcs",
+      label: "in MCS",
+      help: "In the 90% Model Confidence Set: statistically indistinguishable from the best model.",
+    },
+    { key: "es_975_1d", label: "ES 97.5% (1d)", help: "1-day 97.5% Expected Shortfall from the frozen backtest -- this model's own point estimate." },
+    {
+      key: "es_10d_sqrt",
+      label: "ES (10d, sqrt-t)",
+      help: "The 1-day ES scaled to a 10-day liquidity horizon by square-root-of-time (the standard regulatory convention).",
+    },
+    {
+      key: "es_10d_bootstrap",
+      label: "ES (10d, bootstrap)",
+      help: "10-day ES from a stationary block bootstrap of compounded returns -- an empirical check against the sqrt-time scaling.",
+    },
+    {
+      key: "exceptions_250d",
+      label: "exceptions",
+      help: "Number of VaR violations in the last 250 trading days -- drives the Basel traffic-light zone.",
+    },
+    {
+      key: "m_c",
+      label: "Basel m_c",
+      help: "Capital multiplier: 1.5 base plus a traffic-light add-on (0 in the green zone, up to 1.0 in the red zone).",
+    },
+    {
+      key: "capital_usd",
+      label: "capital $",
+      render: (r) => fmtUsd(r.capital_usd),
+      help: "Point ES capital = m_c x notional x |ES, 10d|.",
+    },
     {
       key: "model_risk_addon_usd",
       label: "model-risk add-on $",
       render: (r) => fmtUsd(r.model_risk_addon_usd),
+      help: "Extra capital for not knowing which in-MCS model is right -- the spread between the highest- and lowest-capital in-MCS models.",
     },
   ];
 
   const limitsCols: Column<LimitsRow>[] = [
     { key: "model", label: "model" },
-    { key: "in_mcs", label: "in MCS" },
-    { key: "n_star_usd", label: "limit $", render: (r) => fmtUsd(r.n_star_usd) },
-    { key: "bind_rate", label: "bind rate" },
-    { key: "mean_utilisation", label: "avg util." },
-    { key: "budget_breach_rate", label: "budget breach rate" },
-    { key: "worst_loss_usd", label: "worst loss $", render: (r) => fmtUsd(r.worst_loss_usd) },
+    {
+      key: "in_mcs",
+      label: "in MCS",
+      help: "In the 90% Model Confidence Set: statistically indistinguishable from the best model.",
+    },
+    {
+      key: "n_star_usd",
+      label: "limit $",
+      render: (r) => fmtUsd(r.n_star_usd),
+      help: "Position size limit implied by the risk budget and this model's ES.",
+    },
+    {
+      key: "bind_rate",
+      label: "bind rate",
+      help: "Fraction of days the position limit would have actually constrained trading (the limit binds).",
+    },
+    {
+      key: "mean_utilisation",
+      label: "avg util.",
+      help: "Average utilization of the risk budget under this model's limit.",
+    },
+    {
+      key: "budget_breach_rate",
+      label: "budget breach rate",
+      help: "Fraction of days the realized loss would have exceeded the risk budget despite the limit.",
+    },
+    {
+      key: "worst_loss_usd",
+      label: "worst loss $",
+      render: (r) => fmtUsd(r.worst_loss_usd),
+      help: "Worst single-day realized loss under this model's limit, in dollars.",
+    },
   ];
 
   const h = hedge?.[0];
@@ -89,7 +151,7 @@ export default function CapitalPage() {
 
       {row && (
         <>
-          <div className="rounded border border-grid bg-panel p-3">
+          <div className="card p-4">
             <div className="mb-2 text-sm text-muted">
               {effAsset} capital stack — {row.model}
             </div>
@@ -136,7 +198,7 @@ export default function CapitalPage() {
       <div>
         <h2 className="mb-2 text-lg font-medium">Estimation-risk band (parameter-uncertainty bootstrap)</h2>
         {estRisk && estRisk.length > 0 ? (
-          <div className="rounded border border-grid bg-panel p-3">
+          <div className="card p-4">
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={estRisk} margin={{ top: 10, right: 10, left: 0, bottom: 10 }}>
                 <CartesianGrid stroke="var(--grid)" vertical={false} />
@@ -201,13 +263,4 @@ function median(xs: number[]): number {
   const s = [...xs].sort((a, b) => a - b);
   const mid = Math.floor(s.length / 2);
   return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="flex flex-col gap-1 text-xs text-muted">
-      {label}
-      {children}
-    </label>
-  );
 }

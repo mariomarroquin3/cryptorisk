@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { Badge } from "@/components/Badge";
 import { ConeChart, ConeSeries } from "@/components/ConeChart";
+import { Field } from "@/components/Field";
 import { MetricCard } from "@/components/MetricCard";
 import { PriceChart, PricePoint } from "@/components/PriceChart";
 import { RegimeDistribution } from "@/components/RegimeDistribution";
@@ -17,6 +18,7 @@ import {
   usePrice,
   usePrices,
 } from "@/lib/hooks";
+import { useQueryParam } from "@/lib/useQueryParam";
 
 function buildConeSeries(forecast: ForecastResponse | undefined): ConeSeries[] {
   const cone = forecast?.cone;
@@ -53,16 +55,24 @@ function buildBand(
 }
 
 export default function OverviewPage() {
+  return (
+    <Suspense>
+      <OverviewPageInner />
+    </Suspense>
+  );
+}
+
+function OverviewPageInner() {
   const { data: config } = useConfig();
   const assets = useMemo(() => config?.assets ?? [], [config]);
   const alphas = useMemo(() => config?.alphas ?? [], [config]);
 
-  const [asset, setAsset] = useState<string | null>(null);
-  const [alpha, setAlpha] = useState<number | null>(null);
+  const [asset, setAsset] = useQueryParam("asset");
+  const [alphaStr, setAlphaStr] = useQueryParam("alpha");
   const [modelOverride, setModelOverride] = useState<string | null>(null);
 
   const effAsset = asset ?? assets[0] ?? null;
-  const effAlpha = alpha ?? alphas[0] ?? 0.025;
+  const effAlpha = alphaStr != null ? Number(alphaStr) : (alphas[0] ?? 0.025);
 
   const { data: allModels } = useModels();
   const { data: comparison } = useModelsComparison(effAsset, effAlpha);
@@ -92,8 +102,13 @@ export default function OverviewPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">&#9672; CUBO+ Risk Terminal</h1>
-        <p className="mt-1 max-w-3xl text-sm text-muted">
+        <h1
+          className="bg-clip-text text-3xl font-semibold text-transparent"
+          style={{ backgroundImage: "linear-gradient(90deg, var(--text), var(--amber))" }}
+        >
+          &#9672; CUBO+ Risk Terminal
+        </h1>
+        <p className="mt-1.5 max-w-3xl text-sm text-muted">
           Live spot price vs. the study&apos;s out-of-sample VaR/ES band. Backtest
           numbers are frozen at the last pipeline run; the band&apos;s model is
           re-fit on demand for today&apos;s forecast only.
@@ -118,7 +133,7 @@ export default function OverviewPage() {
           <select
             className="select"
             value={effAlpha}
-            onChange={(e) => setAlpha(Number(e.target.value))}
+            onChange={(e) => setAlphaStr(e.target.value)}
           >
             {alphas.map((a) => (
               <option key={a} value={a}>
@@ -150,6 +165,7 @@ export default function OverviewPage() {
               value={fmtUsd(price.price, 2)}
               delta={`${price.change_pct >= 0 ? "+" : ""}${price.change_pct.toFixed(2)}% 24h`}
               deltaColor={price.change_pct >= 0 ? "text-green" : "text-red"}
+              accent={price.change_pct >= 0 ? "var(--green)" : "var(--red)"}
             />
             <MetricCard
               label="24h High / Low"
@@ -165,24 +181,27 @@ export default function OverviewPage() {
               <MetricCard
                 label={`Implied ${fmtConfidence(effAlpha)} range (next close)`}
                 value={`${fmtUsd(forecast.var_price)} – ${fmtUsd(forecast.upper_price)}`}
+                accent="var(--violet)"
               />
             ) : (
               <MetricCard
                 label={`VaR floor (${fmtConfidence(effAlpha)})`}
                 value={fmtUsd(forecast.var_price)}
                 title="Model has no upper-tail quantile (e.g. CAViaR)."
+                accent="var(--amber)"
               />
             )}
             <MetricCard
               label={`ES floor (${fmtConfidence(effAlpha)})`}
               value={fmtUsd(forecast.es_price)}
+              accent="var(--red)"
             />
           </>
         )}
       </div>
 
       {forecast && forecast.var_price != null && (
-        <p className="rounded border border-grid bg-panel px-4 py-3 text-sm">
+        <p className="card border-l-2 border-l-amber px-4 py-3 text-sm">
           Right now, {forecast.model} estimates a{" "}
           <span className="font-semibold text-amber">~{fmtPct(effAlpha, 1)} chance</span> that{" "}
           {effAsset} closes tomorrow below{" "}
@@ -221,7 +240,7 @@ export default function OverviewPage() {
         </div>
       )}
 
-      <div className="rounded border border-grid bg-panel p-3">
+      <div className="card p-4">
         {chartData.priceLine.length > 0 ? (
           <PriceChart
             price={chartData.priceLine}
@@ -257,14 +276,5 @@ export default function OverviewPage() {
         />
       )}
     </div>
-  );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="flex flex-col gap-1 text-xs text-muted">
-      {label}
-      {children}
-    </label>
   );
 }

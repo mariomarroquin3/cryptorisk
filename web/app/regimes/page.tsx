@@ -14,6 +14,7 @@ import {
 import { Column, DataTable } from "@/components/DataTable";
 import { Field } from "@/components/Field";
 import { MetricCard } from "@/components/MetricCard";
+import { ChartSkeleton, MetricCardSkeleton } from "@/components/Skeleton";
 import { PriceHistoryRow, RegimeCorrRow } from "@/lib/api";
 import { useConfig, usePrices, useRegimes } from "@/lib/hooks";
 import { useQueryParam } from "@/lib/useQueryParam";
@@ -120,77 +121,93 @@ function RegimesPageInner() {
         </select>
       </Field>
 
-      {priceSeries.length > 0 && (
-        <div className="card p-4">
-          <div className="mb-2 text-sm text-muted">{effAsset} price</div>
-          <ResponsiveContainer width="100%" height={260}>
-            <ComposedChart data={priceSeries}>
-              <CartesianGrid stroke="var(--grid)" vertical={false} />
-              <XAxis dataKey="date" tick={{ fill: "var(--muted)", fontSize: 10 }} minTickGap={40} />
-              <YAxis tick={{ fill: "var(--muted)", fontSize: 11 }} width={70} domain={["auto", "auto"]} />
-              <Tooltip contentStyle={{ background: "var(--bg)", border: "1px solid var(--grid)" }} />
-              <Line type="monotone" dataKey="close" stroke="var(--text)" dot={false} strokeWidth={1.5} />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </div>
-      )}
-
-      {merged.length > 0 && (
-        <div className="card p-4">
-          <div className="mb-2 text-sm text-muted">
-            In-sample crisis probability vs. realized vol proxy
+      {regimes === undefined || prices === undefined ? (
+        <ChartSkeleton height={260} />
+      ) : (
+        priceSeries.length > 0 && (
+          <div className="card p-4">
+            <div className="mb-2 text-sm text-muted">{effAsset} price</div>
+            <ResponsiveContainer width="100%" height={260}>
+              <ComposedChart data={priceSeries}>
+                <CartesianGrid stroke="var(--grid)" vertical={false} />
+                <XAxis dataKey="date" tick={{ fill: "var(--muted)", fontSize: 10 }} minTickGap={40} />
+                <YAxis tick={{ fill: "var(--muted)", fontSize: 11 }} width={70} domain={["auto", "auto"]} />
+                <Tooltip contentStyle={{ background: "var(--bg)", border: "1px solid var(--grid)" }} />
+                <Line type="monotone" dataKey="close" stroke="var(--text)" dot={false} strokeWidth={1.5} />
+              </ComposedChart>
+            </ResponsiveContainer>
           </div>
-          <ResponsiveContainer width="100%" height={300}>
-            <ComposedChart data={merged}>
-              <CartesianGrid stroke="var(--grid)" vertical={false} />
-              <XAxis dataKey="date" tick={{ fill: "var(--muted)", fontSize: 10 }} minTickGap={40} />
-              <YAxis
-                yAxisId="left"
-                domain={[0, 1]}
-                tick={{ fill: "var(--muted)", fontSize: 11 }}
-                width={40}
-              />
-              <YAxis yAxisId="right" orientation="right" tick={{ fill: "var(--muted)", fontSize: 11 }} width={50} />
-              <Tooltip contentStyle={{ background: "var(--bg)", border: "1px solid var(--grid)" }} />
-              <Area
-                yAxisId="left"
-                type="monotone"
-                dataKey="prob_crisis_insample"
-                stroke="var(--red)"
-                fill="var(--red)"
-                fillOpacity={0.25}
-                name="P(crisis) in-sample"
-              />
-              <Line
-                yAxisId="right"
-                type="monotone"
-                dataKey="abs_ret_21d"
-                stroke="var(--amber)"
-                strokeDasharray="4 3"
-                dot={false}
-                name="|return| 21d avg"
-              />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </div>
+        )
       )}
 
-      {current && (
+      {regimes === undefined || prices === undefined ? (
+        <ChartSkeleton height={300} />
+      ) : (
+        merged.length > 0 && (
+          <div className="card p-4">
+            <div className="mb-2 text-sm text-muted">
+              In-sample crisis probability vs. realized vol proxy
+            </div>
+            <ResponsiveContainer width="100%" height={300}>
+              <ComposedChart data={merged}>
+                <CartesianGrid stroke="var(--grid)" vertical={false} />
+                <XAxis dataKey="date" tick={{ fill: "var(--muted)", fontSize: 10 }} minTickGap={40} />
+                <YAxis
+                  yAxisId="left"
+                  domain={[0, 1]}
+                  tick={{ fill: "var(--muted)", fontSize: 11 }}
+                  width={40}
+                />
+                <YAxis yAxisId="right" orientation="right" tick={{ fill: "var(--muted)", fontSize: 11 }} width={50} />
+                <Tooltip contentStyle={{ background: "var(--bg)", border: "1px solid var(--grid)" }} />
+                <Area
+                  yAxisId="left"
+                  type="monotone"
+                  dataKey="prob_crisis_insample"
+                  stroke="var(--red)"
+                  fill="var(--red)"
+                  fillOpacity={0.25}
+                  name="P(crisis) in-sample"
+                />
+                <Line
+                  yAxisId="right"
+                  type="monotone"
+                  dataKey="abs_ret_21d"
+                  stroke="var(--amber)"
+                  strokeDasharray="4 3"
+                  dot={false}
+                  name="|return| 21d avg"
+                />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+        )
+      )}
+
+      {regimes === undefined ? (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <MetricCard
-            label="Current P(crisis), in-sample"
-            value={`${(current.prob_crisis_insample * 100).toFixed(0)}%`}
-          />
-          <MetricCard
-            label="Current P(crisis), walk-forward"
-            value={`${(current.prob_crisis_pred * 100).toFixed(0)}%`}
-            title="Near-zero OOS correlation with vol -- shown for completeness only."
-          />
-          <MetricCard
-            label="MS-GARCH sigma (next-day)"
-            value={current.sigma2 != null ? Math.sqrt(current.sigma2).toFixed(4) : "n/a"}
-          />
+          <MetricCardSkeleton />
+          <MetricCardSkeleton />
+          <MetricCardSkeleton />
         </div>
+      ) : (
+        current && (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <MetricCard
+              label="Current P(crisis), in-sample"
+              value={`${(current.prob_crisis_insample * 100).toFixed(0)}%`}
+            />
+            <MetricCard
+              label="Current P(crisis), walk-forward"
+              value={`${(current.prob_crisis_pred * 100).toFixed(0)}%`}
+              title="Near-zero OOS correlation with vol -- shown for completeness only."
+            />
+            <MetricCard
+              label="MS-GARCH sigma (next-day)"
+              value={current.sigma2 != null ? Math.sqrt(current.sigma2).toFixed(4) : "n/a"}
+            />
+          </div>
+        )
       )}
 
       <div>
@@ -199,6 +216,7 @@ function RegimesPageInner() {
           columns={corrCols}
           rows={regimes?.correlations ?? []}
           keyField={(row) => `${row.series}-${row.kind}`}
+          loading={regimes === undefined}
         />
         <p className="mt-2 text-xs text-muted">
           &quot;insample&quot; tracks vol (~0.5-0.75); &quot;filt_wf&quot;/&quot;pred_wf&quot; (walk-forward)

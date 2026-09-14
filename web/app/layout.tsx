@@ -28,11 +28,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="en" className={`h-full ${jetbrainsMono.variable} ${spaceGrotesk.variable}`}>
       <body className="flex min-h-full flex-col bg-bg text-text antialiased">
         <ApiStatusBanner />
-        <div className="flex min-h-0 flex-1">
+        <div className="flex min-h-0 flex-1 flex-col md:flex-row">
           <Suspense>
             <Nav />
           </Suspense>
-          <main className="min-w-0 flex-1 overflow-x-hidden px-6 py-8 md:px-10">{children}</main>
+          <main className="min-w-0 flex-1 overflow-x-hidden px-4 py-6 md:px-10 md:py-8">{children}</main>
         </div>
       </body>
     </html>

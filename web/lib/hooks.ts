@@ -101,6 +101,10 @@ export function usePortfolioEval(alpha: number) {
   return useSWR<PortfolioEvalRow[]>(`/portfolio/eval?alpha=${alpha}`, fetcher);
 }
 
+export function usePortfolioNarrative(alpha: number) {
+  return useSWR<string[]>(`/portfolio/narrative?alpha=${alpha}`, fetcher);
+}
+
 export function usePortfolioComposition() {
   return useSWR<PortfolioComposition>("/portfolio/composition", fetcher, {
     refreshInterval: 15_000,

@@ -27,6 +27,7 @@ from cryptorisk.api import cone as C
 from cryptorisk.api import data as D
 from cryptorisk.api.cache import ttl_cache
 from cryptorisk.config import load_config
+from cryptorisk.study.run_portfolio import _read_bullets
 
 app = FastAPI(
     title="CUBO+ Risk API",
@@ -290,6 +291,22 @@ def portfolio_eval(alpha: float) -> list[dict]:
         return []
     sub = df[(df.asset == "PORTFOLIO") & (df.alpha == alpha)].sort_values("fz0_rank")
     return _records(sub)
+
+
+@app.get("/portfolio/narrative")
+def portfolio_narrative(alpha: float) -> list[str]:
+    """Reuses the study's own narrative generator (`run_portfolio._read_bullets`)
+    against the already-computed `portfolio_eval.csv` -- same prose that ships
+    in docs/portfolio.md, scoped to one alpha and served live. Cheap: no
+    model refit, just formatting over rows already loaded for /portfolio/eval."""
+    df = D.load_results()["portfolio_eval"]
+    if df.empty:
+        return []
+    sub = df[(df.asset == "PORTFOLIO") & (df.alpha == alpha)]
+    if sub.empty:
+        return []
+    pcfg = load_config().get("portfolio", {})
+    return _read_bullets(sub, pcfg)
 
 
 @app.get("/portfolio/composition")

@@ -5,6 +5,8 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import { Column, DataTable } from "@/components/DataTable";
 import { Field } from "@/components/Field";
 import { MetricCard } from "@/components/MetricCard";
+import { ChartSkeleton, MetricCardSkeleton } from "@/components/Skeleton";
+import { ZoneBadge, zoneFromExceptions } from "@/components/ZoneBadge";
 import { fmtPct, fmtUsd } from "@/lib/format";
 import { CapitalRow, LimitsRow } from "@/lib/api";
 import { useCapital, useConfig, useEstimationRisk, useHedge, useLimits } from "@/lib/hooks";
@@ -71,6 +73,12 @@ function CapitalPageInner() {
       key: "exceptions_250d",
       label: "exceptions",
       help: "Number of VaR violations in the last 250 trading days -- drives the Basel traffic-light zone.",
+    },
+    {
+      key: "exceptions_250d",
+      label: "zone",
+      help: "Traffic-light zone from the 250-day exception count: green (<=4), amber (5-9), red (>=10).",
+      render: (r) => <ZoneBadge zone={zoneFromExceptions(r.exceptions_250d)} />,
     },
     {
       key: "m_c",
@@ -149,11 +157,25 @@ function CapitalPageInner() {
         </select>
       </Field>
 
-      {row && (
+      {capital === undefined ? (
+        <>
+          <ChartSkeleton height={320} />
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+            <MetricCardSkeleton />
+            <MetricCardSkeleton />
+            <MetricCardSkeleton />
+            <MetricCardSkeleton />
+          </div>
+        </>
+      ) : (
+        row && (
         <>
           <div className="card p-4">
-            <div className="mb-2 text-sm text-muted">
-              {effAsset} capital stack — {row.model}
+            <div className="mb-2 flex items-center justify-between text-sm text-muted">
+              <span>
+                {effAsset} capital stack — {row.model}
+              </span>
+              <ZoneBadge zone={zoneFromExceptions(row.exceptions_250d)} />
             </div>
             <ResponsiveContainer width="100%" height={320}>
               <BarChart data={stackData} margin={{ top: 10, right: 10, left: 0, bottom: 10 }}>
@@ -193,11 +215,14 @@ function CapitalPageInner() {
             keyField="model"
           />
         </>
+        )
       )}
 
       <div>
         <h2 className="mb-2 text-lg font-medium">Estimation-risk band (parameter-uncertainty bootstrap)</h2>
-        {estRisk && estRisk.length > 0 ? (
+        {estRisk === undefined ? (
+          <ChartSkeleton height={300} />
+        ) : estRisk.length > 0 ? (
           <div className="card p-4">
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={estRisk} margin={{ top: 10, right: 10, left: 0, bottom: 10 }}>
@@ -232,11 +257,21 @@ function CapitalPageInner() {
       <div className="grid gap-6 md:grid-cols-2">
         <div>
           <h2 className="mb-2 text-lg font-medium">Position limits</h2>
-          <DataTable columns={limitsCols} rows={limits ?? []} keyField="model" />
+          <DataTable
+            columns={limitsCols}
+            rows={limits ?? []}
+            keyField="model"
+            loading={limits === undefined}
+          />
         </div>
         <div>
           <h2 className="mb-2 text-lg font-medium">Perp hedge</h2>
-          {h ? (
+          {hedge === undefined ? (
+            <div className="space-y-3">
+              <MetricCardSkeleton />
+              <MetricCardSkeleton />
+            </div>
+          ) : h ? (
             <div className="space-y-3">
               <MetricCard label="Min-variance hedge ratio" value={h.ratio_min_var.toFixed(3)} />
               <MetricCard

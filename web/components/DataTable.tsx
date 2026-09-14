@@ -1,3 +1,5 @@
+import { HelpTip } from "@/components/HelpTip";
+
 export interface Column<T> {
   key: keyof T;
   label: string;
@@ -5,6 +7,10 @@ export interface Column<T> {
   render?: (row: T) => React.ReactNode;
   /** 0..1 p-value-ish column: green when high, red when low. */
   pShade?: boolean;
+  /** Glossary text shown in a hover/tap tooltip next to the header, for
+   * jargon (p-values, test names, abbreviations) a non-quant reader can't
+   * decode from the column label alone. */
+  help?: string;
 }
 
 export function DataTable<T>({
@@ -21,23 +27,27 @@ export function DataTable<T>({
   }
   const rowKey = typeof keyField === "function" ? keyField : (row: T) => String(row[keyField]);
   return (
-    <div className="scrollbar-thin overflow-x-auto rounded border border-grid">
+    <div className="scrollbar-thin overflow-x-auto rounded-lg border border-grid">
       <table className="w-full min-w-max text-left text-sm">
         <thead>
-          <tr className="border-b border-grid bg-panel text-muted">
+          <tr className="border-b border-grid bg-panel-2 text-muted">
             {columns.map((c) => (
               <th
                 key={String(c.key)}
-                className={`px-3 py-2 font-medium ${c.align === "right" ? "text-right" : "text-left"}`}
+                className={`px-3 py-2.5 text-xs font-semibold tracking-wide uppercase ${c.align === "right" ? "text-right" : "text-left"}`}
               >
                 {c.label}
+                {c.help && <HelpTip text={c.help} />}
               </th>
             ))}
           </tr>
         </thead>
         <tbody>
           {rows.map((row, i) => (
-            <tr key={`${rowKey(row)}-${i}`} className="border-b border-grid/60 last:border-0">
+            <tr
+              key={`${rowKey(row)}-${i}`}
+              className="border-b border-grid/60 transition-colors last:border-0 hover:bg-panel-2/50"
+            >
               {columns.map((c) => {
                 const raw = row[c.key];
                 let bg: string | undefined;

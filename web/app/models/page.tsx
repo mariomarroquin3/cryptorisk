@@ -1,21 +1,31 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense } from "react";
 import { Column, DataTable } from "@/components/DataTable";
+import { Field } from "@/components/Field";
 import { Fz0BarChart } from "@/components/Fz0BarChart";
 import { fmtConfidence } from "@/lib/format";
 import { CoverageRow, EsTestRow, Fz0Row, GwCpaRow } from "@/lib/api";
 import { useConfig, useCoverage, useEsTests, useGwCpa, useModelsComparison } from "@/lib/hooks";
+import { useQueryParam } from "@/lib/useQueryParam";
 
 export default function ModelComparisonPage() {
+  return (
+    <Suspense>
+      <ModelComparisonPageInner />
+    </Suspense>
+  );
+}
+
+function ModelComparisonPageInner() {
   const { data: config } = useConfig();
   const assets = config?.assets ?? [];
   const alphas = config?.alphas ?? [];
 
-  const [asset, setAsset] = useState<string | null>(null);
-  const [alpha, setAlpha] = useState<number | null>(null);
+  const [asset, setAsset] = useQueryParam("asset");
+  const [alphaStr, setAlphaStr] = useQueryParam("alpha");
   const effAsset = asset ?? assets[0] ?? null;
-  const effAlpha = alpha ?? alphas[0] ?? 0.025;
+  const effAlpha = alphaStr != null ? Number(alphaStr) : (alphas[0] ?? 0.025);
 
   const { data: comparison } = useModelsComparison(effAsset, effAlpha);
   const { data: coverage } = useCoverage(effAsset, effAlpha);
@@ -25,40 +35,116 @@ export default function ModelComparisonPage() {
   const fz0Cols: Column<Fz0Row>[] = [
     { key: "fz0_rank", label: "rank" },
     { key: "model", label: "model" },
-    { key: "fz0_mean", label: "FZ0" },
-    { key: "in_mcs", label: "in MCS" },
-    { key: "mcs_p", label: "MCS p" },
-    { key: "dm_vs_best_p", label: "DM p (vs best)" },
-    { key: "n_degenerate", label: "degenerate days" },
+    {
+      key: "fz0_mean",
+      label: "FZ0",
+      help: "Consistent joint VaR/ES scoring function (Fissler-Ziegel). Lower is better -- this is what ranks the models.",
+    },
+    {
+      key: "in_mcs",
+      label: "in MCS",
+      help: "In the 90% Model Confidence Set: statistically indistinguishable from the best model at this confidence level.",
+    },
+    {
+      key: "mcs_p",
+      label: "MCS p",
+      help: "Model Confidence Set p-value. Higher means more confidently in the top set; models below the threshold get eliminated.",
+    },
+    {
+      key: "dm_vs_best_p",
+      label: "DM p (vs best)",
+      help: "Diebold-Mariano test p-value against the top-ranked model. p < 0.05 means this model is significantly worse.",
+    },
+    {
+      key: "n_degenerate",
+      label: "degenerate days",
+      help: "Days this model produced an unusable forecast (ES >= 0 or VaR >= 0) and was excluded from scoring.",
+    },
   ];
 
   const coverageCols: Column<CoverageRow>[] = [
     { key: "model", label: "model" },
-    { key: "hit_rate", label: "hit rate" },
-    { key: "kupiec_p", label: "Kupiec p", pShade: true },
-    { key: "chr_cc_p", label: "Christoffersen CC p", pShade: true },
-    { key: "dq_p", label: "DQ p", pShade: true },
-    { key: "basel_zone", label: "Basel zone" },
-    { key: "passes_all", label: "passes all" },
+    {
+      key: "hit_rate",
+      label: "hit rate",
+      help: "Fraction of days the realized loss exceeded VaR. Should sit close to the nominal miss rate (e.g. 2.5%) for correct coverage.",
+    },
+    {
+      key: "kupiec_p",
+      label: "Kupiec p",
+      pShade: true,
+      help: "Unconditional coverage test. p < 0.05 rejects: the violation rate is significantly off target.",
+    },
+    {
+      key: "chr_cc_p",
+      label: "Christoffersen CC p",
+      pShade: true,
+      help: "Conditional coverage test: checks violations are the right size AND not clustered in time. p < 0.05 rejects.",
+    },
+    {
+      key: "dq_p",
+      label: "DQ p",
+      pShade: true,
+      help: "Dynamic Quantile test (Engle-Manganelli): checks violations aren't predictable from recent history. p < 0.05 rejects.",
+    },
+    {
+      key: "basel_zone",
+      label: "Basel zone",
+      help: "Traffic-light zone from the 250-day exception count: green (<=4), amber (5-9), red (>=10) -- drives the capital multiplier.",
+    },
+    {
+      key: "passes_all",
+      label: "passes all",
+      help: "Passes every coverage test in this row at the 5% significance level.",
+    },
   ];
 
   const esCols: Column<EsTestRow>[] = [
     { key: "model", label: "model" },
     { key: "n_breach", label: "breaches" },
-    { key: "z1", label: "Z1" },
-    { key: "z1_p_approx", label: "Z1 p", pShade: true },
-    { key: "z2", label: "Z2" },
-    { key: "z2_p_approx", label: "Z2 p", pShade: true },
-    { key: "es_reject_approx", label: "ES rejected" },
+    {
+      key: "z1",
+      label: "Z1",
+      help: "Acerbi-Szekely ES test statistic (magnitude form). Large negative values mean ES understates the tail (too optimistic).",
+    },
+    { key: "z1_p_approx", label: "Z1 p", pShade: true, help: "p < 0.05 rejects: ES is significantly miscalibrated (Z1 statistic)." },
+    {
+      key: "z2",
+      label: "Z2",
+      help: "Acerbi-Szekely ES test statistic (ratio form). Large negative values mean ES understates the tail.",
+    },
+    { key: "z2_p_approx", label: "Z2 p", pShade: true, help: "p < 0.05 rejects: ES is significantly miscalibrated (Z2 statistic)." },
+    {
+      key: "es_reject_approx",
+      label: "ES rejected",
+      help: "Whether the Z1/Z2 tests reject correct ES calibration at the 5% level.",
+    },
   ];
 
   const gwCols: Column<GwCpaRow>[] = [
     { key: "model_a", label: "model A" },
     { key: "model_b", label: "model B" },
-    { key: "mean_fz0_gap", label: "mean FZ0 gap" },
-    { key: "gw_stat", label: "GW stat" },
-    { key: "gw_p", label: "GW p", pShade: true },
-    { key: "best_edge_vs_rv", label: "edge vs RV" },
+    {
+      key: "mean_fz0_gap",
+      label: "mean FZ0 gap",
+      help: "Average FZ0 loss difference between the two models (positive = model B scores better on average).",
+    },
+    {
+      key: "gw_stat",
+      label: "GW stat",
+      help: "Giacomini-White conditional predictive ability test statistic.",
+    },
+    {
+      key: "gw_p",
+      label: "GW p",
+      pShade: true,
+      help: "p < 0.05 rejects equal predictive ability, conditioning on the recent state (not just an unconditional average).",
+    },
+    {
+      key: "best_edge_vs_rv",
+      label: "edge vs RV",
+      help: "Which model wins head-to-head against the HAR-RV baseline in this test.",
+    },
   ];
 
   return (
@@ -85,7 +171,7 @@ export default function ModelComparisonPage() {
           <select
             className="select"
             value={effAlpha}
-            onChange={(e) => setAlpha(Number(e.target.value))}
+            onChange={(e) => setAlphaStr(e.target.value)}
           >
             {alphas.map((a) => (
               <option key={a} value={a}>
@@ -134,14 +220,5 @@ export default function ModelComparisonPage() {
         />
       </div>
     </div>
-  );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="flex flex-col gap-1 text-xs text-muted">
-      {label}
-      {children}
-    </label>
   );
 }

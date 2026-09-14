@@ -5,9 +5,17 @@ import { Column, DataTable } from "@/components/DataTable";
 import { Field } from "@/components/Field";
 import { Fz0BarChart } from "@/components/Fz0BarChart";
 import { MetricCard } from "@/components/MetricCard";
+import { ChartSkeleton, MetricCardSkeleton, Skeleton } from "@/components/Skeleton";
+import { ZoneBadge } from "@/components/ZoneBadge";
+import { renderInlineMarkdown } from "@/lib/markdown";
 import { fmtConfidence, fmtUsd } from "@/lib/format";
 import { PortfolioEvalRow } from "@/lib/api";
-import { useConfig, usePortfolioComposition, usePortfolioEval } from "@/lib/hooks";
+import {
+  useConfig,
+  usePortfolioComposition,
+  usePortfolioEval,
+  usePortfolioNarrative,
+} from "@/lib/hooks";
 import { useQueryParam } from "@/lib/useQueryParam";
 
 export default function PortfolioPage() {
@@ -28,6 +36,7 @@ function PortfolioPageInner() {
 
   const { data: evalRows } = usePortfolioEval(effAlpha);
   const { data: composition } = usePortfolioComposition();
+  const { data: narrative } = usePortfolioNarrative(effAlpha);
 
   const sorted = [...(evalRows ?? [])].sort((a, b) => a.fz0_rank - b.fz0_rank);
   const copulas = sorted.filter((r) => r.model.toLowerCase().includes("copula"));
@@ -66,6 +75,7 @@ function PortfolioPageInner() {
       key: "basel_zone",
       label: "Basel zone",
       help: "Traffic-light zone from the 250-day exception count: green (<=4), amber (5-9), red (>=10).",
+      render: (r) => <ZoneBadge zone={r.basel_zone} />,
     },
     {
       key: "passes_all",
@@ -110,15 +120,43 @@ function PortfolioPageInner() {
         </select>
       </Field>
 
-      {sorted.length > 0 && (
-        <Fz0BarChart data={sorted} title={`Basket @ ${fmtConfidence(effAlpha)}`} />
+      {evalRows === undefined ? (
+        <ChartSkeleton height={220} />
+      ) : (
+        sorted.length > 0 && (
+          <Fz0BarChart data={sorted} title={`Basket @ ${fmtConfidence(effAlpha)}`} />
+        )
       )}
-      <DataTable columns={cols} rows={sorted} keyField="model" />
+      <DataTable columns={cols} rows={sorted} keyField="model" loading={evalRows === undefined} />
+
+      <div>
+        <h2 className="mb-2 text-lg font-medium">Read</h2>
+        {narrative === undefined ? (
+          <div className="card space-y-2 p-4">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-5/6" />
+            <Skeleton className="h-4 w-2/3" />
+          </div>
+        ) : narrative.length > 0 ? (
+          <div className="card space-y-2 p-4 text-sm leading-relaxed">
+            {narrative.map((bullet, i) => (
+              <p key={i}>{renderInlineMarkdown(bullet)}</p>
+            ))}
+          </div>
+        ) : (
+          <div className="text-sm text-muted">No narrative available for this alpha.</div>
+        )}
+      </div>
 
       <div className="grid gap-6 md:grid-cols-2">
         <div>
           <h2 className="mb-2 text-lg font-medium">Copula family comparison</h2>
-          <DataTable columns={smallCols} rows={copulas} keyField="model" />
+          <DataTable
+            columns={smallCols}
+            rows={copulas}
+            keyField="model"
+            loading={evalRows === undefined}
+          />
           <p className="mt-2 text-xs text-muted">
             Copula-independence ignoring tail dependence typically
             over-breaches badly at 99%.
@@ -126,25 +164,32 @@ function PortfolioPageInner() {
         </div>
         <div>
           <h2 className="mb-2 text-lg font-medium">Direct univariate models on the basket return</h2>
-          <DataTable columns={smallCols} rows={directs} keyField="model" />
+          <DataTable
+            columns={smallCols}
+            rows={directs}
+            keyField="model"
+            loading={evalRows === undefined}
+          />
         </div>
       </div>
 
       <div>
         <h2 className="mb-2 text-lg font-medium">Live basket composition</h2>
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-          {basket.map((a) => {
-            const p = prices[a];
-            return (
-              <MetricCard
-                key={a}
-                label={`${a} (${((weights[a] ?? 0) * 100).toFixed(0)}%)`}
-                value={p ? fmtUsd(p.price, 2) : "n/a"}
-                delta={p ? `${p.change_pct >= 0 ? "+" : ""}${p.change_pct.toFixed(2)}%` : undefined}
-                deltaColor={p && p.change_pct >= 0 ? "text-green" : "text-red"}
-              />
-            );
-          })}
+          {basket.length === 0 && composition === undefined
+            ? Array.from({ length: 4 }).map((_, i) => <MetricCardSkeleton key={i} />)
+            : basket.map((a) => {
+                const p = prices[a];
+                return (
+                  <MetricCard
+                    key={a}
+                    label={`${a} (${((weights[a] ?? 0) * 100).toFixed(0)}%)`}
+                    value={p ? fmtUsd(p.price, 2) : "n/a"}
+                    delta={p ? `${p.change_pct >= 0 ? "+" : ""}${p.change_pct.toFixed(2)}%` : undefined}
+                    deltaColor={p && p.change_pct >= 0 ? "text-green" : "text-red"}
+                  />
+                );
+              })}
         </div>
         {basketChange != null && (
           <div className="mt-4 max-w-xs">

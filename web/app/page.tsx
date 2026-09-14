@@ -7,11 +7,14 @@ import { Field } from "@/components/Field";
 import { MetricCard } from "@/components/MetricCard";
 import { PriceChart, PricePoint } from "@/components/PriceChart";
 import { RegimeDistribution } from "@/components/RegimeDistribution";
+import { RiskZoneCard } from "@/components/RiskZoneCard";
+import { ChartSkeleton, MetricCardSkeleton, Skeleton } from "@/components/Skeleton";
 import { ForecastResponse } from "@/lib/api";
 import { fmtConfidence, fmtDate, fmtPct, fmtUsd } from "@/lib/format";
 import {
   useBacktests,
   useConfig,
+  useCoverage,
   useForecast,
   useModels,
   useModelsComparison,
@@ -83,6 +86,8 @@ function OverviewPageInner() {
   const { data: prices } = usePrices(effAsset, 200);
   const { data: forecast } = useForecast(effAsset, effAlpha, effModel);
   const { data: backtests } = useBacktests(effAsset, effModel, effAlpha, 180);
+  const { data: coverage } = useCoverage(effAsset, effAlpha);
+  const coverageRow = coverage?.find((r) => r.model === effModel) ?? null;
 
   const chartData = useMemo(() => {
     const priceLine: PricePoint[] = (prices ?? []).map((p) => ({
@@ -96,7 +101,18 @@ function OverviewPageInner() {
   const coneSeries = useMemo(() => buildConeSeries(forecast), [forecast]);
 
   if (!config || !effAsset) {
-    return <div className="text-muted">Loading config from the API...</div>;
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-9 w-96" />
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+          <MetricCardSkeleton />
+          <MetricCardSkeleton />
+          <MetricCardSkeleton />
+          <MetricCardSkeleton />
+        </div>
+        <ChartSkeleton height={420} />
+      </div>
+    );
   }
 
   return (
@@ -173,9 +189,12 @@ function OverviewPageInner() {
             />
           </>
         ) : (
-          <MetricCard label={`${effAsset}-USD`} value="loading..." />
+          <>
+            <MetricCardSkeleton />
+            <MetricCardSkeleton />
+          </>
         )}
-        {forecast && (
+        {forecast ? (
           <>
             {forecast.upper_price != null && forecast.var_price != null ? (
               <MetricCard
@@ -196,6 +215,16 @@ function OverviewPageInner() {
               value={fmtUsd(forecast.es_price)}
               accent="var(--red)"
             />
+            <RiskZoneCard
+              label="Basel risk zone"
+              zone={coverageRow?.basel_zone}
+              caption={`${effModel ?? "model"} · 250d exceptions`}
+            />
+          </>
+        ) : (
+          <>
+            <MetricCardSkeleton />
+            <MetricCardSkeleton />
           </>
         )}
       </div>
@@ -240,8 +269,8 @@ function OverviewPageInner() {
         </div>
       )}
 
-      <div className="card p-4">
-        {chartData.priceLine.length > 0 ? (
+      {chartData.priceLine.length > 0 ? (
+        <div className="card p-4">
           <PriceChart
             price={chartData.priceLine}
             varLine={chartData.varLine}
@@ -249,27 +278,32 @@ function OverviewPageInner() {
             breaches={chartData.breaches}
             livePrice={price?.price}
           />
-        ) : (
-          <div className="flex h-[420px] items-center justify-center text-muted">
-            Loading chart data...
-          </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        <ChartSkeleton height={420} />
+      )}
       <p className="text-xs text-muted">
         Amber/red lines are the {effModel ?? "selected model"} walk-forward
         VaR/ES for that day&apos;s close, plotted against the prior close.
         Markers = realized OOS violations (realized &lt; VaR).
       </p>
 
-      {coneSeries.length > 0 && forecast?.last_close != null && (
+      {forecast?.cone && forecast?.last_close != null ? (
+        coneSeries.length > 0 && (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {coneSeries.map((s) => (
+              <ConeChart key={s.key} series={[s]} lastClose={forecast.last_close as number} />
+            ))}
+          </div>
+        )
+      ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {coneSeries.map((s) => (
-            <ConeChart key={s.key} series={[s]} lastClose={forecast.last_close as number} />
-          ))}
+          <ChartSkeleton height={260} />
+          <ChartSkeleton height={260} />
         </div>
       )}
 
-      {forecast?.regime_summary && (
+      {forecast && forecast.regime_summary && (
         <RegimeDistribution
           normal={forecast.regime_summary.normal}
           crisis={forecast.regime_summary.crisis}

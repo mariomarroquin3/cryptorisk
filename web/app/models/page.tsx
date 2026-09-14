@@ -4,6 +4,8 @@ import { Suspense } from "react";
 import { Column, DataTable } from "@/components/DataTable";
 import { Field } from "@/components/Field";
 import { Fz0BarChart } from "@/components/Fz0BarChart";
+import { ChartSkeleton } from "@/components/Skeleton";
+import { ZoneBadge } from "@/components/ZoneBadge";
 import { fmtConfidence } from "@/lib/format";
 import { CoverageRow, EsTestRow, Fz0Row, GwCpaRow } from "@/lib/api";
 import { useConfig, useCoverage, useEsTests, useGwCpa, useModelsComparison } from "@/lib/hooks";
@@ -91,6 +93,7 @@ function ModelComparisonPageInner() {
       key: "basel_zone",
       label: "Basel zone",
       help: "Traffic-light zone from the 250-day exception count: green (<=4), amber (5-9), red (>=10) -- drives the capital multiplier.",
+      render: (r) => <ZoneBadge zone={r.basel_zone} />,
     },
     {
       key: "passes_all",
@@ -182,18 +185,32 @@ function ModelComparisonPageInner() {
         </Field>
       </div>
 
-      {comparison && comparison.length > 0 && (
-        <Fz0BarChart
-          data={[...comparison].sort((a, b) => a.fz0_rank - b.fz0_rank)}
-          title={`${effAsset} @ ${fmtConfidence(effAlpha)} — green = in the 90% MCS`}
-        />
+      {comparison === undefined ? (
+        <ChartSkeleton height={220} />
+      ) : (
+        comparison.length > 0 && (
+          <Fz0BarChart
+            data={[...comparison].sort((a, b) => a.fz0_rank - b.fz0_rank)}
+            title={`${effAsset} @ ${fmtConfidence(effAlpha)} — green = in the 90% MCS`}
+          />
+        )
       )}
-      <DataTable columns={fz0Cols} rows={comparison ?? []} keyField="model" />
+      <DataTable
+        columns={fz0Cols}
+        rows={comparison ?? []}
+        keyField="model"
+        loading={comparison === undefined}
+      />
 
       <div className="grid gap-6 md:grid-cols-2">
         <div>
           <h2 className="mb-2 text-lg font-medium">Coverage tests</h2>
-          <DataTable columns={coverageCols} rows={coverage ?? []} keyField="model" />
+          <DataTable
+            columns={coverageCols}
+            rows={coverage ?? []}
+            keyField="model"
+            loading={coverage === undefined}
+          />
           <p className="mt-2 text-xs text-muted">
             Nominal miss rate at this alpha: {fmtConfidence(1 - effAlpha)}. p &lt;
             0.05 rejects correct coverage.
@@ -201,7 +218,12 @@ function ModelComparisonPageInner() {
         </div>
         <div>
           <h2 className="mb-2 text-lg font-medium">Expected Shortfall tests (Acerbi-Szekely)</h2>
-          <DataTable columns={esCols} rows={esTests ?? []} keyField="model" />
+          <DataTable
+            columns={esCols}
+            rows={esTests ?? []}
+            keyField="model"
+            loading={esTests === undefined}
+          />
           <p className="mt-2 text-xs text-muted">
             Asymptotic-normal p-values (no per-day predictive draws available
             for a simulated null).
@@ -217,6 +239,7 @@ function ModelComparisonPageInner() {
           columns={gwCols}
           rows={gwCpa ?? []}
           keyField={(row) => `${row.model_a}-${row.model_b}`}
+          loading={gwCpa === undefined}
         />
       </div>
     </div>

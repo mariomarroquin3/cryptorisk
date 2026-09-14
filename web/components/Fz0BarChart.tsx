@@ -21,7 +21,7 @@ export interface Fz0Bar {
 
 export function Fz0BarChart({ data, title }: { data: Fz0Bar[]; title?: string }) {
   return (
-    <div className="rounded border border-grid bg-panel p-3">
+    <div className="card p-4">
       {title && <div className="mb-2 text-sm text-muted">{title}</div>}
       <ResponsiveContainer width="100%" height={360}>
         <BarChart data={data} margin={{ top: 20, right: 10, left: 0, bottom: 60 }}>

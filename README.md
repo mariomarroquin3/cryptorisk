@@ -159,8 +159,12 @@ Portfolio, Capital & Decision, Regimes), client-rendered via
 [SWR](https://swr.vercel.app) polling the API, charted with
 [Recharts](https://recharts.org) (bars/areas) and
 [`lightweight-charts`](https://tradingview.github.io/lightweight-charts/)
-(the Overview page's price + VaR/ES cone with breach markers, TradingView's
-own charting library):
+(the Overview page's historical price + VaR/ES band with breach markers,
+TradingView's own charting library). The Overview page also plots a 30-day
+forward cone (Jump-Diffusion and GARCH-EVT, each compounded exactly to the
+horizon rather than sqrt(t)-scaled) and a normal-vs-crisis regime
+distribution comparison — both read-only presentation over the same
+`/forecast` endpoint, not new study results.
 
 ```bash
 # start the API first (a separate process, see above)

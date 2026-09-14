@@ -296,9 +296,29 @@ Non-obvious, still-relevant facts:
   typed client against `NEXT_PUBLIC_API_BASE_URL` (`web/.env.local`, gitignored;
   `.env.example` is the committed template). Recharts for bar/area/line charts,
   `lightweight-charts` (TradingView's library) for the Overview page's
-  price+VaR/ES cone with breach markers. Its own `node_modules`/`package.json`
-  -- not part of the Python package or its dependency groups; run
-  `npm install` once in `web/`, then `npm run dev` (or `make web`).
+  historical price+VaR/ES band with breach markers. Its own
+  `node_modules`/`package.json` -- not part of the Python package or its
+  dependency groups; run `npm install` once in `web/`, then `npm run dev`
+  (or `make web`).
+  **Overview page panels (2026-09):** below the historical band, two small
+  `ConeChart.tsx` panels (Jump-Diffusion, GARCH-EVT -- each its own chart, not
+  overlaid, to stay readable) plot `/forecast`'s `cone` field: a continuous
+  daily curve out to 30 days (a numeric x-axis, not the 4-point categorical
+  axis it started as), converging on today's price. Below that,
+  `RegimeDistribution.tsx` renders `regime_summary` as two Student-t density
+  curves (mean 0, each regime's own fitted std/tail shape;
+  `web/lib/studentT.ts` implements the density with a Lanczos gamma
+  approximation) -- deliberately NOT another forecast line, since MS-GARCH's
+  regime signal can't honestly support one (see `api/cone.py`'s docstring).
+  **Visual design (2026-09, "Terminal Pro"):** `app/layout.tsx` loads
+  JetBrains Mono and a display face (Space Grotesk, headings only) via
+  `next/font/google` -- previously the mono font was only named in a
+  `font-family` list and silently fell back to the OS default on any machine
+  without it installed. `app/globals.css` adds a `.card` /
+  `.card-interactive` (hover-lift, used by `MetricCard`) style reused by
+  every chart/table container, plus a `pulse-dot` animation on the "Live
+  re-fit" badge. The identical `Field()` label-wrapper duplicated across all
+  5 pages was consolidated into `components/Field.tsx`.
 
 ## Review backlog (2026-09 full-project review — all six items fixed)
 

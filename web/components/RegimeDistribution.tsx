@@ -44,7 +44,7 @@ export function RegimeDistribution({
   });
 
   return (
-    <div className="rounded border border-grid bg-panel p-3">
+    <div className="card p-4">
       <div className="mb-2 text-sm text-muted">
         Normal vs. crisis regime -- what a day&apos;s return looks like statistically
       </div>
@@ -89,8 +89,8 @@ export function RegimeDistribution({
         std and tail shape from the full-sample MS-GARCH fit) -- not a
         forecast of which regime holds at any future date, just what a
         typical day in each regime looks like. Regime persistence (once
-        entered, P(stay)): normal {fmtPct(normal.p_stay ?? 0, 0)}, crisis{" "}
-        {fmtPct(crisis.p_stay ?? 0, 0)}.
+        entered, P(stay)): normal {fmtPct(normal.p_stay, 0)}, crisis{" "}
+        {fmtPct(crisis.p_stay, 0)}.
       </p>
     </div>
   );

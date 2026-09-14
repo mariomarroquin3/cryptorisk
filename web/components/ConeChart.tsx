@@ -61,7 +61,7 @@ export function ConeChart({ series, lastClose }: { series: ConeSeries[]; lastClo
       : `Forward cone -- VaR/upper bound, today out to ${maxDay} days`;
 
   return (
-    <div className="rounded border border-grid bg-panel p-3">
+    <div className="card p-4">
       <div className="mb-2 text-sm text-muted">{title}</div>
       <ResponsiveContainer width="100%" height={300}>
         <LineChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>

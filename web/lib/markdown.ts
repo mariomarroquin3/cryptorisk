@@ -16,7 +16,8 @@ function decodeEntities(text: string): string {
  * a couple of HTML entities but nothing else. Not a general markdown parser.
  */
 export function renderInlineMarkdown(text: string): ReactNode {
-  const parts = decodeEntities(text.trim()).split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
+  const withoutListMarker = text.trim().replace(/^-\s+/, "");
+  const parts = decodeEntities(withoutListMarker).split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
   return createElement(
     Fragment,
     null,

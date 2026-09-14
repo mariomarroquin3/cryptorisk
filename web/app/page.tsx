@@ -173,7 +173,7 @@ function OverviewPageInner() {
         </Field>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
         {price ? (
           <>
             <MetricCard
@@ -288,19 +288,20 @@ function OverviewPageInner() {
         Markers = realized OOS violations (realized &lt; VaR).
       </p>
 
-      {forecast?.cone && forecast?.last_close != null ? (
-        coneSeries.length > 0 && (
+      {forecast === undefined ? (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <ChartSkeleton height={260} />
+          <ChartSkeleton height={260} />
+        </div>
+      ) : (
+        coneSeries.length > 0 &&
+        forecast.last_close != null && (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {coneSeries.map((s) => (
               <ConeChart key={s.key} series={[s]} lastClose={forecast.last_close as number} />
             ))}
           </div>
         )
-      ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <ChartSkeleton height={260} />
-          <ChartSkeleton height={260} />
-        </div>
       )}
 
       {forecast && forecast.regime_summary && (

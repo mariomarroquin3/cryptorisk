@@ -159,6 +159,7 @@ export interface CapitalRow {
   es_10d_sqrt: number;
   es_10d_bootstrap: number;
   exceptions_250d: number;
+  basel_zone: string;
   m_c: number;
   capital_usd: number;
   model_risk_addon_usd: number;

@@ -8,23 +8,24 @@ Headline: FZ0 ranking and 90% Model Confidence Set.
 
 | rank | model | mean FZ0 | in MCS | MCS p | DM vs best p |
 |---:|:--|---:|:--:|---:|---:|
-| 1 | Realized-GARCH **(best)** | -2.18942 | yes | 0.225 | - |
-| 2 | CAViaR-SAV | -2.18179 | yes | 0.225 | 0.858 |
-| 3 | FHS | -2.15997 | yes | 0.225 | 0.468 |
-| 4 | CAViaR-X-AS | -2.15409 | yes | 0.225 | 0.616 |
-| 5 | HAR-RV | -2.13553 | yes | 0.225 | 0.506 |
-| 6 | Jump-Diffusion | -2.12793 | yes | 0.225 | 0.224 |
-| 7 | HS | -2.11587 | yes | 0.225 | 0.126 |
-| 8 | GJR-GARCH-t | -2.11282 | yes | 0.225 | 0.009 |
-| 9 | GARCH-t | -2.10870 | yes | 0.225 | 0.003 |
-| 10 | CAViaR-AS | -2.10156 | yes | 0.225 | 0.268 |
-| 11 | MS-GARCH | -2.09786 | yes | 0.225 | 0.219 |
-| 12 | AWHS | -2.09471 | yes | 0.225 | 0.110 |
-| 13 | GARCH-EVT | -2.09223 | yes | 0.225 | 0.005 |
-| 14 | GARCH-X | -2.08998 | yes | 0.225 | 0.033 |
-| 15 | EWMA | -1.83486 | yes | 0.225 | 0.014 |
-| 16 | EGARCH-t | -1.81319 | yes | 0.225 | 0.153 |
-| 17 | HARQ | -1.77791 | yes | 0.225 | 0.011 |
+| 1 | Realized-SV **(best)** | -2.23142 | yes | 0.207 | - |
+| 2 | Realized-GARCH | -2.18942 | yes | 0.207 | 0.213 |
+| 3 | CAViaR-SAV | -2.18179 | yes | 0.207 | 0.361 |
+| 4 | FHS | -2.15997 | yes | 0.207 | 0.211 |
+| 5 | CAViaR-X-AS | -2.15409 | yes | 0.207 | 0.319 |
+| 6 | HAR-RV | -2.13553 | yes | 0.207 | 0.357 |
+| 7 | Jump-Diffusion | -2.12793 | yes | 0.207 | 0.077 |
+| 8 | HS | -2.11587 | yes | 0.207 | 0.041 |
+| 9 | GJR-GARCH-t | -2.11282 | yes | 0.207 | 0.002 |
+| 10 | GARCH-t | -2.10870 | yes | 0.207 | 0.003 |
+| 11 | CAViaR-AS | -2.10156 | yes | 0.207 | 0.144 |
+| 12 | MS-GARCH | -2.09786 | yes | 0.207 | 0.138 |
+| 13 | AWHS | -2.09471 | yes | 0.207 | 0.059 |
+| 14 | GARCH-EVT | -2.09223 | yes | 0.207 | 0.003 |
+| 15 | GARCH-X | -2.08998 | yes | 0.207 | 0.000 |
+| 16 | EWMA | -1.83486 | yes | 0.207 | 0.017 |
+| 17 | EGARCH-t | -1.81319 | yes | 0.207 | 0.117 |
+| 18 | HARQ | -1.77791 | yes | 0.207 | 0.009 |
 
 Pass every coverage test (Kupiec/Christoffersen/DQ): Realized-GARCH, CAViaR-SAV, FHS, CAViaR-X-AS, Jump-Diffusion, HS, CAViaR-AS, MS-GARCH, AWHS, GARCH-X, EGARCH-t.
 
@@ -34,25 +35,26 @@ Headline: FZ0 ranking and 90% Model Confidence Set.
 
 | rank | model | mean FZ0 | in MCS | MCS p | DM vs best p |
 |---:|:--|---:|:--:|---:|---:|
-| 1 | Realized-GARCH **(best)** | -2.46378 | yes | 0.827 | - |
-| 2 | HAR-RV | -2.45835 | yes | 0.827 | 0.848 |
-| 3 | GJR-GARCH-t | -2.41801 | yes | 0.827 | 0.039 |
-| 4 | FHS | -2.41720 | yes | 0.827 | 0.054 |
-| 5 | MS-GARCH | -2.40975 | yes | 0.827 | 0.130 |
-| 6 | GARCH-t | -2.40425 | yes | 0.827 | 0.005 |
-| 7 | HS | -2.39844 | yes | 0.827 | 0.038 |
-| 8 | Jump-Diffusion | -2.39742 | yes | 0.827 | 0.031 |
-| 9 | CAViaR-AS | -2.39574 | yes | 0.827 | 0.046 |
-| 10 | CAViaR-X-AS | -2.39482 | yes | 0.827 | 0.118 |
-| 11 | AWHS | -2.39296 | yes | 0.827 | 0.039 |
-| 12 | GARCH-EVT | -2.39070 | yes | 0.827 | 0.002 |
-| 13 | GARCH-X | -2.37177 | yes | 0.827 | 0.003 |
-| 14 | CAViaR-SAV | -2.35235 | yes | 0.827 | 0.034 |
-| 15 | EWMA | -2.33225 | yes | 0.827 | 0.017 |
-| 16 | HARQ | -2.29326 | yes | 0.827 | 0.027 |
-| 17 | EGARCH-t | -2.25960 | yes | 0.827 | 0.135 |
+| 1 | Realized-SV **(best)** | -2.47163 | yes | 0.786 | - |
+| 2 | Realized-GARCH | -2.46378 | yes | 0.786 | 0.695 |
+| 3 | HAR-RV | -2.45835 | yes | 0.786 | 0.730 |
+| 4 | GJR-GARCH-t | -2.41801 | yes | 0.786 | 0.033 |
+| 5 | FHS | -2.41720 | yes | 0.786 | 0.056 |
+| 6 | MS-GARCH | -2.40975 | yes | 0.786 | 0.134 |
+| 7 | GARCH-t | -2.40425 | yes | 0.786 | 0.010 |
+| 8 | HS | -2.39844 | yes | 0.786 | 0.017 |
+| 9 | Jump-Diffusion | -2.39742 | yes | 0.786 | 0.018 |
+| 10 | CAViaR-AS | -2.39574 | yes | 0.786 | 0.019 |
+| 11 | CAViaR-X-AS | -2.39482 | yes | 0.786 | 0.120 |
+| 12 | AWHS | -2.39296 | yes | 0.786 | 0.038 |
+| 13 | GARCH-EVT | -2.39070 | yes | 0.786 | 0.003 |
+| 14 | GARCH-X | -2.37177 | yes | 0.786 | 0.000 |
+| 15 | CAViaR-SAV | -2.35235 | yes | 0.786 | 0.047 |
+| 16 | EWMA | -2.33225 | yes | 0.786 | 0.034 |
+| 17 | HARQ | -2.29326 | yes | 0.786 | 0.027 |
+| 18 | EGARCH-t | -2.25960 | yes | 0.786 | 0.125 |
 
-Pass every coverage test (Kupiec/Christoffersen/DQ): Realized-GARCH, HAR-RV, GJR-GARCH-t, FHS, MS-GARCH, GARCH-t, HS, Jump-Diffusion, CAViaR-AS, CAViaR-X-AS, AWHS, GARCH-EVT, CAViaR-SAV, EWMA, EGARCH-t.
+Pass every coverage test (Kupiec/Christoffersen/DQ): Realized-SV, Realized-GARCH, HAR-RV, GJR-GARCH-t, FHS, MS-GARCH, GARCH-t, HS, Jump-Diffusion, CAViaR-AS, CAViaR-X-AS, AWHS, GARCH-EVT, CAViaR-SAV, EWMA, EGARCH-t.
 
 ## ETH | window 500 | alpha 0.01  (VaR 99%)
 
@@ -60,25 +62,26 @@ Headline: FZ0 ranking and 90% Model Confidence Set.
 
 | rank | model | mean FZ0 | in MCS | MCS p | DM vs best p |
 |---:|:--|---:|:--:|---:|---:|
-| 1 | Realized-GARCH **(best)** | -1.91975 | yes | 0.161 | - |
-| 2 | GARCH-t | -1.90201 | yes | 0.161 | 0.626 |
-| 3 | GJR-GARCH-t | -1.89242 | yes | 0.161 | 0.479 |
-| 4 | CAViaR-X-AS | -1.88548 | yes | 0.161 | 0.404 |
-| 5 | GARCH-X | -1.88510 | yes | 0.161 | 0.345 |
-| 6 | GARCH-EVT | -1.88503 | yes | 0.161 | 0.246 |
-| 7 | CAViaR-AS | -1.88381 | yes | 0.161 | 0.404 |
-| 8 | HAR-RV | -1.87534 | yes | 0.161 | 0.450 |
-| 9 | EGARCH-t | -1.87511 | yes | 0.161 | 0.276 |
-| 10 | MS-GARCH | -1.86898 | yes | 0.161 | 0.302 |
-| 11 | FHS | -1.85689 | yes | 0.161 | 0.066 |
-| 12 | Jump-Diffusion | -1.77322 | yes | 0.161 | 0.008 |
-| 13 | AWHS | -1.77301 | yes | 0.161 | 0.018 |
-| 14 | HS | -1.76337 | yes | 0.161 | 0.002 |
-| 15 | HARQ | -1.74805 | yes | 0.161 | 0.030 |
-| 16 | CAViaR-SAV | -1.74693 | yes | 0.161 | 0.008 |
-| 17 | EWMA | -1.63083 | yes | 0.161 | 0.008 |
+| 1 | Realized-GARCH **(best)** | -1.91975 | yes | 0.176 | - |
+| 2 | GARCH-t | -1.90201 | yes | 0.176 | 0.626 |
+| 3 | GJR-GARCH-t | -1.89242 | yes | 0.176 | 0.479 |
+| 4 | Realized-SV | -1.88694 | yes | 0.176 | 0.461 |
+| 5 | CAViaR-X-AS | -1.88548 | yes | 0.176 | 0.404 |
+| 6 | GARCH-X | -1.88510 | yes | 0.176 | 0.345 |
+| 7 | GARCH-EVT | -1.88503 | yes | 0.176 | 0.246 |
+| 8 | CAViaR-AS | -1.88381 | yes | 0.176 | 0.404 |
+| 9 | HAR-RV | -1.87534 | yes | 0.176 | 0.450 |
+| 10 | EGARCH-t | -1.87511 | yes | 0.176 | 0.276 |
+| 11 | MS-GARCH | -1.86898 | yes | 0.176 | 0.302 |
+| 12 | FHS | -1.85689 | yes | 0.176 | 0.066 |
+| 13 | Jump-Diffusion | -1.77322 | yes | 0.176 | 0.008 |
+| 14 | AWHS | -1.77301 | yes | 0.176 | 0.018 |
+| 15 | HS | -1.76337 | yes | 0.176 | 0.002 |
+| 16 | HARQ | -1.74805 | yes | 0.176 | 0.030 |
+| 17 | CAViaR-SAV | -1.74693 | yes | 0.176 | 0.008 |
+| 18 | EWMA | -1.63083 | yes | 0.176 | 0.008 |
 
-Pass every coverage test (Kupiec/Christoffersen/DQ): Realized-GARCH, GARCH-t, GJR-GARCH-t, CAViaR-X-AS, GARCH-X, GARCH-EVT, EGARCH-t.
+Pass every coverage test (Kupiec/Christoffersen/DQ): Realized-GARCH, GARCH-t, GJR-GARCH-t, Realized-SV, CAViaR-X-AS, GARCH-X, GARCH-EVT, EGARCH-t.
 
 ## ETH | window 500 | alpha 0.025  (VaR 97.5%)
 
@@ -86,22 +89,23 @@ Headline: FZ0 ranking and 90% Model Confidence Set.
 
 | rank | model | mean FZ0 | in MCS | MCS p | DM vs best p |
 |---:|:--|---:|:--:|---:|---:|
-| 1 | HAR-RV **(best)** | -2.18320 | yes | 0.250 | - |
-| 2 | Realized-GARCH | -2.16457 | yes | 0.250 | 0.359 |
-| 3 | GARCH-t | -2.15721 | yes | 0.250 | 0.387 |
-| 4 | GJR-GARCH-t | -2.15689 | yes | 0.250 | 0.391 |
-| 5 | GARCH-X | -2.15585 | yes | 0.250 | 0.420 |
-| 6 | CAViaR-X-AS | -2.15491 | yes | 0.250 | 0.454 |
-| 7 | GARCH-EVT | -2.15105 | yes | 0.250 | 0.248 |
-| 8 | MS-GARCH | -2.14809 | yes | 0.250 | 0.149 |
-| 9 | EGARCH-t | -2.13794 | yes | 0.250 | 0.176 |
-| 10 | FHS | -2.13456 | yes | 0.250 | 0.059 |
-| 11 | HARQ | -2.12010 | yes | 0.250 | 0.049 |
-| 12 | CAViaR-AS | -2.11818 | yes | 0.250 | 0.103 |
-| 13 | AWHS | -2.08423 | yes | 0.250 | 0.003 |
-| 14 | HS | -2.06836 | no | 0.058 | 0.001 |
-| 15 | Jump-Diffusion | -2.06714 | no | 0.060 | 0.001 |
-| 16 | EWMA | -2.06169 | yes | 0.250 | 0.002 |
-| 17 | CAViaR-SAV | -2.05893 | yes | 0.250 | 0.002 |
+| 1 | HAR-RV **(best)** | -2.18320 | yes | 0.264 | - |
+| 2 | Realized-GARCH | -2.16457 | yes | 0.264 | 0.359 |
+| 3 | GARCH-t | -2.15721 | yes | 0.264 | 0.387 |
+| 4 | GJR-GARCH-t | -2.15689 | yes | 0.264 | 0.391 |
+| 5 | GARCH-X | -2.15585 | yes | 0.264 | 0.420 |
+| 6 | CAViaR-X-AS | -2.15491 | yes | 0.264 | 0.454 |
+| 7 | GARCH-EVT | -2.15105 | yes | 0.264 | 0.248 |
+| 8 | Realized-SV | -2.14860 | yes | 0.264 | 0.256 |
+| 9 | MS-GARCH | -2.14809 | yes | 0.264 | 0.149 |
+| 10 | EGARCH-t | -2.13794 | yes | 0.264 | 0.176 |
+| 11 | FHS | -2.13456 | yes | 0.264 | 0.059 |
+| 12 | HARQ | -2.12010 | yes | 0.264 | 0.049 |
+| 13 | CAViaR-AS | -2.11818 | yes | 0.264 | 0.103 |
+| 14 | AWHS | -2.08423 | yes | 0.264 | 0.003 |
+| 15 | HS | -2.06836 | no | 0.059 | 0.001 |
+| 16 | Jump-Diffusion | -2.06714 | no | 0.063 | 0.001 |
+| 17 | EWMA | -2.06169 | yes | 0.264 | 0.002 |
+| 18 | CAViaR-SAV | -2.05893 | yes | 0.264 | 0.002 |
 
-Pass every coverage test (Kupiec/Christoffersen/DQ): HAR-RV, Realized-GARCH, GARCH-X, MS-GARCH, EGARCH-t.
+Pass every coverage test (Kupiec/Christoffersen/DQ): HAR-RV, Realized-GARCH, GARCH-X, Realized-SV, MS-GARCH, EGARCH-t.

@@ -56,7 +56,7 @@ with a defensible notion of ``best''?} We motivate the problem and the design
 (\S\ref{sec:intro}); fix the probabilistic setup, the risk functionals and the
 walk-forward protocol (\S\ref{sec:setup}); describe the data, including the
 5-minute series that makes realized measures possible (\S\ref{sec:data}); derive
-the realized measures (\S\ref{sec:realized}); specify each of the seventeen models
+the realized measures (\S\ref{sec:realized}); specify each of the eighteen models
 --- mean, variance, innovation law, stationarity/identification conditions, the
 estimation objective, and the closed-form VaR/ES (\S\ref{sec:models}); and give
 the full evaluation battery: coverage and independence tests, the Dynamic
@@ -153,7 +153,7 @@ dashboard. Its lessons, carried into v2:
 \item Monte-Carlo scenario ``fan charts'' were not a substitute for a proper
       backtest.
 \end{itemize}
-v2 replaces the dashboard-as-deliverable with a comparative study: seventeen
+v2 replaces the dashboard-as-deliverable with a comparative study: eighteen
 models, a real data layer, and a battery that ranks with statistical
 significance.
 
@@ -497,11 +497,12 @@ Single-regime GARCH   & GARCH-$t$, GJR-$t$, EGARCH-$t$ & conditional variance re
 Semiparametric tail   & FHS, GARCH-EVT                 & GARCH filter, then empirical / GPD residual tail \\
 Discontinuous         & Merton jump-diffusion          & Brownian part plus compound-Poisson jumps \\
 Realized-measure      & HAR-RV, HARQ, Realized GARCH   & forecast built from the observed $\RV$ \\
+Stochastic volatility & Realized-SV                    & variance itself a diffusion, filtered (not a recursion) \\
 Exogenous / quantile  & GARCH-X, CAViaR, CAViaR-X      & driver in the variance / a direct quantile recursion \\
 Regime-switching      & MS-GARCH                       & 2-state Markov mixture of GARCH densities \\
 \bottomrule
 \end{tabular}
-\caption{The seventeen models.}\label{tab:models}
+\caption{The eighteen models.}\label{tab:models}
 \end{table}
 
 Each subsection gives: the specification, the stationarity or identification
@@ -514,10 +515,13 @@ The order is roughly increasing structure. The first two models make no
 distributional assumption at all; EWMA and the GARCH family add a variance
 recursion; FHS and GARCH-EVT keep that recursion but treat the tail
 non-parametrically; the Merton model adds discrete jumps; the realized-measure
-models replace the squared-return signal with observed $\RV$; the last group
-either adds an exogenous driver or models the quantile directly. Reading just
-the \emph{In one line} opener and the \emph{Reading} close of each subsection
-gives the full roster without the algebra.
+models replace the squared-return signal with observed $\RV$; Realized-SV goes
+a step further and lets the variance itself be a stochastic process rather
+than a deterministic function of the past, estimated by nonlinear filtering
+instead of a recursion; the last group either adds an exogenous driver or
+models the quantile directly. Reading just the \emph{In one line} opener and
+the \emph{Reading} close of each subsection gives the full roster without the
+algebra.
 
 %----------------------------------------------------------------------
 \subsection{Historical Simulation and age-weighting}
@@ -843,6 +847,92 @@ $\sqrt{h_{t+1}}$ times a $t_\nu$ fitted to $\{z_t\}$.
 \intuition{Ordinary GARCH updates variance from the squared return --- a very
 noisy signal. Realized GARCH updates it from $\RV$, and the measurement equation
 keeps the two notions of variance consistent.}
+
+%----------------------------------------------------------------------
+\subsection{Realized Stochastic Volatility (Heston-style CIR, UKF)}\label{sec:sv}
+
+\inbrief{The only model in the suite where variance is itself a diffusion
+rather than a deterministic function of the past. A nonlinear filter tracks
+it from the realized measure; the return grades the fit by its own exact
+density instead of updating the filter through an approximation.}
+
+\paragraph{Model.} Let $V_t$ be a latent variance following a square-root
+(CIR) diffusion, discretized (Euler, full truncation, $V^+=\max(V,0)$) with a
+GJR-style lagged leverage term:
+\begin{align}
+  V_t &= V_{t-1} + \kappa(\theta - V_{t-1}^+)
+         + \gamma\,\Ind{r_{t-1}<\hat\mu}\,(r_{t-1}-\hat\mu)^2
+         + \xi\sqrt{V_{t-1}^+}\,\eta_t, && \eta_t\sim N(0,1), \label{eq:sv-cir}\\
+  r_t &= \mu + \sqrt{V_t}\,z_t, && z_t\sim g_\nu, \\
+  \ln\RV_t &= \zeta + \varphi\ln V_t + u_t, && u_t\sim N(0,\sigma_u^2).
+\end{align}
+The leverage term is deliberately \emph{lagged}: a same-day correlation
+between the return shock and $\eta_t$ (Heston's $\rho$) would need the sign
+of $z_t$ before that day's own predict step, which is not yet available: it
+reuses GJR's asymmetric-response shape (\S\ref{sec:garch}) on $\Fcal_{t-1}$
+instead.
+
+\paragraph{Filtering.} $\sqrt{V_t}\,\eta_t$ enters \eqref{eq:sv-cir}
+multiplicatively, so a linear Kalman filter (additive Gaussian noise
+throughout) is not exact; we use an Unscented Kalman Filter
+(Julier--Uhlmann, 1997), which propagates a small deterministic set of
+\emph{sigma points} of the current state through the true nonlinear map and
+reconstructs the first two moments from their image, rather than
+linearizing the map:
+\begin{align}
+  \text{predict:}\quad & \hat V_{t\mid t-1} = \sum_i W_m^{(i)} f\big(\mathcal X_{t-1}^{(i)}\big), &&
+    P_{t\mid t-1} = \sum_i W_c^{(i)} \big(f(\mathcal X_{t-1}^{(i)}) - \hat V_{t\mid t-1}\big)^2, \\
+  \text{update:}\quad & \hat y_{t} = \sum_i W_m^{(i)} h\big(\mathcal X_{t\mid t-1}^{(i)}\big), &&
+    S_t = \sum_i W_c^{(i)}\big(h(\mathcal X^{(i)}_{t\mid t-1}) - \hat y_t\big)^2 + \sigma_u^2, \\
+  & K_t = P_{VY,t}/S_t, && \hat V_{t\mid t} = \hat V_{t\mid t-1} + K_t\big(\ln\RV_t - \hat y_t\big),
+\end{align}
+with $f$ the right-hand side of \eqref{eq:sv-cir} and
+$h(V)=\zeta+\varphi\ln\max(V,\epsilon)$. Only $\RV_t$ updates the filtered
+state; $\VaR_{\alpha,t}$/$\ES_{\alpha,t}$ use $\hat V_{t+1\mid t}$, the
+predict step's own output, so they condition on $\Fcal_t$ only.
+
+\paragraph{Return channel: exact likelihood, not a filter update.} A natural
+alternative routes the return through
+$\ln(r_t-\mu)^2 \approx \ln V_t + \E[\ln z^2]$
+(Harvey--Ruiz--Shephard, 1994), a second additive-noise UKF channel. That
+linearization matches only the first two moments of $\ln z^2$, which stays
+non-Gaussian even after correcting them for $\nu$ (its exact mean is
+$\psi(\tfrac12)-\psi(\tfrac\nu2)+\ln(\nu-2)$, not the Gaussian $-1.2704$) ---
+the residual skew was enough, empirically, to reject coverage at
+$\alpha=0.01$. We instead score the return by its own exact density given
+the just-computed prediction,
+\begin{equation}
+  \ell_t^{\,r} = \ln g_\nu\!\Big(\frac{r_t-\mu}{\sqrt{\hat V_{t\mid t-1}}}\Big)
+                 - \tfrac12\ln \hat V_{t\mid t-1},
+\end{equation}
+and let $\hat V_{t\mid t}$ come from the $\RV$ channel alone. $\ell_t^{\,r}$
+still fully determines $\mu$, $\nu$ and (through the predict step)
+$\kappa,\theta,\xi,\gamma$ by maximum likelihood; it simply never re-enters
+the filtered state through an approximate channel.
+
+\paragraph{Estimation.} $(\mu,\kappa,\theta,\xi,\gamma,\nu,\zeta,\varphi,
+\sigma_u^2)$ are fit jointly by maximizing
+$\sum_t\big(\ell_t^{\,r}+\ell_t^{\,RV}\big)$,
+$\ell_t^{RV}=-\tfrac12\big(\ln(2\pi S_t)+(\ln\RV_t-\hat y_t)^2/S_t\big)$,
+subject to $\kappa<2$: the discretization's linearized map
+$V_t\approx(1-\kappa)V_{t-1}+\ldots$ is a stationary AR(1) only for
+$|1-\kappa|<1$, and $\kappa$ above that makes the filter's own variance
+estimate $P_{t\mid t-1}$ diverge geometrically within a few weeks regardless
+of the data.
+
+\paragraph{Tail.} The parametric $t_\nu$ tail ranks well on FZ0, but a single
+$\nu$ fit by maximizing the whole-sample likelihood undersells the very
+largest moves: coverage and Acerbi--Szekely both rejected at $\alpha=0.01$
+under it. We instead fit a GPD tail (\S\ref{sec:evt}) to the standardized
+one-step-ahead residuals $\{(r_t-\hat\mu)/\sqrt{\hat V_{t\mid t-1}}\}$ of the
+filtered window --- the same construction as GARCH-EVT, applied to this
+model's own residual stream.
+
+\intuition{Let the variance wander on its own (mean-reverting, driven by its
+own noise) instead of pinning it down exactly from the past. A nonlinear
+filter tracks it from the realized measure alone; the return only grades how
+well that path explains what actually happened, through its own honest
+density rather than an approximation smuggled into the filter.}
 
 %----------------------------------------------------------------------
 \subsection{GARCH-X}

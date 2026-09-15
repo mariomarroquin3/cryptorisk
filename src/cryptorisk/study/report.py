@@ -117,6 +117,28 @@ _MODEL_NOTES: dict[str, tuple[str, list[str]]] = {
             "Assumes a Gaussian measurement error for log RV.",
         ],
     ),
+    "Realized-SV": (
+        "Heston-style CIR variance filtered with an Unscented Kalman Filter "
+        "from the realized measure alone (log RV_t = zeta + phi*log V_t + "
+        "u_t, phi fitted not fixed at 1), plus a GJR-style lagged leverage "
+        "term. The return does not update the filtered state -- it scores "
+        "its own exact Student-t log-density given the predicted V instead "
+        "of going through the approximate Harvey-Ruiz-Shephard log-square "
+        "trick tried during development, which stayed biased even after "
+        "correcting its Gaussian constants for fat tails. VaR/ES come from "
+        "a GPD tail (McNeil-Frey, 2000, same construction as GARCH-EVT) "
+        "fitted to the filtered window's own standardized residuals, not "
+        "the fitted Student-t directly -- a single nu from the whole-sample "
+        "likelihood undersold the most extreme moves.",
+        [
+            "Leverage is lagged (gamma * I(r_{t-1}<0) * resid_{t-1}^2 in the "
+            "CIR drift), not Heston's same-day correlated shocks (rho != 0) "
+            "-- avoids a same-day causality problem in the filter, at the "
+            "cost of a one-day-slower asymmetric response.",
+            "Quasi-MLE via an approximate filter likelihood (Gaussian on "
+            "the RV channel only), not the exact CIR transition density.",
+        ],
+    ),
     "GARCH-X": (
         "GARCH-t with lagged RV added to the variance equation.",
         [
@@ -169,6 +191,7 @@ _METHOD_FAMILY = {
     "HAR-RV": "Realized-measure",
     "HARQ": "Realized-measure",
     "Realized-GARCH": "Realized-measure",
+    "Realized-SV": "Stochastic volatility",
     "GARCH-X": "Exogenous / conditional",
     "CAViaR-SAV": "Exogenous / conditional",
     "CAViaR-AS": "Exogenous / conditional",

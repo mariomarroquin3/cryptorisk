@@ -7,14 +7,14 @@
 
 | asset | a | hit rate | coverage | ES Z2 | ES ok | FZ0 rank | in MCS |
 |:--|--:|--:|:--:|--:|:--:|--:|:--:|
-| BTC | 0.01 | 0.010 | pass | +0.02 | yes | 1/17 | yes |
-| BTC | 0.025 | 0.028 | pass | -0.06 | yes | 1/17 | yes |
-| ETH | 0.01 | 0.012 | pass | -0.14 | yes | 1/17 | yes |
-| ETH | 0.025 | 0.030 | pass | -0.16 | yes | 2/17 | yes |
+| BTC | 0.01 | 0.010 | pass | +0.02 | yes | 2/18 | yes |
+| BTC | 0.025 | 0.028 | pass | -0.06 | yes | 2/18 | yes |
+| ETH | 0.01 | 0.012 | pass | -0.14 | yes | 1/18 | yes |
+| ETH | 0.025 | 0.030 | pass | -0.16 | yes | 2/18 | yes |
 
 **Density (Berkowitz):** BTC p=0.223, ETH p=0.115
 
-**Volatility forecast (QLIKE):** BTC rank 4/14 (MZ b=0.77), ETH rank 4/14 (MZ b=0.62)
+**Volatility forecast (QLIKE):** BTC rank 5/15 (MZ b=0.77), ETH rank 5/15 (MZ b=0.62)
 
 **Decision layer:** BTC capital $443,045 (m_c 1.50), N* $949,269; ETH capital $567,477 (m_c 1.50), N* $748,858
 

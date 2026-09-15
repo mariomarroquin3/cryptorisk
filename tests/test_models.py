@@ -69,3 +69,43 @@ def test_har_falls_back_without_realized():
 
     d = HAR().fit_predict(c)
     assert d.var(A1) < 0  # empirical fallback still coherent
+
+
+def test_realized_sv_falls_back_without_realized():
+    rng = np.random.default_rng(3)
+    r = rng.standard_t(6, 400) * 0.02
+    dates = pd.date_range("2020-01-01", periods=400).to_numpy()
+    c = Context(returns=r, dates=dates, asof=dates[-1])
+    from cryptorisk.models.stochastic_vol import RealizedSV
+
+    d = RealizedSV().fit_predict(c)
+    assert d.var(A1) < 0  # empirical fallback still coherent
+
+
+def test_realized_sv_state_stays_nonnegative():
+    """The CIR state truncation (full truncation Euler scheme) must clamp the
+    filtered variance itself, not just intermediate sqrt/log evaluations --
+    a regression this specific test would have caught during development,
+    when an unclamped state went as low as -0.89 and then diverged."""
+    from cryptorisk.models.stochastic_vol import _filter
+
+    rng = np.random.default_rng(11)
+    n = 900
+    s = np.empty(n)
+    s[0] = 0.02
+    e = rng.standard_normal(n)
+    for t in range(1, n):
+        s[t] = np.sqrt(3e-5 + 0.06 * (s[t - 1] * e[t - 1]) ** 2 + 0.9 * s[t - 1] ** 2)
+    r = s * rng.standard_t(6, size=n)
+    rv = s**2 * rng.uniform(0.7, 1.3, size=n)
+    log_rv = np.log(rv)
+
+    # A deliberately unstable kappa (>= 2 breaks the Euler discretization's
+    # stability, |1 - kappa| >= 1) to confirm the state stays sane even in a
+    # corner the optimizer's bounds are meant to exclude.
+    theta = np.array([r.mean(), 3.0, r.var(), 0.3 * np.sqrt(r.var()), 0.0, np.log(0.3), 0.1, 6.0, 1.0])
+    v_pred, v_post, p_last, ll, lev = _filter(theta, r, log_rv)
+    assert np.all(np.isfinite(v_pred)) and np.all(v_pred >= 0)
+    assert np.all(np.isfinite(v_post)) and np.all(v_post >= 0)
+    assert np.isfinite(p_last) and np.isfinite(ll)
+    assert np.isfinite(lev) and lev >= 0

@@ -68,11 +68,11 @@ calls it once per OOS day, queries the dist at each `alpha`.
   (weighted sample), `QuantileDist` ((VaR,ES) pairs only — CAViaR, MS-GARCH
   bridge; no `cdf`/`sigma2`). `sigma2/cdf/ppf` may raise `NotImplementedError`.
 
-### The 17 models & their quirks
+### The 18 models & their quirks
 
 HS, AWHS · EWMA · GARCH-t, GJR-GARCH-t, EGARCH-t · FHS · GARCH-EVT ·
-Jump-Diffusion · HAR-RV, HARQ · Realized-GARCH · GARCH-X · CAViaR-SAV,
-CAViaR-AS, CAViaR-X-AS · MS-GARCH.
+Jump-Diffusion · HAR-RV, HARQ · Realized-GARCH · Realized-SV · GARCH-X ·
+CAViaR-SAV, CAViaR-AS, CAViaR-X-AS · MS-GARCH.
 
 - GARCH family uses a **standardized** Student-t: rescale the scipy-t quantile
   by `sqrt((nu-2)/nu)` (`_dist.student_t_z`) — the factor v1 dropped.
@@ -89,6 +89,25 @@ CAViaR-AS, CAViaR-X-AS · MS-GARCH.
   cosmetic for ETH.
 - AR(1) recursions in CAViaR / Realized-GARCH / GARCH-X use `scipy.signal.lfilter`,
   not Python loops (Realized-GARCH: 751s → 37s/window).
+- **Realized-SV** (`models/stochastic_vol.py`): Heston-style CIR variance
+  filtered with an Unscented Kalman Filter (return + RV as two noisy
+  log-variance measurements), plus a GJR-style **lagged** leverage term
+  (`gamma * I(r_{t-1}<0) * resid_{t-1}^2` in the CIR drift — same-day Heston
+  correlation isn't causally available before that day's own predict step).
+  Quasi-MLE via `scipy.optimize`. Its own Python-loop lesson: a naive
+  per-day loop cost ~8.9s/window (~24h for the full study) even after
+  removing per-iteration numpy array allocation -- the UKF's recursive
+  per-day math is compiled with `numba.njit` instead (~0.2-0.4s/window).
+  `kappa` (mean-reversion speed) is bounded at `< 2`: the Euler
+  discretization's linearized map is `V_{t+1} ~= (1-kappa)*V_t + ...`, which
+  diverges like an AR(1) with `|phi| >= 1` above that. The Harvey-Ruiz-
+  Shephard return-channel bias (`E[log z^2]`) and noise (`Var[log z^2]`)
+  are **not** the fixed Gaussian constants (`-1.2704`, `pi^2/2`) — they're
+  interpolated from a precomputed digamma/trigamma table at the
+  jointly-fitted Student-t `nu` (`_NU_GRID`). Using the Gaussian constants
+  for fat-tailed crypto residuals was a measured ~26% downward bias in
+  filtered variance → ~2x too many violations at every alpha/asset; the
+  leverage term alone barely moved that number.
 - **MS-GARCH** runs its whole walk-forward in **R** (`make msgarch`), caches
   per-day predictions in `store.msgarch_predictions`; `MSGarchBridge.fit_predict`
   looks up `(asset, prev_date)` and falls back to empirical on a miss. Its
@@ -128,7 +147,7 @@ make test lint fmt
 
 | # | scope | state |
 |---|---|---|
-| 0-2 | setup · data layer · 17 models + engine + R bridge | ✅ |
+| 0-2 | setup · data layer · 18 models + engine + R bridge | ✅ |
 | 3 | evaluation battery (`run_evaluation`, `vol_forecast_eval`) | ✅ |
 | 4 | sub-periods + Giacomini-White CPA + MS-GARCH regime identification | ✅ |
 | 5 | decision layer (`run_decision`) | ✅ |
@@ -166,7 +185,7 @@ Non-obvious, still-relevant facts:
   (now "bounded, not propagated").
 - **Phase 6** `study.report` is a pure assembler: it reads `data/results/*.csv`
   + the store, writes `docs/results.md` (versioned), `docs/model_cards/*.md`
-  (versioned, 16 + README) and `docs/figures/*.png` (**gitignored**). Per-model
+  (versioned, 18 + README) and `docs/figures/*.png` (**gitignored**). Per-model
   prose lives in `_MODEL_NOTES` in `report.py`; everything else is tabulated
   from the CSVs, so re-run `make report` after any pipeline re-run.
 - **Phase 7** `study.run_portfolio` (`make portfolio`): fixed-weight basket,

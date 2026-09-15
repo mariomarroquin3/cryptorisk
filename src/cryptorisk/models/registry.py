@@ -20,6 +20,7 @@ from cryptorisk.models.historical import HistoricalSimulation
 from cryptorisk.models.jump import JumpDiffusion
 from cryptorisk.models.msgarch_bridge import MSGarchBridge
 from cryptorisk.models.realized_garch import RealizedGARCH
+from cryptorisk.models.stochastic_vol import RealizedSV
 
 
 def phase2a_models() -> list[Model]:
@@ -42,6 +43,7 @@ def phase2b_models(alphas: tuple[float, ...] | None = None) -> list[Model]:
         HAR(),
         HAR(harq=True),
         RealizedGARCH(),
+        RealizedSV(),
         GarchX(),
         CAViaR(alphas, spec="SAV"),
         CAViaR(alphas, spec="AS"),

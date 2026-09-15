@@ -21,6 +21,7 @@ dependencies = [
     "duckdb==1.5.5",
     "pyarrow==25.0.1",
     "joblib==1.6.0",
+    "numba==0.67.0",
     "pyyaml==6.0.3",
     "requests==2.34.2",
     "matplotlib==3.11.1",

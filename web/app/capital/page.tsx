@@ -5,11 +5,19 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import { Column, DataTable } from "@/components/DataTable";
 import { Field } from "@/components/Field";
 import { MetricCard } from "@/components/MetricCard";
+import { ModelTip } from "@/components/ModelTip";
 import { ChartSkeleton, MetricCardSkeleton } from "@/components/Skeleton";
 import { ZoneBadge } from "@/components/ZoneBadge";
 import { fmtPct, fmtUsd } from "@/lib/format";
 import { CapitalRow, LimitsRow } from "@/lib/api";
-import { useCapital, useConfig, useEstimationRisk, useHedge, useLimits } from "@/lib/hooks";
+import {
+  useCapital,
+  useConfig,
+  useEstimationRisk,
+  useHedge,
+  useLimits,
+  useModelsInfo,
+} from "@/lib/hooks";
 import { useQueryParam } from "@/lib/useQueryParam";
 
 export default function CapitalPage() {
@@ -30,6 +38,7 @@ function CapitalPageInner() {
   const { data: estRisk } = useEstimationRisk(effAsset);
   const { data: limits } = useLimits(effAsset);
   const { data: hedge } = useHedge(effAsset);
+  const { data: modelsInfo } = useModelsInfo();
 
   const inMcs = capital?.filter((r) => r.in_mcs) ?? [];
   const row =
@@ -52,7 +61,7 @@ function CapitalPageInner() {
   ];
 
   const capitalCols: Column<CapitalRow>[] = [
-    { key: "model", label: "model" },
+    { key: "model", label: "model", render: (r) => <ModelTip name={r.model} info={modelsInfo?.[r.model]} /> },
     {
       key: "in_mcs",
       label: "in MCS",
@@ -100,7 +109,7 @@ function CapitalPageInner() {
   ];
 
   const limitsCols: Column<LimitsRow>[] = [
-    { key: "model", label: "model" },
+    { key: "model", label: "model", render: (r) => <ModelTip name={r.model} info={modelsInfo?.[r.model]} /> },
     {
       key: "in_mcs",
       label: "in MCS",

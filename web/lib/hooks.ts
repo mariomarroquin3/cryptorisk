@@ -14,6 +14,7 @@ import {
   GwCpaRow,
   HedgeRow,
   LimitsRow,
+  ModelInfo,
   PortfolioComposition,
   PortfolioEvalRow,
   PriceHistoryRow,
@@ -29,6 +30,10 @@ export function useConfig() {
 
 export function useModels() {
   return useSWR<string[]>("/models", fetcher);
+}
+
+export function useModelsInfo() {
+  return useSWR<Record<string, ModelInfo>>("/models/info", fetcher);
 }
 
 export function usePrice(asset: string | null) {

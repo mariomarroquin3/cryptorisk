@@ -4,11 +4,19 @@ import { Suspense } from "react";
 import { Column, DataTable } from "@/components/DataTable";
 import { Field } from "@/components/Field";
 import { Fz0BarChart } from "@/components/Fz0BarChart";
+import { ModelTip } from "@/components/ModelTip";
 import { ChartSkeleton } from "@/components/Skeleton";
 import { ZoneBadge } from "@/components/ZoneBadge";
 import { fmtConfidence } from "@/lib/format";
 import { CoverageRow, EsTestRow, Fz0Row, GwCpaRow } from "@/lib/api";
-import { useConfig, useCoverage, useEsTests, useGwCpa, useModelsComparison } from "@/lib/hooks";
+import {
+  useConfig,
+  useCoverage,
+  useEsTests,
+  useGwCpa,
+  useModelsComparison,
+  useModelsInfo,
+} from "@/lib/hooks";
 import { useQueryParam } from "@/lib/useQueryParam";
 
 export default function ModelComparisonPage() {
@@ -33,10 +41,11 @@ function ModelComparisonPageInner() {
   const { data: coverage } = useCoverage(effAsset, effAlpha);
   const { data: esTests } = useEsTests(effAsset, effAlpha);
   const { data: gwCpa } = useGwCpa(effAsset, effAlpha);
+  const { data: modelsInfo } = useModelsInfo();
 
   const fz0Cols: Column<Fz0Row>[] = [
     { key: "fz0_rank", label: "rank" },
-    { key: "model", label: "model" },
+    { key: "model", label: "model", render: (r) => <ModelTip name={r.model} info={modelsInfo?.[r.model]} /> },
     {
       key: "fz0_mean",
       label: "FZ0",
@@ -65,7 +74,7 @@ function ModelComparisonPageInner() {
   ];
 
   const coverageCols: Column<CoverageRow>[] = [
-    { key: "model", label: "model" },
+    { key: "model", label: "model", render: (r) => <ModelTip name={r.model} info={modelsInfo?.[r.model]} /> },
     {
       key: "hit_rate",
       label: "hit rate",
@@ -103,7 +112,7 @@ function ModelComparisonPageInner() {
   ];
 
   const esCols: Column<EsTestRow>[] = [
-    { key: "model", label: "model" },
+    { key: "model", label: "model", render: (r) => <ModelTip name={r.model} info={modelsInfo?.[r.model]} /> },
     { key: "n_breach", label: "breaches" },
     {
       key: "z1",
@@ -125,8 +134,8 @@ function ModelComparisonPageInner() {
   ];
 
   const gwCols: Column<GwCpaRow>[] = [
-    { key: "model_a", label: "model A" },
-    { key: "model_b", label: "model B" },
+    { key: "model_a", label: "model A", render: (r) => <ModelTip name={r.model_a} info={modelsInfo?.[r.model_a]} /> },
+    { key: "model_b", label: "model B", render: (r) => <ModelTip name={r.model_b} info={modelsInfo?.[r.model_b]} /> },
     {
       key: "mean_fz0_gap",
       label: "mean FZ0 gap",

@@ -28,6 +28,8 @@ from cryptorisk.api import data as D
 from cryptorisk.api.cache import ttl_cache
 from cryptorisk.backtest.coverage import basel_zone_and_addon
 from cryptorisk.config import load_config
+from cryptorisk.models.notes import METHOD_FAMILY as _METHOD_FAMILY
+from cryptorisk.models.notes import MODEL_NOTES as _MODEL_NOTES
 from cryptorisk.study.run_portfolio import _read_bullets
 
 app = FastAPI(
@@ -147,6 +149,18 @@ def config() -> dict:
 @app.get("/models")
 def models() -> list[str]:
     return D.model_names()
+
+
+@app.get("/models/info")
+def models_info() -> dict[str, dict]:
+    """One-line idea, family, and known limitations per model -- the same
+    text ``docs/model_cards/`` renders, for a UI to show inline (e.g. a
+    tooltip on a model name) instead of leaving it as an unexplained
+    string in a table."""
+    return {
+        name: {"family": _METHOD_FAMILY.get(name, ""), "idea": idea, "limitations": lims}
+        for name, (idea, lims) in _MODEL_NOTES.items()
+    }
 
 
 @app.get("/price/{asset}")

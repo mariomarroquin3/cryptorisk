@@ -23,6 +23,12 @@ export async function apiGet<T>(path: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+export interface ModelInfo {
+  family: string;
+  idea: string;
+  limitations: string[];
+}
+
 export interface Config {
   assets: string[];
   alphas: number[];

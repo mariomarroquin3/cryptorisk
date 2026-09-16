@@ -180,3 +180,39 @@ METHOD_FAMILY = {
     "CAViaR-X-AS": "Exogenous / conditional",
     "MS-GARCH": "Regime-switching",
 }
+
+# The 4-asset portfolio study (study/run_portfolio.py) scores copula
+# *dependence* choices, not registry models: marginals are always
+# GARCH(1,1)-t + FHS residual inversion, only the joint tail structure
+# varies. Keyed by the exact "Copula-<family>" name run_portfolio.py emits.
+COPULA_NOTES: dict[str, tuple[str, list[str]]] = {
+    "Copula-independence": (
+        "Treats each asset's tail risk as independent -- ignores that "
+        "crypto assets crash together.",
+        [
+            "Understates basket tail risk whenever assets are actually "
+            "correlated in the tail, which they are.",
+            "Included as the baseline that shows why a copula is needed "
+            "at all, not as a candidate worth using.",
+        ],
+    ),
+    "Copula-gaussian": (
+        "A Gaussian copula: correlated, but with no extra tail dependence "
+        "beyond that correlation.",
+        ["Underestimates joint crashes -- the Gaussian copula's tail "
+         "dependence is exactly zero, however high the correlation."],
+    ),
+    "Copula-student_t": (
+        "A Student-t copula (fixed degrees of freedom): correlated *and* "
+        "prone to joint extreme moves, unlike the Gaussian copula.",
+        ["The degrees of freedom are fixed, not fitted per window."],
+    ),
+    "Copula-clayton": (
+        "A Clayton copula: asymmetric tail dependence, strongest in the "
+        "joint-crash (lower) tail specifically.",
+        [
+            "Falls back to independence when the fitted theta is <= 0 "
+            "(no positive lower-tail dependence detected in that window).",
+        ],
+    ),
+}

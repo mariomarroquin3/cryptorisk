@@ -5,6 +5,7 @@ import { Column, DataTable } from "@/components/DataTable";
 import { Field } from "@/components/Field";
 import { Fz0BarChart } from "@/components/Fz0BarChart";
 import { MetricCard } from "@/components/MetricCard";
+import { ModelTip } from "@/components/ModelTip";
 import { ChartSkeleton, MetricCardSkeleton, Skeleton } from "@/components/Skeleton";
 import { ZoneBadge } from "@/components/ZoneBadge";
 import { renderInlineMarkdown } from "@/lib/markdown";
@@ -12,6 +13,7 @@ import { fmtConfidence, fmtUsd } from "@/lib/format";
 import { PortfolioEvalRow } from "@/lib/api";
 import {
   useConfig,
+  useModelsInfo,
   usePortfolioComposition,
   usePortfolioEval,
   usePortfolioNarrative,
@@ -37,6 +39,7 @@ function PortfolioPageInner() {
   const { data: evalRows } = usePortfolioEval(effAlpha);
   const { data: composition } = usePortfolioComposition();
   const { data: narrative } = usePortfolioNarrative(effAlpha);
+  const { data: modelsInfo } = useModelsInfo();
 
   const sorted = [...(evalRows ?? [])].sort((a, b) => a.fz0_rank - b.fz0_rank);
   const copulas = sorted.filter((r) => r.model.toLowerCase().includes("copula"));
@@ -44,7 +47,7 @@ function PortfolioPageInner() {
 
   const cols: Column<PortfolioEvalRow>[] = [
     { key: "fz0_rank", label: "rank" },
-    { key: "model", label: "model" },
+    { key: "model", label: "model", render: (r) => <ModelTip name={r.model} info={modelsInfo?.[r.model]} /> },
     {
       key: "fz0_mean",
       label: "FZ0",
@@ -86,7 +89,7 @@ function PortfolioPageInner() {
 
   const smallCols: Column<PortfolioEvalRow>[] = [
     { key: "fz0_rank", label: "rank" },
-    { key: "model", label: "model" },
+    { key: "model", label: "model", render: (r) => <ModelTip name={r.model} info={modelsInfo?.[r.model]} /> },
     { key: "fz0_mean", label: "FZ0" },
     { key: "hit_rate", label: "hit rate" },
   ];

@@ -56,7 +56,7 @@ with a defensible notion of ``best''?} We motivate the problem and the design
 (\S\ref{sec:intro}); fix the probabilistic setup, the risk functionals and the
 walk-forward protocol (\S\ref{sec:setup}); describe the data, including the
 5-minute series that makes realized measures possible (\S\ref{sec:data}); derive
-the realized measures (\S\ref{sec:realized}); specify each of the eighteen models
+the realized measures (\S\ref{sec:realized}); specify each of the twenty models
 --- mean, variance, innovation law, stationarity/identification conditions, the
 estimation objective, and the closed-form VaR/ES (\S\ref{sec:models}); and give
 the full evaluation battery: coverage and independence tests, the Dynamic
@@ -153,7 +153,7 @@ dashboard. Its lessons, carried into v2:
 \item Monte-Carlo scenario ``fan charts'' were not a substitute for a proper
       backtest.
 \end{itemize}
-v2 replaces the dashboard-as-deliverable with a comparative study: eighteen
+v2 replaces the dashboard-as-deliverable with a comparative study: twenty
 models, a real data layer, and a battery that ranks with statistical
 significance.
 
@@ -500,9 +500,10 @@ Realized-measure      & HAR-RV, HARQ, Realized GARCH   & forecast built from the
 Stochastic volatility & Realized-SV                    & variance itself a diffusion, filtered (not a recursion) \\
 Exogenous / quantile  & GARCH-X, CAViaR, CAViaR-X      & driver in the variance / a direct quantile recursion \\
 Regime-switching      & MS-GARCH                       & 2-state Markov mixture of GARCH densities \\
+Machine learning      & RF-QR, LSTM-Vol                & learned, not fitted: quantile forest / recurrent net \\
 \bottomrule
 \end{tabular}
-\caption{The eighteen models.}\label{tab:models}
+\caption{The twenty models.}\label{tab:models}
 \end{table}
 
 Each subsection gives: the specification, the stationarity or identification
@@ -1058,6 +1059,76 @@ fit and is kept out of the VaR backtest.
 \intuition{Markets alternate between a calm regime and a turbulent one, and
 which one you are in is not observed. The model carries a probability over both
 and mixes their forecasts.}
+
+\subsection{Machine-learning comparison arm: RF-QR and LSTM-Vol}\label{sec:ml}
+
+\inbrief{Every model above fits a parametric or semiparametric structure
+(a variance recursion, a diffusion, a quantile autoregression) chosen in
+advance. This arm drops that structure and lets a general-purpose learner
+find its own mapping from recent history to next-day risk, to see whether
+the imposed structure is buying anything.}
+
+\paragraph{RF-QR: Quantile Regression Forest.} A random forest
+(Breiman, 2001) ordinarily collapses each leaf to the mean of the training
+targets that landed there, discarding their spread. Meinshausen (2006)
+observes that a leaf's full set of training targets is itself a local
+sample from $r_t\mid x_t$; keep it. Let $\ell_b(x)$ denote the leaf of tree
+$b$ reached by feature vector $x$, and let
+$w_{b,i}(x)=\Ind{\ell_b(x_i)=\ell_b(x)}/\big|\{j:\ell_b(x_j)=\ell_b(x)\}\big|$
+be the resulting within-leaf weight on training observation $i$. Averaging
+over the $B$ trees,
+\begin{equation}
+  w_i(x) = \frac{1}{B}\sum_{b=1}^{B} w_{b,i}(x),
+\end{equation}
+gives a full weighted empirical distribution of $r_t$ conditional on $x_t$,
+from which $\VaR_{\alpha,t}$ and $\ES_{\alpha,t}$ are the weighted quantile
+and tail mean, exactly as in Historical Simulation
+(\S\ref{sec:models}, HS) but with $x_t$-dependent weights instead of a flat
+window. The feature vector is HAR-shaped but built from squared returns
+alone (so the model needs no realized measure to run):
+$x_t=(r_{t-1},\,r_{t-1}^2,\,\overline{r^2}_{t-1:t-5},\,\overline{r^2}_{t-1:t-22},\,
+\min(r_{t-1},0)^2)$, extended with $(\log\RV_{t-1},\overline{\log\RV}_{t-1:t-5},
+\overline{\log\RV}_{t-1:t-22})$ when $\RV$ is available. No distributional
+assumption enters anywhere; the tail shape is whatever the training sample's
+own leaves show.
+
+\paragraph{LSTM-Vol: a recurrent quasi-MLE filter.} Structurally this keeps
+the GARCH family's estimation \emph{principle} --- fit a one-step conditional
+variance by Gaussian quasi-maximum likelihood --- while replacing the fixed
+GARCH$(1,1)$ recursion with a learned one. A single-layer LSTM
+(Hochreiter--Schmidhuber, 1997) reads the last $L=20$ days of
+$(r_t,r_t^2,\min(r_t,0)^2)$ and its final hidden state is mapped by a linear
+head to $\log v_{t+1}$:
+\begin{equation}
+  (h_t,c_t) = \mathrm{LSTM}\big((r_s,r_s^2,\min(r_s,0)^2)_{s=t-L+1}^{t}\big),
+  \qquad
+  \log v_{t+1} = w^\top h_t + b.
+\end{equation}
+Parameters $(\theta_{\mathrm{LSTM}},w,b)$ are fit by minimising the Gaussian
+quasi-negative-log-likelihood over the training window,
+$\sum_t \tfrac12\big(\log v_{t+1} + r_{t+1}^2/v_{t+1}\big)$, by Adam (not
+L-BFGS-B: the loss surface of a recurrent net is not the smooth, low-dimensional
+kind L-BFGS-B is suited to). As with every other quasi-MLE model in this
+catalogue, the return distribution is location-scale Student-$t$:
+$r_{t+1}=\sqrt{v_{t+1}}\,z_{t+1}$,
+$z_{t+1}\sim g_\nu$, with $\nu$ fitted post-hoc to the in-sample standardized
+residuals $r_{t+1}/\sqrt{v_{t+1}}$ (identical to HAR-RV, \S\ref{sec:har}).
+
+\paragraph{Estimation cost and refit cadence.} A forest fit is fast enough
+(seconds) to refit on every walk-forward day, same as the rest of Phase~2.
+Gradient descent is not: at $\sim 80$ Adam steps per fit it is the most
+expensive model in the suite after MS-GARCH, so LSTM-Vol refits every $20$
+days (config \texttt{walk\_forward.refit\_every}) and reuses the fitted
+distribution on the intervening days --- the same cadence MS-GARCH already
+uses for an unrelated reason (its R-side estimation cost). This is a
+genuine limitation, not a convenience: a trading day's leverage or
+volatility-clustering signal is stale for up to 19 days between refits,
+which every parametric model here does not suffer from.
+
+\intuition{Instead of assuming the shape of the variance recursion or the
+tail, hand the raw history to a learner and let it find its own shape. The
+price is that ``its own shape'' has no closed form to inspect, and training
+it is too slow to redo every single day.}
 
 %======================================================================
 \section{Evaluation}\label{sec:eval}

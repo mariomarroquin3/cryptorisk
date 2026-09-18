@@ -16,14 +16,16 @@ sample:
 walk_forward:
   windows: [500]           # rolling window lengths; "expanding" also run in study
   expanding: true
-  # NOTE: the Python engine (study.run_backtests) refits every day for every
-  # model -- all Phase-2 models are cheap enough. MS-GARCH's 20-day cadence
-  # lives in msgarch/fit_msgarch_walkforward.R (REFIT_EVERY), not here. These
-  # values are documentation of intent, not read by run_backtests.
+  # Read by study.run_backtests: per-model override of the walk-forward
+  # engine's refit_every (the fitted PredictiveDist is reused for the
+  # in-between days). Every Phase-2 statistical model is cheap enough to
+  # refit daily. LSTM-Vol is the exception -- a gradient-descent fit, not a
+  # closed form or a handful of L-BFGS-B iterations -- so it refits every 20
+  # days like MS-GARCH's own within-R cadence (MS-GARCH itself is served from
+  # a cache built by msgarch/fit_msgarch_walkforward.R, not this map).
   refit_every:
     default: 1
-    msgarch: 20            # enforced in the R script, with daily re-filtering
-    jump: 1
+    LSTM-Vol: 20
 
 # Risk levels. FRTB uses ES 97.5%; 99% kept for the VaR comparison.
 alphas: [0.025, 0.01]

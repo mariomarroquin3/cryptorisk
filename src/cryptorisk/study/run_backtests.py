@@ -31,9 +31,10 @@ def _load_returns(db: str, asset: str) -> pd.DataFrame:
     return r.merge(rlz, on="date", how="left")
 
 
-def _job(df, model, asset, window, alphas, oos_start):
+def _job(df, model, asset, window, alphas, oos_start, refit_every):
     res = walk_forward(
-        df, model, alphas=alphas, asset=asset, window=window, oos_start=oos_start
+        df, model, alphas=alphas, asset=asset, window=window, oos_start=oos_start,
+        refit_every=refit_every,
     )
     return res.frame
 
@@ -63,6 +64,8 @@ def main() -> None:
             raise SystemExit(f"no models matched {sorted(wanted)}")
 
     returns = {a: _load_returns(args.db, a) for a in args.assets}
+    refit_map = cfg["walk_forward"]["refit_every"]
+    default_refit = refit_map.get("default", 1)
 
     jobs = [
         (returns[a], m, a, w)
@@ -74,7 +77,8 @@ def main() -> None:
           f"x {len(windows)} windows | OOS from {oos_start}", flush=True)
 
     frames = Parallel(n_jobs=args.n_jobs, verbose=5)(
-        delayed(_job)(df, m, a, w, alphas, oos_start) for df, m, a, w in jobs
+        delayed(_job)(df, m, a, w, alphas, oos_start, refit_map.get(m.name, default_refit))
+        for df, m, a, w in jobs
     )
     out = pd.concat(frames, ignore_index=True)
 

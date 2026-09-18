@@ -7,10 +7,10 @@ import pandas as pd
 import pytest
 
 from cryptorisk.models.base import Context
-from cryptorisk.models.registry import phase2a_models, phase2b_models
+from cryptorisk.models.registry import phase2a_models, phase2b_models, phase2d_models
 
 A1, A2 = 0.025, 0.01
-ALL = phase2a_models() + phase2b_models(alphas=(A1, A2))
+ALL = phase2a_models() + phase2b_models(alphas=(A1, A2)) + phase2d_models()
 
 
 @pytest.fixture(scope="module")
@@ -80,6 +80,52 @@ def test_realized_sv_falls_back_without_realized():
 
     d = RealizedSV().fit_predict(c)
     assert d.var(A1) < 0  # empirical fallback still coherent
+
+
+def test_random_forest_qr_runs_without_realized():
+    rng = np.random.default_rng(3)
+    r = rng.standard_t(6, 400) * 0.02
+    dates = pd.date_range("2020-01-01", periods=400).to_numpy()
+    c = Context(returns=r, dates=dates, asof=dates[-1])
+    from cryptorisk.models.random_forest import RandomForestQR
+
+    d = RandomForestQR().fit_predict(c)
+    assert d.var(A1) < 0  # squared-return-only features still coherent
+
+
+def test_random_forest_qr_falls_back_on_short_window():
+    rng = np.random.default_rng(3)
+    r = rng.standard_t(6, 60) * 0.02
+    dates = pd.date_range("2020-01-01", periods=60).to_numpy()
+    c = Context(returns=r, dates=dates, asof=dates[-1])
+    from cryptorisk.models.random_forest import RandomForestQR
+
+    d = RandomForestQR().fit_predict(c)
+    assert d.var(A1) < 0  # empirical fallback (too few valid feature rows)
+
+
+def test_lstm_vol_runs_and_is_deterministic():
+    rng = np.random.default_rng(5)
+    r = rng.standard_t(6, 400) * 0.02
+    dates = pd.date_range("2020-01-01", periods=400).to_numpy()
+    c = Context(returns=r, dates=dates, asof=dates[-1])
+    from cryptorisk.models.lstm_vol import LstmVol
+
+    a = LstmVol().fit_predict(c).var(A1)
+    b = LstmVol().fit_predict(c).var(A1)
+    assert a < 0
+    assert a == pytest.approx(b, rel=1e-6)
+
+
+def test_lstm_vol_falls_back_on_short_window():
+    rng = np.random.default_rng(5)
+    r = rng.standard_t(6, 60) * 0.02
+    dates = pd.date_range("2020-01-01", periods=60).to_numpy()
+    c = Context(returns=r, dates=dates, asof=dates[-1])
+    from cryptorisk.models.lstm_vol import LstmVol
+
+    d = LstmVol().fit_predict(c)
+    assert d.var(A1) < 0  # empirical fallback (window shorter than _MIN_TRAIN + _SEQ_LEN)
 
 
 def test_realized_sv_state_stays_nonnegative():

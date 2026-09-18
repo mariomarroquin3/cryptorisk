@@ -8,19 +8,22 @@ MCS membership by period (`+` in set, `.` out):
 
 | model | full_oos | covid | luna | ftx | calm_23 |
 |:--|:--:|:--:|:--:|:--:|:--:|
+| Realized-SV | + | + | + | + | + |
 | Realized-GARCH | + | + | + | + | + |
 | CAViaR-SAV | + | + | + | + | + |
 | FHS | + | + | + | + | + |
 | CAViaR-X-AS | + | + | + | + | + |
 | HAR-RV | + | + | + | + | + |
 | Jump-Diffusion | + | + | + | + | + |
+| LSTM-Vol | + | + | + | + | + |
 | HS | + | + | + | + | + |
+| RF-QR | + | + | + | + | + |
 | GJR-GARCH-t | + | + | + | + | + |
-| GARCH-t | + | + | + | + | + |
+| GARCH-t | + | + | + | . | . |
 | CAViaR-AS | + | + | + | + | + |
 | MS-GARCH | + | + | + | + | + |
 | AWHS | + | + | + | + | + |
-| GARCH-EVT | + | + | + | + | + |
+| GARCH-EVT | + | + | + | + | . |
 | GARCH-X | + | + | + | + | . |
 | EWMA | + | + | + | + | + |
 | EGARCH-t | + | + | + | + | + |
@@ -34,19 +37,22 @@ MCS membership by period (`+` in set, `.` out):
 
 | model | full_oos | covid | luna | ftx | calm_23 |
 |:--|:--:|:--:|:--:|:--:|:--:|
+| Realized-SV | + | + | + | + | + |
 | Realized-GARCH | + | + | + | + | + |
 | HAR-RV | + | + | + | + | + |
 | GJR-GARCH-t | + | + | + | + | + |
 | FHS | + | + | + | + | + |
 | MS-GARCH | + | + | + | + | + |
 | GARCH-t | + | + | + | + | + |
+| RF-QR | + | + | + | + | + |
 | HS | + | + | + | + | + |
 | Jump-Diffusion | + | + | + | + | + |
 | CAViaR-AS | + | + | + | + | + |
 | CAViaR-X-AS | + | + | + | + | + |
 | AWHS | + | + | + | + | + |
+| LSTM-Vol | + | + | + | + | + |
 | GARCH-EVT | + | + | + | + | . |
-| GARCH-X | + | + | + | + | . |
+| GARCH-X | + | + | + | + | + |
 | CAViaR-SAV | + | + | + | + | + |
 | EWMA | + | + | + | + | + |
 | HARQ | + | . | + | + | + |
@@ -63,6 +69,7 @@ MCS membership by period (`+` in set, `.` out):
 | Realized-GARCH | + | + | + | + | + |
 | GARCH-t | + | + | + | + | + |
 | GJR-GARCH-t | + | + | + | + | + |
+| Realized-SV | + | + | + | + | + |
 | CAViaR-X-AS | + | + | + | + | + |
 | GARCH-X | + | + | + | + | + |
 | GARCH-EVT | + | + | + | + | + |
@@ -71,6 +78,8 @@ MCS membership by period (`+` in set, `.` out):
 | EGARCH-t | + | + | + | + | + |
 | MS-GARCH | + | + | + | + | + |
 | FHS | + | + | + | + | + |
+| RF-QR | + | + | + | + | + |
+| LSTM-Vol | + | + | + | + | + |
 | Jump-Diffusion | + | + | + | + | + |
 | AWHS | + | + | + | + | + |
 | HS | + | + | + | + | + |
@@ -93,15 +102,18 @@ MCS membership by period (`+` in set, `.` out):
 | GARCH-X | + | + | + | + | + |
 | CAViaR-X-AS | + | + | + | + | + |
 | GARCH-EVT | + | + | + | + | + |
+| Realized-SV | + | + | + | + | + |
 | MS-GARCH | + | + | + | + | + |
 | EGARCH-t | + | + | + | + | + |
 | FHS | + | + | . | + | + |
 | HARQ | + | + | + | + | + |
 | CAViaR-AS | + | + | + | + | + |
+| RF-QR | + | + | + | + | + |
 | AWHS | + | + | + | + | + |
 | HS | . | + | + | + | + |
 | Jump-Diffusion | . | + | + | + | + |
 | EWMA | + | + | + | + | + |
+| LSTM-Vol | + | + | + | + | + |
 | CAViaR-SAV | + | + | + | + | + |
 
 full_oos: 2674d, covid: 71d, luna: 57d, ftx: 61d, calm_23: 92d.
@@ -112,18 +124,18 @@ Giacomini-White joint test of *equal conditional* predictive ability (instrument
 
 | asset | a | best vs challenger | mean gap | GW p | slope t | slope p | best edge vs RV |
 |:--|--:|:--|--:|--:|--:|--:|:--|
-| BTC | 0.01 | Realized-GARCH vs MS-GARCH | -0.0916 | 0.520 | -1.00 | 0.316 | flat |
-| BTC | 0.01 | Realized-GARCH vs HS | -0.0736 | 0.261 | +0.51 | 0.608 | flat |
-| BTC | 0.01 | Realized-GARCH vs EWMA | -0.3546 | 0.029 | -0.64 | 0.523 | flat |
-| BTC | 0.01 | Realized-GARCH vs HARQ | -0.4115 | 0.005 | +0.29 | 0.770 | flat |
-| BTC | 0.01 | Realized-GARCH vs GARCH-t | -0.0807 | 0.009 | +1.39 | 0.165 | flat |
-| BTC | 0.01 | Realized-GARCH vs HAR-RV | -0.0539 | 0.068 | +1.36 | 0.173 | flat |
-| BTC | 0.025 | Realized-GARCH vs MS-GARCH | -0.0540 | 0.401 | -0.83 | 0.405 | flat |
-| BTC | 0.025 | Realized-GARCH vs HS | -0.0653 | 0.131 | +0.39 | 0.697 | flat |
-| BTC | 0.025 | Realized-GARCH vs EWMA | -0.1315 | 0.042 | -0.48 | 0.632 | flat |
-| BTC | 0.025 | Realized-GARCH vs HARQ | -0.1705 | 0.028 | +0.08 | 0.938 | flat |
-| BTC | 0.025 | Realized-GARCH vs GARCH-t | -0.0595 | 0.028 | +0.34 | 0.737 | flat |
-| BTC | 0.025 | Realized-GARCH vs HAR-RV | -0.0054 | 0.152 | +1.63 | 0.103 | flat |
+| BTC | 0.01 | Realized-SV vs MS-GARCH | -0.1336 | 0.370 | -1.15 | 0.251 | flat |
+| BTC | 0.01 | Realized-SV vs HS | -0.1155 | 0.066 | -0.02 | 0.980 | flat |
+| BTC | 0.01 | Realized-SV vs EWMA | -0.3966 | 0.046 | -0.75 | 0.452 | flat |
+| BTC | 0.01 | Realized-SV vs HARQ | -0.4535 | 0.007 | +0.06 | 0.950 | flat |
+| BTC | 0.01 | Realized-SV vs GARCH-t | -0.1227 | 0.004 | +0.36 | 0.716 | flat |
+| BTC | 0.01 | Realized-SV vs HAR-RV | -0.0959 | 0.259 | +0.65 | 0.517 | flat |
+| BTC | 0.025 | Realized-SV vs MS-GARCH | -0.0619 | 0.391 | -1.11 | 0.267 | flat |
+| BTC | 0.025 | Realized-SV vs HS | -0.0732 | 0.071 | -0.10 | 0.918 | flat |
+| BTC | 0.025 | Realized-SV vs EWMA | -0.1394 | 0.100 | -0.78 | 0.435 | flat |
+| BTC | 0.025 | Realized-SV vs HARQ | -0.1784 | 0.043 | -0.24 | 0.809 | flat |
+| BTC | 0.025 | Realized-SV vs GARCH-t | -0.0674 | 0.039 | -0.43 | 0.668 | flat |
+| BTC | 0.025 | Realized-SV vs HAR-RV | -0.0133 | 0.542 | +0.82 | 0.415 | flat |
 | ETH | 0.01 | Realized-GARCH vs MS-GARCH | -0.0508 | 0.369 | -1.65 | 0.099 | flat |
 | ETH | 0.01 | Realized-GARCH vs HS | -0.1564 | 0.012 | +0.02 | 0.984 | flat |
 | ETH | 0.01 | Realized-GARCH vs EWMA | -0.2889 | 0.015 | -1.72 | 0.086 | flat |

@@ -68,11 +68,11 @@ calls it once per OOS day, queries the dist at each `alpha`.
   (weighted sample), `QuantileDist` ((VaR,ES) pairs only — CAViaR, MS-GARCH
   bridge; no `cdf`/`sigma2`). `sigma2/cdf/ppf` may raise `NotImplementedError`.
 
-### The 18 models & their quirks
+### The 20 models & their quirks
 
 HS, AWHS · EWMA · GARCH-t, GJR-GARCH-t, EGARCH-t · FHS · GARCH-EVT ·
 Jump-Diffusion · HAR-RV, HARQ · Realized-GARCH · Realized-SV · GARCH-X ·
-CAViaR-SAV, CAViaR-AS, CAViaR-X-AS · MS-GARCH.
+CAViaR-SAV, CAViaR-AS, CAViaR-X-AS · MS-GARCH · RF-QR · LSTM-Vol.
 
 - GARCH family uses a **standardized** Student-t: rescale the scipy-t quantile
   by `sqrt((nu-2)/nu)` (`_dist.student_t_z`) — the factor v1 dropped.
@@ -114,6 +114,29 @@ CAViaR-SAV, CAViaR-AS, CAViaR-X-AS · MS-GARCH.
   `refit_every=20` lives in the R script. The walk-forward regime probability
   has ~no OOS signal; only the full-sample `prob_crisis_insample` tracks
   volatility, and it's for the regime study only (V2_PLAN §5.5).
+- **ML comparison arm** (`models/random_forest.py`, `models/lstm_vol.py`,
+  `registry.phase2d_models`): no GARCH-style recursion or parametric tail
+  baked in, to see how general-purpose learners compare to the statistical
+  suite on the same battery.
+  - **RF-QR**: Quantile Regression Forest (Meinshausen, 2006) — a
+    `RandomForestRegressor` whose leaves keep their *full* set of training
+    returns instead of collapsing to a mean, so VaR/ES are weighted empirical
+    quantiles of that pooled distribution (`EmpiricalDist`), not a fitted
+    tail. Features are HAR-style rolling means of squared returns (`_W=5`,
+    `_M=22`) plus log RV when available; refits daily like everything else
+    in Phase 2 (fast — an `sklearn` forest fit, not an optimizer loop).
+  - **LSTM-Vol**: a small `torch` LSTM (hidden=16, 20-day input sequences of
+    return/squared-return/squared-down-return) outputs next-day
+    log-variance, trained by Gaussian quasi-MLE (same principle as the GARCH
+    family); the Student-t tail is fitted post-hoc on standardized residuals,
+    same as HAR-RV. Gradient descent is too slow to refit daily over a
+    multi-year walk-forward, so it uses `refit_every=20`
+    (`config.walk_forward.refit_every["LSTM-Vol"]`, now actually read by
+    `study.run_backtests` — that map used to be documentation-only). Pins
+    `torch.set_num_threads(1)` + a fixed seed for bit-for-bit determinism
+    (CPU intra-op parallelism can reorder floating-point sums run-to-run,
+    which a seed alone doesn't fix). New heavy dependency: `torch==2.14.0`
+    (CPU wheel, ~125MB).
 
 ## Pipeline
 
@@ -147,7 +170,7 @@ make test lint fmt
 
 | # | scope | state |
 |---|---|---|
-| 0-2 | setup · data layer · 18 models + engine + R bridge | ✅ |
+| 0-2 | setup · data layer · 20 models + engine + R bridge | ✅ |
 | 3 | evaluation battery (`run_evaluation`, `vol_forecast_eval`) | ✅ |
 | 4 | sub-periods + Giacomini-White CPA + MS-GARCH regime identification | ✅ |
 | 5 | decision layer (`run_decision`) | ✅ |
@@ -185,9 +208,11 @@ Non-obvious, still-relevant facts:
   (now "bounded, not propagated").
 - **Phase 6** `study.report` is a pure assembler: it reads `data/results/*.csv`
   + the store, writes `docs/results.md` (versioned), `docs/model_cards/*.md`
-  (versioned, 18 + README) and `docs/figures/*.png` (**gitignored**). Per-model
-  prose lives in `_MODEL_NOTES` in `report.py`; everything else is tabulated
-  from the CSVs, so re-run `make report` after any pipeline re-run.
+  (versioned, 20 + README) and `docs/figures/*.png` (**gitignored**). Per-model
+  prose lives in `MODEL_NOTES` in `models/notes.py` (not `report.py` — moved
+  so the API layer can import it without pulling in matplotlib); everything
+  else is tabulated from the CSVs, so re-run `make report` after any pipeline
+  re-run.
 - **Phase 7** `study.run_portfolio` (`make portfolio`): fixed-weight basket,
   `config.portfolio.assets` (default BTC/ETH/SOL/BNB, equal weight) — a **separate
   list from the top-level single-asset `assets`**. Basket assets need only

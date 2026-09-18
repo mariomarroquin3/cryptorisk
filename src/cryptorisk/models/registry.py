@@ -18,7 +18,9 @@ from cryptorisk.models.garch_x import GarchX
 from cryptorisk.models.har import HAR
 from cryptorisk.models.historical import HistoricalSimulation
 from cryptorisk.models.jump import JumpDiffusion
+from cryptorisk.models.lstm_vol import LstmVol
 from cryptorisk.models.msgarch_bridge import MSGarchBridge
+from cryptorisk.models.random_forest import RandomForestQR
 from cryptorisk.models.realized_garch import RealizedGARCH
 from cryptorisk.models.stochastic_vol import RealizedSV
 
@@ -58,5 +60,12 @@ def phase2c_models(alphas: tuple[float, ...] | None = None) -> list[Model]:
     return [MSGarchBridge.from_store(db, alphas=alphas)]
 
 
+def phase2d_models() -> list[Model]:
+    """Machine-learning comparison arm: no GARCH-style recursion or parametric
+    tail assumption baked in, to see how a general-purpose learner stacks up
+    against the statistical model suite on the same walk-forward battery."""
+    return [RandomForestQR(), LstmVol()]
+
+
 def all_models() -> list[Model]:
-    return phase2a_models() + phase2b_models() + phase2c_models()
+    return phase2a_models() + phase2b_models() + phase2c_models() + phase2d_models()

@@ -158,6 +158,38 @@ MODEL_NOTES: dict[str, tuple[str, list[str]]] = {
             "Served from a cache; dates without a prediction fall back to empirical.",
         ],
     ),
+    "RF-QR": (
+        "Quantile Regression Forest (Meinshausen, 2006): a random forest whose "
+        "leaves keep their full set of training returns instead of collapsing "
+        "to a mean, so VaR/ES are weighted empirical quantiles of that pooled "
+        "distribution -- no parametric tail assumption, unlike every "
+        "GARCH-family model here. Features are HAR-style rolling means of "
+        "squared returns (plus log RV when available), not a fitted variance "
+        "recursion.",
+        [
+            "No explicit time-series dynamics -- the forest sees lagged "
+            "features, not a state that evolves (no persistence parameter "
+            "like GARCH's alpha+beta).",
+            "The tail is only as resolved as the leaves that survive to the "
+            "test point; extreme quantiles rely on however few training "
+            "returns land there.",
+        ],
+    ),
+    "LSTM-Vol": (
+        "An LSTM reads the last 20 days of (return, squared return, squared "
+        "down-return) and outputs next-day log-variance, trained by Gaussian "
+        "quasi-MLE -- the same quasi-MLE principle as the GARCH family, with "
+        "a gated recurrent net standing in for the fixed GARCH(1,1) "
+        "recursion. VaR/ES come from a Student-t tail fitted to the in-sample "
+        "standardized residuals, same as HAR-RV.",
+        [
+            "Refits only every 20 days (gradient descent, not a closed form "
+            "or a handful of L-BFGS-B steps) -- coarser than every other "
+            "model here, which refit daily.",
+            "A single fixed architecture/seed per window: no hyperparameter "
+            "search, no ensembling across initializations.",
+        ],
+    ),
 }
 
 METHOD_FAMILY = {
@@ -179,6 +211,8 @@ METHOD_FAMILY = {
     "CAViaR-AS": "Exogenous / conditional",
     "CAViaR-X-AS": "Exogenous / conditional",
     "MS-GARCH": "Regime-switching",
+    "RF-QR": "Machine learning",
+    "LSTM-Vol": "Machine learning",
 }
 
 # The 4-asset portfolio study (study/run_portfolio.py) scores copula

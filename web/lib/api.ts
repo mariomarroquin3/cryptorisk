@@ -29,6 +29,36 @@ export interface ModelInfo {
   limitations: string[];
 }
 
+export interface RfImportanceRow {
+  date: string;
+  asset: string;
+  feature: string;
+  importance: number;
+}
+
+export interface RfDiagnosticsRow {
+  date: string;
+  asset: string;
+  ess: number;
+  n_train: number;
+  var_cond: number;
+  var_hs: number;
+}
+
+export interface RfInputRow {
+  asset: string;
+  date: string;
+  feature: string;
+  value: number;
+  zscore: number;
+}
+
+export interface RfExplain {
+  importance: RfImportanceRow[];
+  diagnostics: RfDiagnosticsRow[];
+  inputs: RfInputRow[];
+}
+
 export interface Config {
   assets: string[];
   alphas: number[];

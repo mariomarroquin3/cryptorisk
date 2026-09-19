@@ -20,6 +20,7 @@ import {
   PriceHistoryRow,
   PriceResponse,
   RegimesResponse,
+  RfExplain,
 } from "./api";
 
 const fetcher = <T,>(path: string) => apiGet<T>(path);
@@ -133,6 +134,10 @@ export function useLimits(asset: string | null) {
 
 export function useHedge(asset: string | null) {
   return useSWR<HedgeRow[]>(asset ? `/hedge?asset=${asset}` : null, fetcher);
+}
+
+export function useRfExplain(asset: string | null) {
+  return useSWR<RfExplain>(asset ? `/explain/rf?asset=${asset}` : null, fetcher);
 }
 
 export function useRegimes(asset: string | null, limit = 2000) {

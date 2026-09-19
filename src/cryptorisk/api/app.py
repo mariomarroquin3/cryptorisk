@@ -313,6 +313,20 @@ def backtests(
     return _records(sub)
 
 
+@app.get("/explain/rf")
+def explain_rf(asset: str) -> dict:
+    """RF-QR explainability: per-feature importance and effective-sample-size
+    diagnostics over time (refit every 20 OOS days), plus the latest forecast
+    row's inputs as z-scores of their window (`study.run_explain`)."""
+    _check_asset(asset, load_config()["assets"])
+    R = D.load_results()
+    out: dict[str, list[dict]] = {}
+    for key, name in (("importance", "rf_importance"), ("diagnostics", "rf_diagnostics"), ("inputs", "rf_inputs")):
+        df = R[name]
+        out[key] = _records(df[df.asset == asset]) if not df.empty else []
+    return out
+
+
 @app.get("/portfolio/eval")
 def portfolio_eval(alpha: float) -> list[dict]:
     df = D.load_results()["portfolio_eval"]

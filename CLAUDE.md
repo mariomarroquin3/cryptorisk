@@ -137,6 +137,13 @@ CAViaR-SAV, CAViaR-AS, CAViaR-X-AS · MS-GARCH · RF-QR · LSTM-Vol.
     (CPU intra-op parallelism can reorder floating-point sums run-to-run,
     which a seed alone doesn't fix). New heavy dependency: `torch==2.14.0`
     (CPU wheel, ~125MB).
+  - **RF-QR explainability**: `RandomForestQR.explain()` returns impurity
+    importances, the QRF effective sample size `1/sum(w^2)`, conditional vs
+    flat-weight VaR, and the forecast row as z-scores; `study.run_explain`
+    (`make explain`) refits every 20 OOS days and writes `explain_rf_*.csv`,
+    served by `/explain/rf` and charted on the web `/explain` page (which also
+    shows calibration diagnostics for any model: VaR/ES band, cumulative
+    violations, rolling hit rate, PIT histogram, family-level FZ0 ranks).
 
 ## Pipeline
 
@@ -149,6 +156,7 @@ make subperiods  # stress/calm re-eval + Giacomini-White CPA -> eval_subperiods.
 make regime-id   # MS-GARCH regime-prob vs vol state -> regime_identification.*
 make decide      # FRTB capital / limits / PLA / hedge -> decision_*.csv + decision_summary.md
 make report      # assemble docs/results.md + docs/model_cards/ + docs/figures/
+make explain     # RF-QR feature importance / ESS -> explain_rf_{importance,diagnostics,inputs}.csv (~2 min; feeds the web /explain page)
 make portfolio   # 4-asset basket VaR/ES with a copula tail -> portfolio_*
 make price-snapshot  # data/results/price_history.parquet for the API (deploy-only; commit after data/realized changes)
 make dashboard   # Streamlit terminal (pip install -e ".[dashboard]" first) -> localhost:8501
@@ -160,6 +168,9 @@ make test lint fmt
 - **Frozen OOS start** (`config sample.oos_start` = 2019-05-16): never tune it
   against results. OOS ≈ 2,674 days/asset.
 - `run_backtests --models <subset>` **merges** into the existing parquet.
+- `window` in `backtests.parquet` is always int64: rolling lengths as-is, the
+  expanding scheme as `0` (`run_backtests.EXPANDING_WINDOW`) -- the engine's
+  `"expanding"` string used to make the mixed column unwritable by pyarrow.
 - `backtests.parquet` row = (date, asset, model, window, alpha): `date` is the
   forecast target; `var/es/sigma2/pit` are that day's forecast; `realized` is
   `r[date]`; `violation = realized < var`.

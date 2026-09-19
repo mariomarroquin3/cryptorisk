@@ -155,3 +155,33 @@ def test_realized_sv_state_stays_nonnegative():
     assert np.all(np.isfinite(v_post)) and np.all(v_post >= 0)
     assert np.isfinite(p_last) and np.isfinite(ll)
     assert np.isfinite(lev) and lev >= 0
+
+
+def test_random_forest_qr_explain_is_consistent():
+    from cryptorisk.models.random_forest import RandomForestQR
+
+    rng = np.random.default_rng(9)
+    n = 400
+    r = rng.standard_t(6, n) * 0.02
+    rv = (r**2) * rng.uniform(0.7, 1.3, n) + 1e-6
+    dates = pd.date_range("2020-01-01", periods=n).to_numpy()
+    c = Context(returns=r, dates=dates, asof=dates[-1], realized={"rv": rv})
+    m = RandomForestQR(n_estimators=50)
+    e = m.explain(c)
+    assert e is not None
+    assert len(e["features"]) == len(e["importance"]) == len(e["zscores"]) == 8
+    assert sum(e["importance"]) == pytest.approx(1.0, abs=1e-6)
+    assert 1.0 <= e["ess"] <= e["n_train"]
+    assert e["var_cond"] == pytest.approx(m.fit_predict(c).var(0.025))
+    assert m.explain(Context(returns=r[:60], dates=dates[:60], asof=dates[59])) is None
+
+
+def test_backtest_window_normalised_for_parquet(tmp_path):
+    from cryptorisk.study.run_backtests import EXPANDING_WINDOW, _normalize_window
+
+    a = pd.DataFrame({"window": [500, 500], "x": [1.0, 2.0]})
+    b = pd.DataFrame({"window": ["expanding"], "x": [3.0]})
+    out = _normalize_window(a)
+    out = pd.concat([out, _normalize_window(b)], ignore_index=True)
+    assert list(out["window"]) == [500, 500, EXPANDING_WINDOW]
+    out.to_parquet(tmp_path / "bt.parquet", index=False)  # used to raise ArrowInvalid

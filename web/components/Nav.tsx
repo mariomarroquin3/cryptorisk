@@ -10,6 +10,7 @@ const LINKS = [
   { href: "/portfolio", label: "Portfolio" },
   { href: "/capital", label: "Capital & Decision" },
   { href: "/regimes", label: "Regimes" },
+  { href: "/explain", label: "Explainability" },
 ];
 
 /** Carried across pages so switching pages doesn't reset the user's asset

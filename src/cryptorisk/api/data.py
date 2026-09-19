@@ -53,6 +53,9 @@ def load_results() -> dict[str, pd.DataFrame]:
         "portfolio_eval": _csv("portfolio_eval.csv"),
         "regime": _csv("regime_identification.csv"),
         "gw_cpa": _csv("eval_gw_cpa.csv"),
+        "rf_importance": _csv("explain_rf_importance.csv"),
+        "rf_diagnostics": _csv("explain_rf_diagnostics.csv"),
+        "rf_inputs": _csv("explain_rf_inputs.csv"),
     }
 
 

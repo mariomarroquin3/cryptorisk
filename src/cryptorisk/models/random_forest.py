@@ -92,18 +92,19 @@ class RandomForestQR:
         self.min_samples_leaf = min_samples_leaf
         self.name = name or "RF-QR"
 
-    def fit_predict(self, ctx: Context) -> PredictiveDist:
+    def _fit(self, ctx: Context):
+        """Fit the forest on the window. Returns ``(rf, feature_names, x_train,
+        y_train, x_fcast, weights)`` or ``None`` when the window can't support a
+        fit (short window / non-finite forecast row / sklearn failure)."""
         r = ctx.returns
         n = r.size
         feats = _feature_frame(r, ctx.realized)
         train_mask = feats.iloc[:n].notna().all(axis=1).to_numpy()
         x_fcast = feats.iloc[n].to_numpy()
         if train_mask.sum() < _MIN_TRAIN or not np.all(np.isfinite(x_fcast)):
-            return EmpiricalDist(r)
-
+            return None
         x_train = feats.iloc[:n].to_numpy()[train_mask]
         y_train = r[train_mask]
-
         try:
             rf = RandomForestRegressor(
                 n_estimators=self.n_estimators,
@@ -114,6 +115,36 @@ class RandomForestQR:
             rf.fit(x_train, y_train)
             weights = _qrf_weights(rf, x_train, x_fcast)
         except (ValueError, FloatingPointError):
-            return EmpiricalDist(r)
+            return None
+        return rf, list(feats.columns), x_train, y_train, x_fcast, weights
 
+    def fit_predict(self, ctx: Context) -> PredictiveDist:
+        fit = self._fit(ctx)
+        if fit is None:
+            return EmpiricalDist(ctx.returns)
+        _, _, _, y_train, _, weights = fit
         return EmpiricalDist(sample=y_train, weights=weights, sigma2_value=float(np.var(y_train)))
+
+    def explain(self, ctx: Context, alpha: float = 0.025) -> dict | None:
+        """Why this forecast: per-feature impurity importance, the effective
+        number of training days behind the forecast (``1/sum(w^2)``), the
+        conditional VaR vs the flat-weight (Historical-Simulation) VaR on the
+        same window, and the forecast row's features as z-scores of the window.
+        """
+        fit = self._fit(ctx)
+        if fit is None:
+            return None
+        rf, names, x_train, y_train, x_fcast, weights = fit
+        dist = EmpiricalDist(sample=y_train, weights=weights)
+        sd = x_train.std(axis=0)
+        z = (x_fcast - x_train.mean(axis=0)) / np.where(sd > 0, sd, 1.0)
+        return {
+            "features": names,
+            "importance": rf.feature_importances_.tolist(),
+            "ess": float(1.0 / np.sum(weights**2)),
+            "n_train": int(y_train.size),
+            "var_cond": dist.var(alpha),
+            "var_hs": EmpiricalDist(sample=y_train).var(alpha),
+            "inputs": x_fcast.tolist(),
+            "zscores": z.tolist(),
+        }

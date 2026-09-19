@@ -31,12 +31,26 @@ def _load_returns(db: str, asset: str) -> pd.DataFrame:
     return r.merge(rlz, on="date", how="left")
 
 
+EXPANDING_WINDOW = 0  # sentinel stored in the parquet's int `window` column
+
+
+def _normalize_window(frame: pd.DataFrame) -> pd.DataFrame:
+    """The engine labels the expanding scheme "expanding" (str); mixed with
+    int rolling lengths that makes an object column pyarrow can't write, and
+    downstream filters compare `window == 500`. Store it as int 0 instead."""
+    frame = frame.copy()
+    frame["window"] = frame["window"].map(
+        lambda w: EXPANDING_WINDOW if w == "expanding" else int(w)
+    ).astype("int64")
+    return frame
+
+
 def _job(df, model, asset, window, alphas, oos_start, refit_every):
     res = walk_forward(
         df, model, alphas=alphas, asset=asset, window=window, oos_start=oos_start,
         refit_every=refit_every,
     )
-    return res.frame
+    return _normalize_window(res.frame)
 
 
 def main() -> None:

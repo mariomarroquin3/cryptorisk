@@ -210,6 +210,16 @@ Non-obvious, still-relevant facts:
   needs models to expose per-day predictive draws (not built).
 - **Phase 4** regime sweep (`fit_msgarch_regime_windows.R`, `regime-id --run-r`)
   is a multi-hour R job — **not run**; `run()` uses cached results if present.
+- **Regime uncertainty band** (`msgarch/bootstrap_pcrisis.R`, `make regime-band`,
+  ~1h, 2 R processes): at every 90th OOS day, 25 stationary-block bootstrap
+  refits of the same 500-day window → 5-95% band of the filtered P(crisis) on
+  the original window (`msgarch_pcrisis_band_<ASSET>.csv`, served on
+  `/regimes`). Result: mean band width 71% (BTC) / 76% (ETH) of the 0-1 range,
+  and the band contains 0.5 on 30/30 (BTC) and 29/30 (ETH) dates -- the
+  Crisis/Normal call is decided by estimation noise. `/regimes` also serves
+  return moments by regime (`api.data.regime_stats`): in-sample the Crisis/Normal
+  sd ratio is 2.7 (BTC), walk-forward 0.84 (Levene p=0.13), i.e. walk-forward
+  "Crisis" days are not more volatile.
 - **Phase 5** `run_decision`: capital *amount* uses the 97.5% ES, but `m_c`
   (Basel traffic-light) is a **99% concept** → exception count comes from the
   α=0.01 violations. `hedge.funding_carry_*` sign: funding > 0 ⇒ longs pay

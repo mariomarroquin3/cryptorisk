@@ -410,4 +410,6 @@ def regimes(asset: str, limit: int = Query(2000, le=5000)) -> dict:
         "series": _records(series),
         "correlations": _records(corr),
         "regime_summary": C.regime_summary(asset),
+        "stats": D.regime_stats(asset),
+        "band": _records(D.pcrisis_band(asset)),
     }

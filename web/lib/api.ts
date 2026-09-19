@@ -255,10 +255,37 @@ export interface RegimeCorrRow {
   mean_prob: number;
 }
 
+export interface RegimeStatRow {
+  source: string;
+  regime: "Normal" | "Crisis";
+  n: number;
+  share: number;
+  mean: number;
+  sd: number;
+  skew: number;
+  kurt: number;
+  mean_abs: number;
+  vol_ratio: number;
+  levene_p: number;
+}
+
+export interface PcrisisBandRow {
+  asset: string;
+  date: string;
+  p_point: number;
+  p_lo: number;
+  p_med: number;
+  p_hi: number;
+  p_sd: number;
+  n_ok: number;
+}
+
 export interface RegimesResponse {
   series: RegimePoint[];
   correlations: RegimeCorrRow[];
   regime_summary?: RegimeSummary | null;
+  stats?: RegimeStatRow[];
+  band?: PcrisisBandRow[];
 }
 
 export interface PriceHistoryRow {

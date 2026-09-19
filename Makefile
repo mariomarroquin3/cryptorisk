@@ -6,7 +6,7 @@ ifeq ($(OS),)
   PY := .venv/bin/python
 endif
 
-.PHONY: help install test lint fmt data realized msgarch backtest evaluate subperiods regime-id decide report explain portfolio price-snapshot dashboard api web dev clean
+.PHONY: help install test lint fmt data realized msgarch backtest evaluate subperiods regime-id regime-band decide report explain portfolio price-snapshot dashboard api web dev clean
 
 help:
 	@echo "install   - create .venv and install (editable) with dev extras"
@@ -63,6 +63,9 @@ subperiods:
 
 regime-id:
 	$(PY) -m cryptorisk.study.regime_identification
+
+regime-band:
+	Rscript msgarch/bootstrap_pcrisis.R 25 90 data/results/msgarch_input.csv data/results/msgarch_pcrisis_band_BTC.csv BTC & \n	Rscript msgarch/bootstrap_pcrisis.R 25 90 data/results/msgarch_input.csv data/results/msgarch_pcrisis_band_ETH.csv ETH & wait
 
 decide:
 	$(PY) -m cryptorisk.study.run_decision

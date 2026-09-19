@@ -23,6 +23,7 @@ import {
   RegimeVolChart,
   TransitionMatrix,
 } from "@/components/RegimeCharts";
+import { PcrisisBandChart, RegimeStatsTable } from "@/components/RegimeStats";
 import { PriceHistoryRow, RegimeCorrRow } from "@/lib/api";
 import { useConfig, usePrices, useRegimes } from "@/lib/hooks";
 import { useQueryParam } from "@/lib/useQueryParam";
@@ -170,6 +171,8 @@ function RegimesPageInner() {
             <DurationHistogram rows={regimeRows} summary={regimes.regime_summary} />
           </div>
           <RegimeVolChart rows={regimeRows} />
+          <RegimeStatsTable rows={regimes.stats ?? []} />
+          <PcrisisBandChart rows={regimes.band ?? []} />
         </>
       )}
 

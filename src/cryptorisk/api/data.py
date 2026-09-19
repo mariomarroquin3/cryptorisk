@@ -135,6 +135,59 @@ def regime_series(asset: str, limit: int = 2000) -> pd.DataFrame:
     return df.sort_values("date").tail(limit)[cols].reset_index(drop=True)
 
 
+@ttl_cache(300)
+def regime_stats(asset: str) -> list[dict[str, Any]]:
+    """Return moments by regime, for the two ways the regime is labelled: the
+    full-sample fit (in-sample, sees the future) and the walk-forward one-step
+    P(crisis) (what a forecaster could act on). A day is "crisis" when P > 0.5.
+    ``vol_ratio`` is sd(crisis)/sd(normal) and ``levene_p`` tests equal
+    variances: if a labelling separates real volatility states, the ratio is
+    well above 1 and the test rejects."""
+    from scipy import stats
+
+    path = _RESULTS / f"msgarch_pred_{asset}.csv"
+    ph = _price_history()
+    if not path.exists() or ph.empty:
+        return []
+    pred = pd.read_csv(path, usecols=["date", "prob_crisis_pred", "prob_crisis_insample"])
+    pred["date"] = pd.to_datetime(pred["date"])
+    ret = ph[ph["asset"] == asset][["date", "log_return"]] if "asset" in ph else ph[["date", "log_return"]]
+    df = pred.merge(ret, on="date", how="inner").dropna()
+    out: list[dict[str, Any]] = []
+    for source, col in (("in-sample fit", "prob_crisis_insample"), ("walk-forward", "prob_crisis_pred")):
+        crisis = df[col] > 0.5
+        groups = {"Normal": df.loc[~crisis, "log_return"].to_numpy(), "Crisis": df.loc[crisis, "log_return"].to_numpy()}
+        sd = {k: float(np.std(v, ddof=1)) if v.size > 2 else float("nan") for k, v in groups.items()}
+        ratio = sd["Crisis"] / sd["Normal"] if sd["Normal"] else float("nan")
+        p = float("nan")
+        if groups["Normal"].size > 2 and groups["Crisis"].size > 2:
+            p = float(stats.levene(groups["Normal"], groups["Crisis"]).pvalue)
+        for regime, x in groups.items():
+            n = int(x.size)
+            out.append({
+                "source": source,
+                "regime": regime,
+                "n": n,
+                "share": n / len(df) if len(df) else float("nan"),
+                "mean": float(np.mean(x)) if n else float("nan"),
+                "sd": sd[regime],
+                "skew": float(stats.skew(x)) if n > 2 else float("nan"),
+                "kurt": float(stats.kurtosis(x)) if n > 3 else float("nan"),
+                "mean_abs": float(np.mean(np.abs(x))) if n else float("nan"),
+                "vol_ratio": ratio,
+                "levene_p": p,
+            })
+    return out
+
+
+@ttl_cache(300)
+def pcrisis_band(asset: str) -> pd.DataFrame:
+    """Bootstrap parameter-uncertainty band for the walk-forward P(crisis)
+    (``msgarch/bootstrap_pcrisis.R``); empty when the study was not run."""
+    frames = [pd.read_csv(f) for f in sorted(_RESULTS.glob(f"msgarch_pcrisis_band_{asset}.csv"))]
+    return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+
+
 def primary_model(asset: str, alpha: float, results: dict[str, pd.DataFrame]) -> str | None:
     df = results.get("fz0_mcs", pd.DataFrame())
     if df.empty:

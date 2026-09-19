@@ -14,7 +14,7 @@
 
 **Density:** no full predictive density (quantile-only model).
 
-**Decision layer:** BTC capital $421,255 (m_c 1.50), N* $1,102,366; ETH capital $560,597 (m_c 1.50), N* $784,559
+**Decision layer:** BTC capital $421,259 (m_c 1.50), N* $1,102,374; ETH capital $560,601 (m_c 1.50), N* $784,520
 
 ## Known limitations
 

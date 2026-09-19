@@ -100,3 +100,13 @@ def test_stale_realized_flagged():
     assert quality.check_realized_lag("BTC", daily, ok) == []
     flags = quality.check_realized_lag("BTC", daily, stale)
     assert len(flags) == 1 and flags[0].kind == "stale_realized"
+
+
+def test_partial_month_range_covers_in_progress_month():
+    from cryptorisk.data.ingest.binance_klines import partial_month_range
+
+    lo, hi = partial_month_range("2018-01-01", "2026-09-10")
+    assert lo == pd.Timestamp("2026-09-01") and hi == pd.Timestamp("2026-09-11")
+    # a start inside the in-progress month clips the lower bound
+    lo, _ = partial_month_range("2026-09-05", "2026-09-10")
+    assert lo == pd.Timestamp("2026-09-05")

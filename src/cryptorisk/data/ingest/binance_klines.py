@@ -14,10 +14,12 @@ years of 5-min bars in memory.
 from __future__ import annotations
 
 import io
+import time
 import zipfile
 from collections.abc import Iterator
 
 import pandas as pd
+import requests
 
 from cryptorisk.data._http import get_bytes, url_exists
 
@@ -72,3 +74,59 @@ def iter_binance_5m(asset: str, start: str, end: str | None = None) -> Iterator[
         if not url_exists(url):
             continue
         yield month, _parse_month(get_bytes(url), sym)
+
+
+_REST = "https://api.binance.com/api/v3/klines"
+_BAR_MS = 300_000
+
+
+def partial_month_range(start: str, end: str | None) -> tuple[pd.Timestamp, pd.Timestamp] | None:
+    """Half-open ``[first bar, end of last day)`` for the days the monthly
+    archives cannot cover: data.binance.vision publishes a month only once it
+    is over, so the in-progress month is missing. Runs from the first day after
+    the last complete month through ``end`` inclusive (default: yesterday UTC,
+    the last complete day). ``None`` when the range is empty."""
+    last_day = (
+        pd.Timestamp(end) if end else pd.Timestamp.now(tz="UTC").tz_localize(None) - pd.Timedelta(days=1)
+    ).normalize()
+    months = _months(start, end)
+    first = (months[-1] + pd.offsets.MonthBegin(1)) if months else pd.Timestamp(start).normalize()
+    lo, hi = max(first, pd.Timestamp(start).normalize()), last_day + pd.Timedelta(days=1)
+    return (lo, hi) if lo < hi else None
+
+
+def fetch_rest_5m(asset: str, lo: pd.Timestamp, hi: pd.Timestamp) -> pd.DataFrame:
+    """5-minute bars for ``[lo, hi)`` (naive UTC) from the REST klines
+    endpoint, paginated at 1000 bars. Same schema as :func:`_parse_month`."""
+    sym = _SYMBOL[asset]
+    t = int(lo.timestamp() * 1000)
+    stop = int(hi.timestamp() * 1000)
+    rows: list[list] = []
+    while t < stop:
+        for attempt in range(4):
+            try:
+                r = requests.get(
+                    _REST,
+                    params={"symbol": sym, "interval": "5m", "startTime": t, "endTime": stop - 1, "limit": 1000},
+                    timeout=20,
+                )
+                r.raise_for_status()
+                break
+            except requests.RequestException:
+                if attempt == 3:
+                    raise
+                time.sleep(2 * (attempt + 1))
+        batch = r.json()
+        if not batch:
+            break
+        rows += batch
+        t = int(batch[-1][0]) + _BAR_MS
+    if not rows:
+        return pd.DataFrame(columns=["ts", "open", "high", "low", "close", "volume"])
+    df = pd.DataFrame(rows).iloc[:, :6]
+    df.columns = ["open_time", "open", "high", "low", "close", "volume"]
+    out = pd.DataFrame({
+        "ts": pd.to_datetime(pd.to_numeric(df["open_time"]), unit="ms"),
+        **{c: pd.to_numeric(df[c]) for c in ("open", "high", "low", "close", "volume")},
+    })
+    return out.drop_duplicates("ts").sort_values("ts").reset_index(drop=True)

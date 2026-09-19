@@ -16,7 +16,7 @@
 
 **Volatility forecast (QLIKE):** BTC rank 11/17 (MZ b=1.24), ETH rank 13/17 (MZ b=1.11)
 
-**Decision layer:** BTC capital $522,435 (m_c 1.90), N* $1,115,870; ETH capital $557,123 (m_c 1.50), N* $822,496
+**Decision layer:** BTC capital $522,414 (m_c 1.90), N* $1,116,003; ETH capital $557,127 (m_c 1.50), N* $822,443
 
 ## Known limitations
 

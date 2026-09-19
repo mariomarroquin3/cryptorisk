@@ -106,5 +106,3 @@ source_divergence,BNB,2020-09-18,"|ln(a/b)|=0.0247 > max(0.02, day |ret|=0.0040)
 extreme_return,BNB,2021-02-19,log_return=+0.5407
 extreme_return,SOL,2021-05-19,log_return=-0.4699
 extreme_return,SOL,2022-11-09,log_return=-0.5548
-stale_realized,BTC,2026-08-31,realized measures end 10 days before the daily returns (2026-08-31 vs 2026-09-10); RV is forward-filled over the gap
-stale_realized,ETH,2026-08-31,realized measures end 10 days before the daily returns (2026-08-31 vs 2026-09-10); RV is forward-filled over the gap

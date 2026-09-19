@@ -1,3 +1,1 @@
 kind,asset,date,detail
-stale_realized,BTC,2026-08-31,realized measures end 10 days before the daily returns (2026-08-31 vs 2026-09-10); RV is forward-filled over the gap
-stale_realized,ETH,2026-08-31,realized measures end 10 days before the daily returns (2026-08-31 vs 2026-09-10); RV is forward-filled over the gap

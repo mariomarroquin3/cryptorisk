@@ -4,6 +4,9 @@
     python -m cryptorisk.study.run_ingest                 # everything
     python -m cryptorisk.study.run_ingest --skip-intraday # daily + context only
     python -m cryptorisk.study.run_ingest --quality-only  # re-run checks on the store
+    python -m cryptorisk.study.run_ingest --intraday-tail --end 2026-09-10
+        # only the in-progress month's 5-min bars (REST) + realized measures;
+        # daily prices, context and microstructure are left untouched
     python -m cryptorisk.study.run_ingest --assets BTC --start 2020-01-01
 """
 
@@ -42,6 +45,27 @@ def _ingest_daily(con, asset, start, end, per_asset_daily, per_asset_sources) ->
     _log(f"{asset}: {len(ret)} daily returns {ret['date'].min().date()} -> {ret['date'].max().date()}")
 
 
+def run_intraday_tail(assets: list[str], start: str, end: str | None, *, db_path: str) -> None:
+    """Fill the 5-min bars for the in-progress month (which data.binance.vision
+    has not published yet) and recompute the realized measures. Leaves every
+    other table alone, so the frozen daily sample cannot shift."""
+    con = store.connect(db_path)
+    cfg_r = load_config().get("realized", {})
+    tail = binance_klines.partial_month_range(start, end)
+    for asset in assets:
+        if tail is not None:
+            bars = binance_klines.fetch_rest_5m(asset, *tail)
+            store.write_bars_5m(con, asset, bars)
+            _log(f"{asset}: {len(bars)} bars {tail[0].date()} -> {(tail[1] - pd.Timedelta(days=1)).date()}")
+        all_bars = con.execute("SELECT ts, close FROM bars_5m WHERE asset = ? ORDER BY ts", [asset]).df()
+        rdf = realized_daily(
+            all_bars, subsample=cfg_r.get("subsample", True), jump_test=cfg_r.get("jump_test", "BNS")
+        )
+        store.write_realized_daily(con, asset, rdf)
+        _log(f"{asset}: realized measures for {len(rdf)} days, last {pd.Timestamp(rdf['date'].max()).date()}")
+    con.close()
+
+
 def run(
     assets: list[str],
     start: str,
@@ -73,6 +97,12 @@ def run(
                 store.write_bars_5m(con, asset, bars)
                 n_bars += len(bars)
                 _log(f"  {asset} {month.year}-{month.month:02d}: {len(bars)} bars (cum {n_bars})")
+            tail = binance_klines.partial_month_range(start, end)
+            if tail is not None:
+                bars = binance_klines.fetch_rest_5m(asset, *tail)
+                store.write_bars_5m(con, asset, bars)
+                _log(f"  {asset} in-progress month via REST: {len(bars)} bars "
+                     f"{tail[0].date()} -> {(tail[1] - pd.Timedelta(days=1)).date()}")
             all_bars = con.execute(
                 "SELECT ts, close FROM bars_5m WHERE asset = ? ORDER BY ts", [asset]
             ).df()
@@ -152,6 +182,8 @@ def main() -> None:
     ap.add_argument("--skip-intraday", action="store_true")
     ap.add_argument("--skip-portfolio-extras", action="store_true",
                     help="do not also daily-ingest config.portfolio.assets not in --assets")
+    ap.add_argument("--intraday-tail", action="store_true",
+                    help="only fetch the in-progress month's 5-min bars and recompute realized")
     ap.add_argument("--quality-only", action="store_true",
                     help="re-run quality checks against the existing store, no fetching")
     ap.add_argument("--db", default=str(repo_root() / cfg["paths"]["store"]))
@@ -167,6 +199,9 @@ def main() -> None:
         pa = (cfg.get("portfolio") or {}).get("assets", [])
         extras = [a for a in pa if a not in args.assets]
 
+    if args.intraday_tail:
+        run_intraday_tail(args.assets, args.start, args.end, db_path=args.db)
+        return
     if args.quality_only:
         con = store.connect(args.db, read_only=True)
         run_quality(con, *_read_quality_frames(con, [*args.assets, *extras]))

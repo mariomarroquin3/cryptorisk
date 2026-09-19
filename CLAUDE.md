@@ -170,12 +170,14 @@ make test lint fmt
 
 - **Frozen OOS start** (`config sample.oos_start` = 2019-05-16): never tune it
   against results. OOS ≈ 2,674 days/asset.
-- **Known open data gap**: the 5-min bars / realized measures end 2026-08-31
-  while daily returns end 2026-09-10 (`quality_report_unexplained.csv` flags
-  `stale_realized`); RV is forward-filled over the last ~10 OOS days and the
-  live forecast row. Fixing it means re-running `make data`, which moves the
-  frozen sample end and invalidates every downstream artefact -- do it
-  deliberately.
+- **Intraday tail**: data.binance.vision only publishes a month once it is over,
+  so `make data` leaves the in-progress month without 5-min bars (realized
+  measures then lag the daily returns; `stale_realized` flags it). Fill it with
+  `python -m cryptorisk.study.run_ingest --intraday-tail --end <last return date>`
+  (REST klines + realized recompute, touches nothing else), then re-run the
+  backtests of the realized-using models (HAR-RV, HARQ, Realized-GARCH,
+  Realized-SV, GARCH-X, CAViaR-X-AS, RF-QR), evaluate, subperiods, decide,
+  explain, report, price-snapshot.
 - `run_backtests --models <subset>` **merges** into the existing parquet.
 - `window` in `backtests.parquet` is always int64: rolling lengths as-is, the
   expanding scheme as `0` (`run_backtests.EXPANDING_WINDOW`) -- the engine's

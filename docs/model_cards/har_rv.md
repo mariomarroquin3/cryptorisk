@@ -12,11 +12,11 @@
 | ETH | 0.01 | 0.019 | FAIL | -1.21 | no | 9/20 | yes |
 | ETH | 0.025 | 0.030 | pass | -0.41 | no | 1/20 | yes |
 
-**Density (Berkowitz):** BTC p=0.011 (reject), ETH p=0.585
+**Density (Berkowitz):** BTC p=0.011 (reject), ETH p=0.584
 
 **Volatility forecast (QLIKE):** BTC rank 4/17 (MZ b=1.44), ETH rank 2/17 (MZ b=1.20)
 
-**Decision layer:** BTC capital $352,057 (m_c 1.50), N* $1,406,302; ETH capital $567,305 (m_c 1.90), N* $1,105,665
+**Decision layer:** BTC capital $352,027 (m_c 1.50), N* $1,406,420; ETH capital $567,329 (m_c 1.90), N* $1,105,617
 
 ## Known limitations
 

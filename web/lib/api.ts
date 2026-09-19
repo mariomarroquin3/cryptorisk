@@ -53,6 +53,14 @@ export interface RfInputRow {
   zscore: number;
 }
 
+export interface LstmImportanceRow {
+  lag: number;
+  feature: string;
+  importance: number;
+  sd: number | null;
+  n_refits: number;
+}
+
 export interface RfExplain {
   importance: RfImportanceRow[];
   diagnostics: RfDiagnosticsRow[];

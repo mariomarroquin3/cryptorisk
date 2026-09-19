@@ -56,10 +56,19 @@ def _make_sequences(r: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
 
 
 def _train_and_forecast(
-    x: np.ndarray, y: np.ndarray, x_fcast: np.ndarray, init_log_var: float
-) -> tuple[np.ndarray, float]:
+    x: np.ndarray,
+    y: np.ndarray,
+    x_fcast: np.ndarray,
+    init_log_var: float,
+    *,
+    importance_repeats: int = 0,
+) -> tuple[np.ndarray, float, np.ndarray | None]:
     """Train the LSTM by Gaussian quasi-MLE; return the in-sample log-variances
-    and the next-day log-variance. torch is imported here, not at module level:
+    the next-day log-variance and, when ``importance_repeats > 0``, the
+    permutation importance of every (lag, feature) input cell -- the rise in
+    the Gaussian quasi-NLL over the training sequences when that one input
+    column is shuffled across sequences (averaged over the repeats), shape
+    ``(_SEQ_LEN, 3)`` with row 0 = the oldest lag. torch is imported here, not at module level:
     it is an optional dependency (``pip install -e ".[ml]"``) and the read-only
     API imports the model registry, so a deploy without torch must still start
     (the live refit for this model then fails and the API falls back to the
@@ -100,7 +109,23 @@ def _train_and_forecast(
     with torch.no_grad():
         in_sample = net(x_t).numpy()
         nxt = float(net(torch.from_numpy(x_fcast)).item())
-    return in_sample, nxt
+        imp = None
+        if importance_repeats > 0:
+
+            def nll(seq: torch.Tensor) -> float:
+                lv = net(seq)
+                return float((0.5 * (lv + y_t**2 / torch.exp(lv))).mean())
+
+            base = nll(x_t)
+            gen = torch.Generator().manual_seed(_SEED)
+            imp = np.zeros((_SEQ_LEN, 3))
+            for lag in range(_SEQ_LEN):
+                for f in range(3):
+                    for _ in range(importance_repeats):
+                        xp = x_t.clone()
+                        xp[:, lag, f] = x_t[torch.randperm(x_t.shape[0], generator=gen), lag, f]
+                        imp[lag, f] += (nll(xp) - base) / importance_repeats
+    return in_sample, nxt, imp
 
 
 class LstmVol:
@@ -116,7 +141,7 @@ class LstmVol:
         x, y = _make_sequences(r)
         x_fcast = _features(r)[-_SEQ_LEN:].reshape(1, _SEQ_LEN, 3).astype(np.float32)
         try:
-            log_var_in_sample, log_var_next = _train_and_forecast(
+            log_var_in_sample, log_var_next, _ = _train_and_forecast(
                 x, y, x_fcast, float(np.log(np.var(r) + 1e-12))
             )
         except RuntimeError:
@@ -131,3 +156,20 @@ class LstmVol:
         nu = float(np.clip(stats.t.fit(z, floc=0)[0], 3.0, 50.0)) if z.size > 50 else 6.0
         ppf, cdf, es = student_t_z(nu)
         return ParametricDist(loc=0.0, scale=float(np.sqrt(v_next)), z_ppf=ppf, z_cdf=cdf, z_es=es)
+
+    def explain(self, ctx: Context, repeats: int = 3) -> dict | None:
+        """Permutation importance of each (lag, feature) input cell for the
+        network fitted on this window; ``importance[lag - 1][feature]`` uses
+        lag 1 = yesterday. ``None`` when the window is too short."""
+        r = ctx.returns.astype(np.float32)
+        if r.size < _MIN_TRAIN + _SEQ_LEN:
+            return None
+        x, y = _make_sequences(r)
+        x_fcast = _features(r)[-_SEQ_LEN:].reshape(1, _SEQ_LEN, 3).astype(np.float32)
+        _, _, imp = _train_and_forecast(
+            x, y, x_fcast, float(np.log(np.var(r) + 1e-12)), importance_repeats=repeats
+        )
+        return {
+            "features": ["return", "squared return", "squared down-return"],
+            "importance": imp[::-1].tolist(),
+        }

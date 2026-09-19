@@ -16,12 +16,14 @@ import {
   RollingHitRate,
 } from "@/components/ExplainCharts";
 import { Field } from "@/components/Field";
+import { LstmFeatureShare, LstmImportanceHeatmap, LstmLagProfile } from "@/components/LstmCharts";
 import { ChartSkeleton } from "@/components/Skeleton";
 import { fmtConfidence } from "@/lib/format";
 import {
   useBacktests,
   useConfig,
   useCoverage,
+  useLstmExplain,
   useModels,
   useModelsComparison,
   useModelsInfo,
@@ -59,6 +61,7 @@ function ExplainPageInner() {
   const { data: coverage } = useCoverage(effAsset, effAlpha);
   const { data: comparison } = useModelsComparison(effAsset, effAlpha);
   const { data: rf } = useRfExplain(effAsset);
+  const { data: lstm } = useLstmExplain(effAsset);
 
   const ready = bt !== undefined;
   const hasBt = ready && bt.length > 0;
@@ -215,6 +218,38 @@ function ExplainPageInner() {
               caption="Gap between the two lines is the value the features add over simply taking the window's empirical quantile (Historical Simulation)."
             >
               <RfConditioningShift rows={rf.diagnostics} />
+            </ChartCard>
+          </div>
+        </>
+      )}
+
+      <h2 className="text-lg font-medium">4. What does the LSTM (LSTM-Vol) use?</h2>
+      {lstm === undefined ? (
+        <ChartSkeleton height={200} />
+      ) : lstm.length === 0 ? (
+        <div className="text-sm text-muted">
+          No LSTM-Vol explainability output yet (run <code>make explain</code>).
+        </div>
+      ) : (
+        <>
+          <ChartCard
+            title="Permutation importance by input cell"
+            caption="Each cell is one number in the 20-day input window (a feature on a given day). Its brightness is how much the fitted network's training loss rises when that column is shuffled across sequences, averaged over the out-of-sample refits. Bright = the network relies on it."
+          >
+            <LstmImportanceHeatmap rows={lstm} />
+          </ChartCard>
+          <div className="grid gap-6 md:grid-cols-2">
+            <ChartCard
+              title="Share by input channel"
+              caption="The raw signed return carries almost all of the importance. The squared-return channels sit near 1e-4 in raw units, so a network trained for 80 steps barely uses them: the LSTM is rebuilding a volatility signal from signed returns rather than reading it directly."
+            >
+              <LstmFeatureShare rows={lstm} />
+            </ChartCard>
+            <ChartCard
+              title="How far back it looks"
+              caption="Total importance by lag. It concentrates in the most recent days and fades within a week or so, so the 20-day window is longer than the memory the network actually uses."
+            >
+              <LstmLagProfile rows={lstm} />
             </ChartCard>
           </div>
         </>

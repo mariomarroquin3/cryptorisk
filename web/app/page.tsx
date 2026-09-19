@@ -4,6 +4,7 @@ import { Suspense, useMemo, useState } from "react";
 import { Badge } from "@/components/Badge";
 import { ConeChart, ConeSeries } from "@/components/ConeChart";
 import { Field } from "@/components/Field";
+import { MarketWatch } from "@/components/MarketWatch";
 import { MetricCard } from "@/components/MetricCard";
 import { PriceChart, PricePoint } from "@/components/PriceChart";
 import { RegimeDistribution } from "@/components/RegimeDistribution";
@@ -130,6 +131,8 @@ function OverviewPageInner() {
           re-fit on demand for today&apos;s forecast only.
         </p>
       </div>
+
+      <MarketWatch assets={assets} alpha={effAlpha} selected={effAsset} onSelect={setAsset} />
 
       <div className="flex flex-wrap gap-4">
         <Field label="Asset">

@@ -130,7 +130,17 @@ function PortfolioPageInner() {
           <Fz0BarChart data={sorted} title={`Basket @ ${fmtConfidence(effAlpha)}`} />
         )
       )}
-      <DataTable columns={cols} rows={sorted} keyField="model" loading={evalRows === undefined} />
+      <DataTable
+        columns={cols}
+        rows={sorted}
+        keyField="model"
+        loading={evalRows === undefined}
+        filterKey="model"
+        filters={[
+          { label: "in MCS", test: (r) => r.in_mcs },
+          { label: "passes all", test: (r) => r.passes_all },
+        ]}
+      />
 
       <div>
         <h2 className="mb-2 text-lg font-medium">Read</h2>

@@ -222,6 +222,11 @@ function CapitalPageInner() {
             columns={capitalCols}
             rows={[...(capital ?? [])].sort((a, b) => a.capital_usd - b.capital_usd)}
             keyField="model"
+            filterKey="model"
+            filters={[
+              { label: "in MCS", test: (r) => r.in_mcs },
+              { label: "green zone", test: (r) => r.basel_zone === "green" },
+            ]}
           />
         </>
         )
@@ -271,6 +276,8 @@ function CapitalPageInner() {
             rows={limits ?? []}
             keyField="model"
             loading={limits === undefined}
+            filterKey="model"
+            filters={[{ label: "in MCS", test: (r) => r.in_mcs }]}
           />
         </div>
         <div>

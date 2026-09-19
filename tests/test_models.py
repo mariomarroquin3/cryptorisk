@@ -192,3 +192,18 @@ def test_backtest_window_normalised_for_parquet(tmp_path):
     out = pd.concat([out, _normalize_window(b)], ignore_index=True)
     assert list(out["window"]) == [500, 500, EXPANDING_WINDOW]
     out.to_parquet(tmp_path / "bt.parquet", index=False)  # used to raise ArrowInvalid
+
+
+@pytest.mark.skipif(not _HAS_TORCH, reason="torch (ml extra) not installed")
+def test_lstm_vol_explain_shape_and_features():
+    from cryptorisk.models.lstm_vol import LstmVol
+
+    rng = np.random.default_rng(5)
+    r = rng.standard_t(6, 300) * 0.02
+    dates = pd.date_range("2020-01-01", periods=300).to_numpy()
+    c = Context(returns=r, dates=dates, asof=dates[-1])
+    e = LstmVol().explain(c, repeats=1)
+    imp = np.asarray(e["importance"])
+    assert imp.shape == (20, 3) and np.all(np.isfinite(imp))
+    assert e["features"] == ["return", "squared return", "squared down-return"]
+    assert LstmVol().explain(Context(returns=r[:60], dates=dates[:60], asof=dates[59])) is None

@@ -209,6 +209,12 @@ function ModelComparisonPageInner() {
         rows={comparison ?? []}
         keyField="model"
         loading={comparison === undefined}
+        filterKey="model"
+        filters={[
+          { label: "in MCS", test: (r) => r.in_mcs },
+          { label: "Machine learning", test: (r) => modelsInfo?.[r.model]?.family === "Machine learning" },
+          { label: "Realized-measure", test: (r) => modelsInfo?.[r.model]?.family === "Realized-measure" },
+        ]}
       />
 
       <div className="grid gap-6 md:grid-cols-2">
@@ -219,6 +225,12 @@ function ModelComparisonPageInner() {
             rows={coverage ?? []}
             keyField="model"
             loading={coverage === undefined}
+            filterKey="model"
+            filters={[
+              { label: "passes all", test: (r) => r.passes_all },
+              { label: "fails a test", test: (r) => !r.passes_all },
+              { label: "green zone", test: (r) => r.basel_zone === "green" },
+            ]}
           />
           <p className="mt-2 text-xs text-muted">
             Nominal miss rate at this alpha: {fmtConfidence(1 - effAlpha)}. p &lt;
@@ -232,6 +244,8 @@ function ModelComparisonPageInner() {
             rows={esTests ?? []}
             keyField="model"
             loading={esTests === undefined}
+            filterKey="model"
+            filters={[{ label: "ES rejected", test: (r) => r.es_reject_approx }]}
           />
           <p className="mt-2 text-xs text-muted">
             Asymptotic-normal p-values (no per-day predictive draws available

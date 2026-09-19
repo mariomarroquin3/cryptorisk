@@ -14,6 +14,7 @@ import {
   GwCpaRow,
   HedgeRow,
   LimitsRow,
+  LstmImportanceRow,
   ModelInfo,
   PortfolioComposition,
   PortfolioEvalRow,
@@ -134,6 +135,10 @@ export function useLimits(asset: string | null) {
 
 export function useHedge(asset: string | null) {
   return useSWR<HedgeRow[]>(asset ? `/hedge?asset=${asset}` : null, fetcher);
+}
+
+export function useLstmExplain(asset: string | null) {
+  return useSWR<LstmImportanceRow[]>(asset ? `/explain/lstm?asset=${asset}` : null, fetcher);
 }
 
 export function useRfExplain(asset: string | null) {

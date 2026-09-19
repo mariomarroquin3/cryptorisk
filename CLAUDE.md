@@ -140,6 +140,14 @@ CAViaR-SAV, CAViaR-AS, CAViaR-X-AS · MS-GARCH · RF-QR · LSTM-Vol.
     lazily inside the fit so the deployed API (`.[api]`, Render free tier)
     starts without it -- there LSTM-Vol's live refit falls back to the frozen
     backtest row, everything else is unchanged.
+  - **LSTM-Vol explainability**: `LstmVol.explain()` = permutation importance of
+    every (lag, feature) input cell (rise in the training quasi-NLL when that
+    column is shuffled; `make explain`, every 60 OOS days, ~3 min). Finding: ~94%
+    of the importance sits on the raw signed return; the squared-return channels
+    (~1e-4 in raw units, inputs are **not standardized**) carry ~3% each --
+    the net is rebuilding volatility from signed returns instead of reading it.
+    Standardizing the inputs is the obvious model fix (would change every LSTM
+    result -- backtest + full battery re-run), deliberately not done silently.
   - **RF-QR explainability**: `RandomForestQR.explain()` returns impurity
     importances, the QRF effective sample size `1/sum(w^2)`, conditional vs
     flat-weight VaR, and the forecast row as z-scores; `study.run_explain`

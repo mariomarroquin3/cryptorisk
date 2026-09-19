@@ -327,6 +327,25 @@ def explain_rf(asset: str) -> dict:
     return out
 
 
+@app.get("/explain/lstm")
+def explain_lstm(asset: str) -> list[dict]:
+    """LSTM-Vol permutation importance per (lag, feature) input cell, averaged
+    over the out-of-sample refits (`study.run_explain`): the rise in the
+    network's quasi-NLL when that one input is shuffled. lag 1 = yesterday."""
+    _check_asset(asset, load_config()["assets"])
+    df = D.load_results()["lstm_importance"]
+    if df.empty:
+        return []
+    g = (
+        df[df.asset == asset]
+        .groupby(["lag", "feature"], sort=False)["importance"]
+        .agg(["mean", "std", "count"])
+        .reset_index()
+        .rename(columns={"mean": "importance", "std": "sd", "count": "n_refits"})
+    )
+    return _records(g.sort_values(["lag", "feature"]))
+
+
 @app.get("/portfolio/eval")
 def portfolio_eval(alpha: float) -> list[dict]:
     df = D.load_results()["portfolio_eval"]

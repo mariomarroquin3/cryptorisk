@@ -56,6 +56,7 @@ def load_results() -> dict[str, pd.DataFrame]:
         "rf_importance": _csv("explain_rf_importance.csv"),
         "rf_diagnostics": _csv("explain_rf_diagnostics.csv"),
         "rf_inputs": _csv("explain_rf_inputs.csv"),
+        "lstm_importance": _csv("explain_lstm_importance.csv"),
     }
 
 

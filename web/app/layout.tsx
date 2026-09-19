@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { JetBrains_Mono, Space_Grotesk } from "next/font/google";
 import { Nav } from "@/components/Nav";
 import { ApiStatusBanner } from "@/components/ApiStatusBanner";
+import { TickerTape } from "@/components/TickerTape";
 import "./globals.css";
 
 const jetbrainsMono = JetBrains_Mono({
@@ -28,6 +29,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="en" className={`h-full ${jetbrainsMono.variable} ${spaceGrotesk.variable}`}>
       <body className="flex min-h-full flex-col bg-bg text-text antialiased">
         <ApiStatusBanner />
+        <TickerTape />
         <div className="flex min-h-0 flex-1 flex-col md:flex-row">
           <Suspense>
             <Nav />

@@ -91,3 +91,12 @@ def test_check_all_returns_frame():
     out = quality.check_all({"BTC": df})
     assert list(out.columns) == ["kind", "asset", "date", "detail"]
     assert len(out) >= 1
+
+
+def test_stale_realized_flagged():
+    daily = pd.DataFrame({"date": pd.date_range("2021-01-01", periods=10)})
+    ok = pd.DataFrame({"date": pd.date_range("2021-01-01", periods=8)})
+    stale = pd.DataFrame({"date": pd.date_range("2021-01-01", periods=4)})
+    assert quality.check_realized_lag("BTC", daily, ok) == []
+    flags = quality.check_realized_lag("BTC", daily, stale)
+    assert len(flags) == 1 and flags[0].kind == "stale_realized"

@@ -1452,6 +1452,90 @@ worst surviving model becomes an explicit model-risk charge rather than a
 footnote.}
 
 %======================================================================
+\section{Portfolio extension: a copula tail}\label{sec:portfolio}
+
+The single-asset study asks which model forecasts one return series best. A
+desk holds a basket, and its tail risk depends on whether the assets crash
+\emph{together}. This section specifies the extension (BTC, ETH, SOL, BNB, equal
+weight) and the question it answers: does modelling the joint tail explicitly
+beat running a univariate model on the basket's own return series?
+
+\paragraph{Basket return.} With fixed weights $w$ (renormalised to sum to one),
+the basket log-return is $r^{P}_t=\sum_i w_i r_{i,t}$. It is the series every
+portfolio model is scored on, with the identical FZ0 / MCS / coverage / ES
+battery of \S\ref{sec:eval}. The joint out-of-sample window is bounded by the
+shortest series (SOL, from 2020-08).
+
+\paragraph{Two families of portfolio models.}
+\begin{itemize}[nosep]
+\item \textbf{Direct-$m$}: registry model $m\in\{$HS, FHS, GARCH-$t$,
+      GJR-$t\}$ run straight on $r^P_t$; the dependence structure is absorbed
+      into the basket's own volatility dynamics. Only models that need a return
+      series alone qualify (the basket has no realized measure).
+\item \textbf{Copula-$C$}: forecast each asset's marginal, join them with a
+      copula $C$, simulate the basket, read VaR/ES off the simulation.
+\end{itemize}
+
+\paragraph{Marginals and pseudo-observations.} Each asset is filtered with
+GARCH$(1,1)$-$t$ (\S\ref{sec:garch}), refit daily like the Direct models, giving
+the next-day $(\mu_{i},\sigma_{i})$ and standardized residuals $z_{i,s}$ over
+the window. Ranks turn residuals into pseudo-observations
+$u_{i,s}=(\operatorname{rank}(z_{i,s})-\tfrac12)/n$, on which the copula is
+fitted; this removes the marginals from the dependence estimate (Sklar).
+
+\paragraph{Copula families.} With $d$ assets:
+\begin{align}
+  \text{independence:}\ & C(u)=\textstyle\prod_i u_i, \\
+  \text{Gaussian:}\ & C(u)=\Phi_R\big(\Phi^{-1}(u_1),\dots,\Phi^{-1}(u_d)\big),
+      \quad \lambda_L=\lambda_U=0, \\
+  \text{Student-}t:\ & C(u)=t_{R,\nu}\big(t_\nu^{-1}(u_1),\dots,t_\nu^{-1}(u_d)\big),
+      \quad \lambda_L=\lambda_U>0, \\
+  \text{Clayton:}\ & C(u)=\Big(\textstyle\sum_i u_i^{-\theta}-d+1\Big)^{-1/\theta},
+      \quad \lambda_L=2^{-1/\theta},\ \lambda_U=0 .
+\end{align}
+The Gaussian and Student-$t$ correlation matrices are estimated from the
+pseudo-observations and repaired to the nearest positive-definite matrix (a
+rank-based estimate can be indefinite for $d>2$); the Student-$t$ degrees of
+freedom are \emph{fixed} at $\nu=5$, not fitted. Clayton is exchangeable (one
+$\theta$ for all pairs) and is the only family with \emph{asymmetric} tail
+dependence, concentrated in joint crashes. If the fitted $\theta\le10^{-4}$ (no
+lower-tail dependence in the window) or any fit fails, the model falls back to
+independence rather than raising.
+
+\paragraph{Simulation and aggregation.} Draw $n_{\text{sim}}=20{,}000$ joint
+uniforms $u^{(s)}\sim C$, invert each margin with the \emph{empirical} quantile
+of that asset's standardized residuals (the FHS step, so only the dependence is
+parametric), rescale and aggregate:
+\begin{equation}
+  r^{P,(s)}_{t+1}=\sum_i w_i\Big(\mu_i+\sigma_i\,\hat Q_{z_i}\big(u^{(s)}_i\big)\Big),
+  \qquad
+  \VaR_\alpha=\hat q_\alpha\big(r^{P,(\cdot)}\big),\quad
+  \ES_\alpha=\operatorname{mean}\big(r^{P,(s)}\mid r^{P,(s)}\le\VaR_\alpha\big).
+\end{equation}
+The seed is fixed, so a forecast is reproducible; the Monte-Carlo error of the
+$1\%$ quantile at $20{,}000$ draws (about $200$ tail points) is small next to the
+model differences but not zero.
+
+\paragraph{What the evidence shows.} Independence is decisively rejected (hit
+rate $6.5\%$ at a nominal $1\%$; Acerbi--Sz\'ekely $Z_2\approx-7.4$): ignoring
+joint crashes understates basket tail risk. Among the dependent copulas the FZ0
+ordering is Clayton $<$ Student-$t$ $<$ Gaussian, so tail \emph{asymmetry}
+helps more than symmetric tail fatness. The strongest result is negative for the
+copula: a univariate GJR-GARCH-$t$ on the basket series has the lowest FZ0 at
+both levels, with every dependent copula inside the same $90\%$ MCS. At this
+sample size the explicit dependence is not worth its extra estimation noise.
+
+\paragraph{Limits.} The Student-$t$ $\nu$ is not fitted; Clayton is
+exchangeable, so it cannot represent BTC--ETH being more dependent than
+SOL--BNB; weights are fixed (no rebalancing model); and the sub-period MCS has
+little power at $40$--$90$ days.
+
+\intuition{Two ways to describe a basket's tail: model each asset and how they
+crash together, or ignore the components and model the basket as one asset. The
+copula is the richer description, and the data say the simpler one forecasts as
+well or better.}
+
+%======================================================================
 \section{What the mathematics does not fix}\label{sec:limits}
 
 The first three limitations are properties of the crypto data, not

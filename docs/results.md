@@ -712,12 +712,31 @@ Funding carry is annualised; **positive = the short-perp hedge earns it** (longs
 ## 9. What the numbers do not settle
 
 - **The MCS is wide.** With one asset-pair and ~2,700 heavy-tailed days the test cannot rank the middle of the field. A firmer answer needs more assets, a longer sample, or a rolling-origin MCS stability analysis.
-- **Multiple testing.** 17 models x 2 assets x 2 alpha, no family-wise correction; the sub-period split makes this worse (n drops fast).
+- **Multiple testing.** 20 models x 2 assets x 2 alpha, no family-wise correction; the sub-period split makes this worse (n drops fast).
 - **Estimation risk is only bounded, not propagated.** The daily backtests use the parameter point estimate. §8 quantifies the parameter / sampling uncertainty on the final estimation window for three archetypes (a prudent-percentile capital add-on); it is not carried through every day of every model.
 - **ES p-values are approximate** (asymptotic normal, not simulated).
 - **The main study is one asset at a time, spot only** &mdash; no options and the perp hedge uses spot as a price proxy. A fixed-weight 4-asset basket (BTC/ETH/SOL/BNB) with a k-dimensional copula tail is the Phase-7 extension in [`portfolio.md`](portfolio.md).
 - Model-specific caveats are in the model cards and in [`methodology.tex`](methodology.tex) §9.
 
+## 10. Did machine learning help?
+
+RF-QR (a quantile regression forest) and LSTM-Vol (a recurrent net trained by Gaussian quasi-MLE) get the same walk-forward and the same battery as the statistical models, with no volatility recursion or parametric tail built in (`methodology.tex`, ML comparison arm). Ranks are FZ0 ranks among all models in the cell; *gap* is the mean-FZ0 difference to the best **statistical** model (positive = worse).
+
+| model | asset | a | FZ0 rank | gap vs best stat. | in MCS | coverage | ES ok | QLIKE rank |
+|:--|:--|--:|--:|--:|:--:|:--:|:--:|--:|
+| LSTM-Vol | BTC | 0.01 | 8/20 | +0.1079 | yes | FAIL | yes | 12 |
+| RF-QR | BTC | 0.01 | 10/20 | +0.1177 | yes | pass | yes | 11 |
+| LSTM-Vol | BTC | 0.025 | 14/20 | +0.0795 | yes | FAIL | yes | 12 |
+| RF-QR | BTC | 0.025 | 8/20 | +0.0704 | yes | pass | yes | 11 |
+| LSTM-Vol | ETH | 0.01 | 14/20 | +0.1403 | yes | FAIL | no | 12 |
+| RF-QR | ETH | 0.01 | 13/20 | +0.1366 | yes | pass | yes | 13 |
+| LSTM-Vol | ETH | 0.025 | 19/20 | +0.1237 | yes | FAIL | no | 12 |
+| RF-QR | ETH | 0.025 | 14/20 | +0.0713 | yes | FAIL | yes | 13 |
+
+- **LSTM-Vol** beats the *median* statistical model on FZ0 in 1/4 cells and is never the best model in a cell.
+- **RF-QR** beats the *median* statistical model on FZ0 in 2/4 cells and is never the best model in a cell.
+- Reading: a learned model can be competitive on the tail score (inside the MCS) without beating hand-built volatility structure; the calibration diagnostics (coverage, ES) are where a gap shows. The web `/explain` page shows what the forest relies on.
+
 ## Reproducibility
 
-`make data && make msgarch && make backtest && make evaluate && make subperiods && make regime-id && make decide && make report && make portfolio` rebuilds every artefact from the sources, deterministically (seed in `config/study.yaml`). `make data` also daily-ingests the portfolio basket's extra assets, so `make portfolio` needs nothing further. The store and `data/results/` are gitignored; the text of this report, the model cards and `portfolio.md` are versioned, the figures are regenerated.
+`make data && make msgarch && make backtest && make evaluate && make subperiods && make regime-id && make decide && make report && make portfolio` rebuilds every artefact from the sources, deterministically (seed in `config/study.yaml`). `make data` also daily-ingests the portfolio basket's extra assets, so `make portfolio` needs nothing further. The DuckDB store and the figures are gitignored (the figures are regenerated); `data/results/`, this report, the model cards and `portfolio.md` are versioned.

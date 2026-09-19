@@ -12,6 +12,7 @@ Checks:
 * ``source_divergence`` - |ln(p_a / p_b)| > threshold between two price sources
 * ``stale_price``    - identical close on N consecutive days
 * ``few_intraday_bars`` - < 80% of the expected 5-min bars on a day
+* ``stale_realized``  - realized measures end > 3 days before the daily returns
 """
 
 from __future__ import annotations
@@ -110,6 +111,22 @@ def check_intraday_coverage(asset: str, realized: pd.DataFrame, *, min_frac: flo
     return out
 
 
+def check_realized_lag(
+    asset: str, daily: pd.DataFrame, realized: pd.DataFrame, *, max_lag_days: int = 3
+) -> list[QualityFlag]:
+    """Realized measures ending well before the daily returns: the models that
+    use them then see a forward-filled (stale) RV over the tail of the sample."""
+    if daily.empty or realized.empty:
+        return []
+    last_r, last_rv = pd.Timestamp(daily["date"].max()), pd.Timestamp(realized["date"].max())
+    lag = (last_r - last_rv).days
+    if lag <= max_lag_days:
+        return []
+    return [QualityFlag("stale_realized", asset, str(last_rv.date()),
+                        f"realized measures end {lag} days before the daily returns "
+                        f"({last_rv.date()} vs {last_r.date()}); RV is forward-filled over the gap")]
+
+
 def check_all(
     per_asset_daily: dict[str, pd.DataFrame],
     per_asset_sources: dict[str, tuple[pd.DataFrame, pd.DataFrame]] | None = None,
@@ -118,6 +135,8 @@ def check_all(
     flags: list[QualityFlag] = []
     for asset, df in per_asset_daily.items():
         flags += check_daily_series(asset, df)
+        if per_asset_realized and asset in per_asset_realized:
+            flags += check_realized_lag(asset, df, per_asset_realized[asset])
     if per_asset_sources:
         for asset, (a, b) in per_asset_sources.items():
             flags += check_source_divergence(asset, a, b, returns=per_asset_daily.get(asset))

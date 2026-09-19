@@ -282,6 +282,61 @@ def _fig(figs: dict[str, str], key: str, caption: str) -> str:
     return f"![{caption}](figures/{figs[key]})\n" if figs.get(key) else ""
 
 
+def _ml_section(D: dict, P) -> None:
+    """Did the machine-learning arm (family "Machine learning") earn its
+    complexity against the statistical suite, cell by cell?"""
+    fz0, cov, es, vol = D["fz0"], D["coverage"], D["es"], D["vol"]
+    ml = sorted(m for m, f in _METHOD_FAMILY.items() if f == "Machine learning")
+    if fz0.empty or not ml or not set(ml) <= set(fz0["model"]):
+        return
+    P("## 10. Did machine learning help?\n")
+    P(
+        "RF-QR (a quantile regression forest) and LSTM-Vol (a recurrent net "
+        "trained by Gaussian quasi-MLE) get the same walk-forward and the same "
+        "battery as the statistical models, with no volatility recursion or "
+        "parametric tail built in (`methodology.tex`, ML comparison arm). Ranks "
+        "are FZ0 ranks among all models in the cell; *gap* is the mean-FZ0 "
+        "difference to the best **statistical** model (positive = worse).\n"
+    )
+    P("| model | asset | a | FZ0 rank | gap vs best stat. | in MCS | coverage | ES ok | QLIKE rank |")
+    P("|:--|:--|--:|--:|--:|:--:|:--:|:--:|--:|")
+    stat = fz0[~fz0["model"].isin(ml)]
+    beat = dict.fromkeys(ml, 0)
+    cells = 0
+    for (asset, alpha), g in fz0.groupby(["asset", "alpha"], observed=True):
+        s = stat[(stat.asset == asset) & (stat.alpha == alpha)]["fz0_mean"]
+        cells += 1
+        for m in ml:
+            r = g[g.model == m]
+            if r.empty:
+                continue
+            r = r.iloc[0]
+            c = cov[(cov.asset == asset) & (cov.alpha == alpha) & (cov.model == m)]
+            e = es[(es.asset == asset) & (es.alpha == alpha) & (es.model == m)]
+            v = vol[(vol.asset == asset) & (vol.model == m)]
+            beat[m] += int(r["fz0_mean"] < s.median())
+            P(
+                f"| {m} | {asset} | {alpha:g} | {int(r['fz0_rank'])}/{len(g)} | "
+                f"{r['fz0_mean'] - s.min():+.4f} | {'yes' if r['in_mcs'] else 'no'} | "
+                f"{'pass' if (not c.empty and c.iloc[0]['passes_all']) else 'FAIL'} | "
+                f"{'no' if (not e.empty and e.iloc[0]['es_reject_approx']) else 'yes'} | "
+                f"{int(v.iloc[0]['qlike_rank']) if not v.empty else '-'} |"
+            )
+    P("")
+    for m in ml:
+        top = bool(fz0[fz0.model == m]["is_best"].any())
+        P(
+            f"- **{m}** beats the *median* statistical model on FZ0 in {beat[m]}/{cells} "
+            f"cells and {'is' if top else 'is never'} the best model in a cell."
+        )
+    P(
+        "- Reading: a learned model can be competitive on the tail score (inside "
+        "the MCS) without beating hand-built volatility structure; the "
+        "calibration diagnostics (coverage, ES) are where a gap shows. The web "
+        "`/explain` page shows what the forest relies on.\n"
+    )
+
+
 def results_md(D: dict, figs: dict[str, str]) -> str:
     cfg = D["cfg"]
     A = cfg["assets"]
@@ -651,7 +706,7 @@ def results_md(D: dict, figs: dict[str, str]) -> str:
         "assets, a longer sample, or a rolling-origin MCS stability analysis."
     )
     P(
-        "- **Multiple testing.** 17 models x 2 assets x 2 alpha, no family-wise "
+        f"- **Multiple testing.** {D['fz0']['model'].nunique()} models x 2 assets x 2 alpha, no family-wise "
         "correction; the sub-period split makes this worse (n drops fast)."
     )
     P(
@@ -673,6 +728,8 @@ def results_md(D: dict, figs: dict[str, str]) -> str:
         "[`methodology.tex`](methodology.tex) §9.\n"
     )
 
+    _ml_section(D, P)
+
     P("## Reproducibility\n")
     P(
         "`make data && make msgarch && make backtest && make evaluate && "
@@ -680,9 +737,9 @@ def results_md(D: dict, figs: dict[str, str]) -> str:
         "make portfolio` rebuilds every artefact from the sources, "
         "deterministically (seed in `config/study.yaml`). `make data` also "
         "daily-ingests the portfolio basket's extra assets, so `make portfolio` "
-        "needs nothing further. The store and "
-        "`data/results/` are gitignored; the text of this report, the model "
-        "cards and `portfolio.md` are versioned, the figures are regenerated.\n"
+        "needs nothing further. The DuckDB store and the figures are gitignored "
+        "(the figures are regenerated); `data/results/`, this report, the model "
+        "cards and `portfolio.md` are versioned.\n"
     )
     return "\n".join(o)
 

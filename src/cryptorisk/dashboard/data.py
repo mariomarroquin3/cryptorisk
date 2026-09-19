@@ -27,7 +27,7 @@ _RESULTS = repo_root() / "data" / "results"
 _BINANCE_SYMBOL = {"BTC": "BTCUSDT", "ETH": "ETHUSDT", "SOL": "SOLUSDT", "BNB": "BNBUSDT"}
 
 _REALIZED_COLS = ("rv", "bv", "rsv_pos", "rsv_neg", "jump", "rq")
-_NEEDS_REALIZED = {"HAR-RV", "HARQ", "Realized-GARCH", "GARCH-X"}
+_NEEDS_REALIZED = {"HAR-RV", "HARQ", "Realized-GARCH", "Realized-SV", "GARCH-X", "RF-QR"}
 
 
 def _csv(name: str) -> pd.DataFrame:

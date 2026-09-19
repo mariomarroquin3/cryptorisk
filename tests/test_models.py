@@ -1,6 +1,7 @@
 """Sanity tests: every model yields a coherent 1-step distribution."""
 
 import contextlib
+import importlib.util
 
 import numpy as np
 import pandas as pd
@@ -10,7 +11,12 @@ from cryptorisk.models.base import Context
 from cryptorisk.models.registry import phase2a_models, phase2b_models, phase2d_models
 
 A1, A2 = 0.025, 0.01
-ALL = phase2a_models() + phase2b_models(alphas=(A1, A2)) + phase2d_models()
+_HAS_TORCH = importlib.util.find_spec("torch") is not None
+ALL = [
+    m
+    for m in phase2a_models() + phase2b_models(alphas=(A1, A2)) + phase2d_models()
+    if _HAS_TORCH or m.name != "LSTM-Vol"  # torch is the optional `ml` extra
+]
 
 
 @pytest.fixture(scope="module")
@@ -104,6 +110,7 @@ def test_random_forest_qr_falls_back_on_short_window():
     assert d.var(A1) < 0  # empirical fallback (too few valid feature rows)
 
 
+@pytest.mark.skipif(not _HAS_TORCH, reason="torch (ml extra) not installed")
 def test_lstm_vol_runs_and_is_deterministic():
     rng = np.random.default_rng(5)
     r = rng.standard_t(6, 400) * 0.02

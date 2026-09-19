@@ -22,7 +22,6 @@ dependencies = [
     "pyarrow==25.0.1",
     "joblib==1.6.0",
     "numba==0.67.0",
-    "torch==2.14.0",
     "pyyaml==6.0.3",
     "requests==2.34.2",
     "matplotlib==3.11.1",
@@ -33,6 +32,9 @@ dev = [
     "pytest==9.1.1",
     "pytest-cov==7.0.0",
     "ruff==0.16.6",
+]
+ml = [
+    "torch==2.14.0",
 ]
 dashboard = [
     "streamlit==1.63.0",

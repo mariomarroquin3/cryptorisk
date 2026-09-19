@@ -52,7 +52,7 @@ walk-forward. See `CLAUDE.md` for the interface and each model's quirks.
 
 ```bash
 python -m venv .venv
-.venv/Scripts/python -m pip install -e ".[dev]"
+.venv/Scripts/python -m pip install -e ".[dev,ml]"
 
 make test          # ~150 known-answer + integration tests
 make lint          # ruff
@@ -154,8 +154,9 @@ exposure; restrict `CORS_ORIGINS` to your actual frontend's origin.
 `package.json`, not part of the Python project) — a third front-end over the
 `api/` (not the dashboard), for anyone who wants richer, custom visuals than
 Streamlit gives out of the box and a stack that's easy to deploy (e.g.
-Vercel). Same five views as the dashboard (Overview, Model Comparison,
-Portfolio, Capital & Decision, Regimes), client-rendered via
+Vercel). The dashboard's five views (Overview, Model Comparison,
+Portfolio, Capital & Decision, Regimes) plus an Explainability page (per-model
+calibration diagnostics and what the random forest relies on), client-rendered via
 [SWR](https://swr.vercel.app) polling the API, charted with
 [Recharts](https://recharts.org) (bars/areas) and
 [`lightweight-charts`](https://tradingview.github.io/lightweight-charts/)

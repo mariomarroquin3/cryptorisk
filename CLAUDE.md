@@ -135,8 +135,11 @@ CAViaR-SAV, CAViaR-AS, CAViaR-X-AS · MS-GARCH · RF-QR · LSTM-Vol.
     `study.run_backtests` — that map used to be documentation-only). Pins
     `torch.set_num_threads(1)` + a fixed seed for bit-for-bit determinism
     (CPU intra-op parallelism can reorder floating-point sums run-to-run,
-    which a seed alone doesn't fix). New heavy dependency: `torch==2.14.0`
-    (CPU wheel, ~125MB).
+    which a seed alone doesn't fix). `torch==2.14.0` is the optional `ml` extra
+    (`pip install -e ".[ml]"`; CI and `make install` include it), imported
+    lazily inside the fit so the deployed API (`.[api]`, Render free tier)
+    starts without it -- there LSTM-Vol's live refit falls back to the frozen
+    backtest row, everything else is unchanged.
   - **RF-QR explainability**: `RandomForestQR.explain()` returns impurity
     importances, the QRF effective sample size `1/sum(w^2)`, conditional vs
     flat-weight VaR, and the forecast row as z-scores; `study.run_explain`

@@ -32,7 +32,7 @@ help:
 install:
 	python -m venv .venv
 	$(PY) -m pip install --upgrade pip
-	$(PY) -m pip install -e ".[dev,dashboard]"
+	$(PY) -m pip install -e ".[dev,dashboard,ml]"
 
 test:
 	$(PY) -m pytest

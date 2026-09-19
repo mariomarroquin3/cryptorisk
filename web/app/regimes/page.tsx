@@ -15,6 +15,14 @@ import { Column, DataTable } from "@/components/DataTable";
 import { Field } from "@/components/Field";
 import { MetricCard } from "@/components/MetricCard";
 import { ChartSkeleton, MetricCardSkeleton } from "@/components/Skeleton";
+import {
+  CorrelationContrast,
+  DurationHistogram,
+  RegimeRow,
+  RegimeTimeline,
+  RegimeVolChart,
+  TransitionMatrix,
+} from "@/components/RegimeCharts";
 import { PriceHistoryRow, RegimeCorrRow } from "@/lib/api";
 import { useConfig, usePrices, useRegimes } from "@/lib/hooks";
 import { useQueryParam } from "@/lib/useQueryParam";
@@ -26,6 +34,18 @@ function rollingAbsMean(prices: PriceHistoryRow[], window = 21): Map<string, num
     sum += Math.abs(prices[i].log_return);
     if (i >= window) sum -= Math.abs(prices[i - window].log_return);
     if (i >= window - 1) map.set(prices[i].date.slice(0, 10), sum / window);
+  }
+  return map;
+}
+
+/** Trailing realized volatility: sd-like sqrt(mean r^2) over `window` days. */
+function rollingVol(prices: PriceHistoryRow[], window = 21): Map<string, number> {
+  const map = new Map<string, number>();
+  let sum = 0;
+  for (let i = 0; i < prices.length; i++) {
+    sum += prices[i].log_return ** 2;
+    if (i >= window) sum -= prices[i - window].log_return ** 2;
+    if (i >= window - 1) map.set(prices[i].date.slice(0, 10), Math.sqrt(sum / window));
   }
   return map;
 }
@@ -58,6 +78,21 @@ function RegimesPageInner() {
         prob_crisis_pred: s.prob_crisis_pred,
         sigma2: s.sigma2,
         abs_ret_21d: absMean.get(d) ?? null,
+      };
+    });
+  }, [regimes, prices]);
+
+  const regimeRows = useMemo<RegimeRow[]>(() => {
+    if (!regimes?.series || !prices) return [];
+    const vol = rollingVol(prices, 21);
+    return regimes.series.map((s) => {
+      const d = s.date.slice(0, 10);
+      return {
+        date: d,
+        insample: s.prob_crisis_insample,
+        wf: s.prob_crisis_pred,
+        sigma: s.sigma2 != null ? Math.sqrt(s.sigma2) : null,
+        vol21: vol.get(d) ?? null,
       };
     });
   }, [regimes, prices]);
@@ -120,6 +155,23 @@ function RegimesPageInner() {
           ))}
         </select>
       </Field>
+
+      {regimes === undefined || prices === undefined ? (
+        <>
+          <ChartSkeleton height={220} />
+          <ChartSkeleton height={220} />
+        </>
+      ) : (
+        <>
+          <CorrelationContrast rows={regimes.correlations} />
+          <RegimeTimeline rows={regimeRows} />
+          <div className="grid gap-6 md:grid-cols-2">
+            <TransitionMatrix summary={regimes.regime_summary} />
+            <DurationHistogram rows={regimeRows} summary={regimes.regime_summary} />
+          </div>
+          <RegimeVolChart rows={regimeRows} />
+        </>
+      )}
 
       {regimes === undefined || prices === undefined ? (
         <ChartSkeleton height={260} />

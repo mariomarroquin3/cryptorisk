@@ -406,4 +406,8 @@ def regimes(asset: str, limit: int = Query(2000, le=5000)) -> dict:
     series = D.regime_series(asset, limit=limit)
     corr = D.load_results()["regime"]
     corr = corr[corr.asset == asset] if not corr.empty else corr
-    return {"series": _records(series), "correlations": _records(corr)}
+    return {
+        "series": _records(series),
+        "correlations": _records(corr),
+        "regime_summary": C.regime_summary(asset),
+    }

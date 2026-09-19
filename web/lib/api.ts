@@ -98,7 +98,12 @@ export interface ForecastResponse {
   /** Normal vs. crisis regime, as a distribution comparison (not a
    * horizon-indexed forecast) -- see RegimeDistribution.tsx. Null if
    * data/results/msgarch_regime_params.csv doesn't cover this asset. */
-  regime_summary?: { normal: RegimeParams; crisis: RegimeParams } | null;
+  regime_summary?: RegimeSummary | null;
+}
+
+export interface RegimeSummary {
+  normal: RegimeParams;
+  crisis: RegimeParams;
 }
 
 export interface RegimeParams {
@@ -253,6 +258,7 @@ export interface RegimeCorrRow {
 export interface RegimesResponse {
   series: RegimePoint[];
   correlations: RegimeCorrRow[];
+  regime_summary?: RegimeSummary | null;
 }
 
 export interface PriceHistoryRow {

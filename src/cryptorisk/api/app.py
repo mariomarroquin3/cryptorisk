@@ -292,6 +292,17 @@ def _intraday(asset: str, last_close: float, var: float | None, es: float | None
     }
 
 
+@app.get("/live/track-record")
+def live_track_record(asset: str, alpha: float) -> dict:
+    """Per-model violations / FZ0 on the days since the frozen sample end
+    (``backtests_live.parquet``): a live out-of-sample monitor, not part of the
+    study's evaluation tables."""
+    cfg = load_config()
+    _check_asset(asset, cfg["assets"])
+    _check_alpha(alpha, cfg["alphas"])
+    return D.live_track_record(asset, alpha)
+
+
 @app.get("/models/latest")
 def models_latest(asset: str, alpha: float) -> list[dict]:
     """Every model's most recent frozen VaR/ES for this (asset, alpha), one

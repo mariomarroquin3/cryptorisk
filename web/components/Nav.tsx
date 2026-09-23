@@ -10,6 +10,7 @@ const LINKS = [
   { href: "/portfolio", label: "Portfolio" },
   { href: "/capital", label: "Capital & Decision" },
   { href: "/regimes", label: "Regimes" },
+  { href: "/live", label: "Live Record" },
   { href: "/explain", label: "Explainability" },
 ];
 

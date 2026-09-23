@@ -28,14 +28,14 @@ import {
   RfInputRow,
 } from "@/lib/api";
 
-const AXIS = { fill: "var(--muted)", fontSize: 11 };
-const TIP = {
+export const AXIS = { fill: "var(--muted)", fontSize: 11 };
+export const TIP = {
   contentStyle: { background: "var(--bg)", border: "1px solid var(--grid)", fontSize: 12 },
   labelStyle: { color: "var(--text)" },
 };
 const PALETTE = ["#ffb020", "#4dabf7", "#3ddc84", "#b083f0", "#ff4d4f", "#20c9c9", "#f78fb3", "#a0a8b5"];
 
-const pct = (v: number, d = 1) => `${(v * 100).toFixed(d)}%`;
+export const pct = (v: number, d = 1) => `${(v * 100).toFixed(d)}%`;
 const shortDate = (d: string) => d.slice(0, 10);
 
 /** Prefix sums of violations: cum[k] = violations among the first k rows. */

@@ -14,6 +14,7 @@ import {
   GwCpaRow,
   HedgeRow,
   LimitsRow,
+  LiveTrackRecord,
   LstmImportanceRow,
   ModelInfo,
   ModelLatestRow,
@@ -165,6 +166,13 @@ export function useRfPdp(asset: string | null, feature: string | null, alpha: nu
 export function useRegimes(asset: string | null, limit = 2000) {
   return useSWR<RegimesResponse>(
     asset ? `/regimes/${asset}?limit=${limit}` : null,
+    fetcher,
+  );
+}
+
+export function useLiveTrackRecord(asset: string | null, alpha: number) {
+  return useSWR<LiveTrackRecord>(
+    asset ? `/live/track-record?asset=${asset}&alpha=${alpha}` : null,
     fetcher,
   );
 }

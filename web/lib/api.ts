@@ -348,3 +348,31 @@ export interface PortfolioComposition {
   weights: Record<string, number>;
   prices: Record<string, PriceResponse | null>;
 }
+
+export interface LiveDay {
+  date: string;
+  realized: number;
+  var_min: number;
+  var_max: number;
+  var_median: number;
+  es_median: number;
+}
+
+export interface LiveModelRow {
+  model: string;
+  n: number;
+  violations: number;
+  expected: number;
+  hit_rate: number;
+  p_at_least: number;
+  mean_fz0: number;
+  fz0_rank: number;
+  mean_var: number;
+  mean_es: number;
+  min_margin: number;
+}
+
+export interface LiveTrackRecord {
+  days: LiveDay[];
+  models: LiveModelRow[];
+}

@@ -85,6 +85,64 @@ def load_backtests_live() -> pd.DataFrame:
 
 
 @ttl_cache(300)
+def live_track_record(asset: str, alpha: float, window: int = 500) -> dict[str, Any]:
+    """How each model has done on the days since the frozen sample end: the only
+    genuinely out-of-sample evidence, since none of these days entered the study.
+
+    Per model: days scored, violations vs expected, the binomial upper-tail
+    probability of seeing at least that many, mean FZ0 loss (and its rank) and
+    the tightest realized-minus-VaR margin. With a couple of weeks of data the tests have almost
+    no power, so this is a monitor, not a verdict."""
+    from scipy import stats
+
+    from cryptorisk.backtest.scoring import fz0_loss
+
+    empty: dict[str, Any] = {"days": [], "models": []}
+    path = _RESULTS / "backtests_live.parquet"
+    if not path.exists():
+        return empty
+    live = pd.read_parquet(path)
+    sub = live[(live.asset == asset) & (live.alpha == alpha) & (live.window == window)]
+    sub = sub[np.isfinite(sub["var"]) & np.isfinite(sub["es"])]
+    if sub.empty:
+        return empty
+    dates = sorted(sub["date"].unique())
+    per_day = sub.groupby("date").agg(
+        realized=("realized", "first"), var_min=("var", "min"), var_max=("var", "max"),
+        var_median=("var", "median"), es_median=("es", "median"),
+    )
+    out: list[dict[str, Any]] = []
+    for model, g in sub.groupby("model", observed=True):
+        g = g.sort_values("date")
+        n = len(g)
+        k = int(g["violation"].astype(bool).sum())
+        loss = float(np.mean(fz0_loss(g["realized"], g["var"], g["es"], alpha)))
+        out.append({
+            "model": model,
+            "n": n,
+            "violations": k,
+            "expected": n * alpha,
+            "hit_rate": k / n,
+            "p_at_least": float(stats.binomtest(k, n, alpha, alternative="greater").pvalue),
+            "mean_fz0": loss,
+            "mean_var": float(g["var"].mean()),
+            "mean_es": float(g["es"].mean()),
+            # tightest day: realized minus VaR, in return points (<0 = breached)
+            "min_margin": float((g["realized"] - g["var"]).min()),
+        })
+    order = sorted(range(len(out)), key=lambda i: out[i]["mean_fz0"])
+    for rank, i in enumerate(order, start=1):
+        out[i]["fz0_rank"] = rank
+    return {
+        "days": [
+            {"date": pd.Timestamp(d).strftime("%Y-%m-%d"), **{k: float(v) for k, v in per_day.loc[d].items()}}
+            for d in dates
+        ],
+        "models": sorted(out, key=lambda r: r["fz0_rank"]),
+    }
+
+
+@ttl_cache(300)
 def latest_by_model(asset: str, alpha: float, window: int = 500) -> pd.DataFrame:
     """Every model's most recent frozen (date, VaR, ES) for one (asset, alpha)
     -- the whole model-risk spread on the same day, one row per model. Used

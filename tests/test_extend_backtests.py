@@ -50,3 +50,26 @@ def test_load_backtests_live_prefers_live_rows(monkeypatch, tmp_path):
     out = D.load_backtests_live().sort_values("date")
     assert list(out["var"]) == [-0.05, -0.06]
     D.load_backtests_live.cache_clear()
+
+
+def test_live_track_record_counts_violations_and_ranks(monkeypatch, tmp_path):
+    from cryptorisk.api import data as D
+
+    dates = pd.date_range("2026-09-11", periods=4)
+    rows = []
+    for model, var in (("A", -0.05), ("B", -0.01)):
+        for d, r in zip(dates, (0.01, -0.03, 0.0, 0.02), strict=True):
+            rows.append({
+                "model": model, "asset": "BTC", "window": 500, "alpha": 0.025, "date": d,
+                "var": var, "es": var * 1.3, "realized": r, "violation": r < var,
+            })
+    pd.DataFrame(rows).to_parquet(tmp_path / "backtests_live.parquet")
+    monkeypatch.setattr(D, "_RESULTS", tmp_path)
+    D.live_track_record.cache_clear()
+    out = D.live_track_record("BTC", 0.025)
+    by = {m["model"]: m for m in out["models"]}
+    assert len(out["days"]) == 4 and by["A"]["violations"] == 0 and by["B"]["violations"] == 1
+    assert by["B"]["min_margin"] < 0 < by["A"]["min_margin"]
+    assert 0 < by["B"]["p_at_least"] < 1 and by["A"]["p_at_least"] == 1.0
+    assert sorted(m["fz0_rank"] for m in out["models"]) == [1, 2]
+    D.live_track_record.cache_clear()

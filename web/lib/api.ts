@@ -114,6 +114,20 @@ export interface ForecastResponse {
    * horizon-indexed forecast) -- see RegimeDistribution.tsx. Null if
    * data/results/msgarch_regime_params.csv doesn't cover this asset. */
   regime_summary?: RegimeSummary | null;
+  /** The current, incomplete UTC day measured from `last_close`. */
+  intraday?: IntradayStatus | null;
+}
+
+export interface IntradayStatus {
+  date: string;
+  n_bars: number;
+  fraction_of_day: number;
+  price: number;
+  ret_so_far: number;
+  low_ret: number;
+  high_ret: number;
+  var_breached: boolean;
+  es_breached: boolean;
 }
 
 export interface RegimeSummary {

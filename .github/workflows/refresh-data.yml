@@ -1,0 +1,26 @@
+name: Refresh price history
+
+on:
+  schedule:
+    - cron: "20 0 * * *"   # shortly after 00:00 UTC, once the previous day is complete
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -e ".[api]"
+      - run: python -m cryptorisk.study.refresh_price_history
+      - name: Commit if changed
+        run: |
+          git config user.name "cryptorisk-bot"
+          git config user.email "cryptorisk-bot@users.noreply.github.com"
+          git add data/results/price_history.parquet
+          git diff --cached --quiet || (git commit -m "data: roll price history forward" && git push)

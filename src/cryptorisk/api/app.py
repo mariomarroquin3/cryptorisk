@@ -261,6 +261,7 @@ def forecast(
             "upper_price": _price(last, hi),
             "cone": _ensemble_cone(asset, last, alpha),
             "regime_summary": C.regime_summary(asset),
+            "intraday": _intraday(asset, last, lo, es),
         }
 
     bt = D.load_backtests()
@@ -276,6 +277,18 @@ def forecast(
         "date": str(r["date"]),
         "var": float(r["var"]),
         "es": float(r["es"]),
+    }
+
+
+def _intraday(asset: str, last_close: float, var: float | None, es: float | None) -> dict | None:
+    """Today's incomplete UTC day vs the forecast: has the VaR/ES already been hit?"""
+    st = D.intraday_status(asset, last_close)
+    if st is None:
+        return None
+    return {
+        **st,
+        "var_breached": var is not None and st["low_ret"] < var,
+        "es_breached": es is not None and st["low_ret"] < es,
     }
 
 

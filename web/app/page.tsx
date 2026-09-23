@@ -292,6 +292,21 @@ function OverviewPageInner() {
         </div>
       )}
 
+      {forecast?.intraday && forecast.var != null && (
+        <div className="card flex flex-wrap items-center gap-x-6 gap-y-1 p-3 text-sm">
+          <Badge kind={forecast.intraday.var_breached ? "frozen" : "live"}>
+            {forecast.intraday.var_breached ? "VaR already hit today" : "Inside VaR today"}
+          </Badge>
+          <span className="text-muted">
+            {fmtDate(forecast.intraday.date)} UTC so far ({Math.round(forecast.intraday.fraction_of_day * 100)}% of the
+            day): {fmtPct(forecast.intraday.ret_so_far)} now, worst {fmtPct(forecast.intraday.low_ret)}
+            {" "}vs VaR {fmtPct(forecast.var)}
+            {forecast.es != null && <> / ES {fmtPct(forecast.es)}</>}
+            {forecast.intraday.es_breached && " — ES level also crossed"}.
+          </span>
+        </div>
+      )}
+
       {chartData.priceLine.length > 0 ? (
         <div className="card p-4">
           <PriceChart

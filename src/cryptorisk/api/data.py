@@ -13,13 +13,14 @@ very different caching models.
 from __future__ import annotations
 
 import time
+from concurrent.futures import ThreadPoolExecutor
 from functools import lru_cache
 from typing import Any
 
 import numpy as np
 import pandas as pd
-import requests
 
+from cryptorisk.api import live_tail
 from cryptorisk.api.cache import ttl_cache
 from cryptorisk.config import repo_root
 from cryptorisk.models.base import Context
@@ -88,13 +89,27 @@ def latest_by_model(asset: str, alpha: float, window: int = 500) -> pd.DataFrame
 
 
 @lru_cache(maxsize=1)
-def _price_history() -> pd.DataFrame:
+def _snapshot_history() -> pd.DataFrame:
     path = _RESULTS / "price_history.parquet"
     if not path.exists():
         return pd.DataFrame()
     df = pd.read_parquet(path)
     df["date"] = pd.to_datetime(df["date"])
     return df
+
+
+@ttl_cache(600)
+def _price_history() -> pd.DataFrame:
+    """The committed snapshot plus every complete UTC day since it, from Binance
+    5-min klines (``api.live_tail``): the forecast and price chart stay current
+    without a redeploy. Falls back to the bare snapshot if Binance is unreachable."""
+    snap = _snapshot_history()
+    if snap.empty or "asset" not in snap:
+        return snap
+    groups = list(snap.groupby("asset", sort=False))
+    with ThreadPoolExecutor(max_workers=len(groups)) as pool:
+        parts = list(pool.map(lambda ag: live_tail.extend_history(ag[0], ag[1]), groups))
+    return pd.concat(parts, ignore_index=True)
 
 
 @ttl_cache(300)
@@ -124,14 +139,10 @@ def live_price(asset: str) -> dict[str, float] | None:
     symbol = _BINANCE_SYMBOL.get(asset)
     if symbol is None:
         return None
+    d = live_tail.get_json("/api/v3/ticker/24hr", {"symbol": symbol}, timeout=4)
+    if d is None:
+        return None
     try:
-        r = requests.get(
-            "https://api.binance.com/api/v3/ticker/24hr",
-            params={"symbol": symbol},
-            timeout=4,
-        )
-        r.raise_for_status()
-        d = r.json()
         return {
             "price": float(d["lastPrice"]),
             "change_pct": float(d["priceChangePercent"]),
@@ -140,8 +151,14 @@ def live_price(asset: str) -> dict[str, float] | None:
             "volume": float(d["volume"]),
             "fetched_at": time.time(),
         }
-    except Exception:
+    except (KeyError, TypeError, ValueError):
         return None
+
+
+@ttl_cache(60)
+def intraday_status(asset: str, ref_close: float) -> dict[str, Any] | None:
+    """Today's incomplete UTC day against the previous complete close."""
+    return live_tail.today_so_far(asset, ref_close)
 
 
 @ttl_cache(300)

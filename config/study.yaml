@@ -18,14 +18,12 @@ walk_forward:
   expanding: true
   # Read by study.run_backtests: per-model override of the walk-forward
   # engine's refit_every (the fitted PredictiveDist is reused for the
-  # in-between days). Every Phase-2 statistical model is cheap enough to
-  # refit daily. LSTM-Vol is the exception -- a gradient-descent fit, not a
-  # closed form or a handful of L-BFGS-B iterations -- so it refits every 20
-  # days like MS-GARCH's own within-R cadence (MS-GARCH itself is served from
-  # a cache built by msgarch/fit_msgarch_walkforward.R, not this map).
+  # in-between days, i.e. the whole FORECAST is frozen). Every model uses 1.
+  # LSTM-Vol also retrains its weights only every 20 days, but does that
+  # internally (models/lstm_vol.py) and still forecasts daily; setting
+  # refit_every=20 for it would freeze its forecast, which was a bug.
   refit_every:
     default: 1
-    LSTM-Vol: 20
 
 # Risk levels. FRTB uses ES 97.5%; 99% kept for the VaR comparison.
 alphas: [0.025, 0.01]

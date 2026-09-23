@@ -189,7 +189,7 @@ function ExplainPageInner() {
           <div className="grid gap-6 md:grid-cols-2">
             <ChartCard
               title="Average feature importance"
-              caption="Share of the forest's split gain attributed to each input, averaged over the out-of-sample refits. Volatility-memory features (squared-return and log-RV averages) carry the forecast; the sign of yesterday's return matters little."
+              caption="Share of the forest's split gain attributed to each input, averaged over the out-of-sample refits. Importance is spread fairly evenly (roughly 10-16% per input); only the down-day leverage term is clearly lower (about 4%). No single input dominates, which is what a weak signal in noisy returns looks like."
             >
               <RfImportanceBars rows={rf.importance} />
             </ChartCard>
@@ -214,7 +214,7 @@ function ExplainPageInner() {
               <RfEssChart rows={rf.diagnostics} />
             </ChartCard>
             <ChartCard
-              title="What conditioning adds: forest VaR vs plain window VaR"
+              title="What conditioning adds: forest VaR vs plain window VaR (97.5%, fixed)"
               caption="Gap between the two lines is the value the features add over simply taking the window's empirical quantile (Historical Simulation)."
             >
               <RfConditioningShift rows={rf.diagnostics} />

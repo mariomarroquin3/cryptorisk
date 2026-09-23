@@ -207,3 +207,51 @@ def test_lstm_vol_explain_shape_and_features():
     assert imp.shape == (20, 3) and np.all(np.isfinite(imp))
     assert e["features"] == ["return", "squared return", "squared down-return"]
     assert LstmVol().explain(Context(returns=r[:60], dates=dates[:60], asof=dates[59])) is None
+
+
+@pytest.mark.skipif(not _HAS_TORCH, reason="torch (ml extra) not installed")
+def test_lstm_vol_retrains_every_20_days_but_forecasts_daily(monkeypatch):
+    """Regression: the forecast used to be frozen for the whole refit period
+    (engine refit_every=20). The weights are retrained on a schedule; the
+    forecast must still move with each new return."""
+    from cryptorisk.models import lstm_vol
+
+    calls = []
+    real = lstm_vol._train_net
+    monkeypatch.setattr(lstm_vol, "_train_net", lambda *a, **k: (calls.append(1), real(*a, **k))[1])
+
+    rng = np.random.default_rng(21)
+    r = rng.standard_t(6, 420) * 0.02
+    dates = pd.date_range("2020-01-01", periods=420).to_numpy()
+
+    def ctx(t):  # rolling 300-day window ending at index t-1
+        return Context(returns=r[t - 300 : t], dates=dates[t - 300 : t], asof=dates[t - 1])
+
+    m = lstm_vol.LstmVol(retrain_days=20)
+    v = [m.fit_predict(ctx(t)).var(A1) for t in range(310, 330)]  # 20 consecutive days
+    assert len(calls) == 1  # one training for the first 20 days
+    assert len(set(v)) == 20  # ... but a different forecast every day
+    m.fit_predict(ctx(330))
+    assert len(calls) == 2  # day 21 retrains
+    # a cache built on other data must never be reused
+    other = Context(returns=r[100:400] * 3.0, dates=dates[100:400], asof=dates[399])
+    m.fit_predict(other)
+    assert len(calls) == 3
+
+
+def test_random_forest_sigma2_is_conditional_not_window_variance():
+    from cryptorisk.models.random_forest import RandomForestQR
+
+    rng = np.random.default_rng(4)
+    n = 500
+    s = np.where(np.arange(n) % 100 < 50, 0.01, 0.04)  # alternating calm / stormy blocks
+    r = s * rng.standard_normal(n)
+    rv = s**2 * rng.uniform(0.8, 1.2, n)
+    dates = pd.date_range("2020-01-01", periods=n).to_numpy()
+    m = RandomForestQR(n_estimators=100)
+    v = []
+    for t in (400, 430, 470):  # end of a calm block, early and late in a stormy one
+        c = Context(returns=r[t - 300 : t], dates=dates[t - 300 : t], asof=dates[t - 1],
+                    realized={"rv": rv[t - 300 : t]})
+        v.append(m.fit_predict(c).sigma2())
+    assert len(set(np.round(v, 12))) == 3 and max(v) / min(v) > 1.2

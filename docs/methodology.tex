@@ -1117,13 +1117,17 @@ residuals $r_{t+1}/\sqrt{v_{t+1}}$ (identical to HAR-RV, \S\ref{sec:har}).
 \paragraph{Estimation cost and refit cadence.} A forest fit is fast enough
 (seconds) to refit on every walk-forward day, same as the rest of Phase~2.
 Gradient descent is not: at $\sim 80$ Adam steps per fit it is the most
-expensive model in the suite after MS-GARCH, so LSTM-Vol refits every $20$
-days (config \texttt{walk\_forward.refit\_every}) and reuses the fitted
-distribution on the intervening days --- the same cadence MS-GARCH already
-uses for an unrelated reason (its R-side estimation cost). This is a
-genuine limitation, not a convenience: a trading day's leverage or
-volatility-clustering signal is stale for up to 19 days between refits,
-which every parametric model here does not suffer from.
+expensive model in the suite after MS-GARCH, so the LSTM's \emph{weights} are
+retrained every $20$ days and cached, the same cadence MS-GARCH already uses
+for an unrelated reason (its R-side estimation cost). Between retrains the
+stored network is still \emph{run} every day on the newest $L=20$ returns, so
+the variance forecast reacts to each new observation, exactly as the GARCH
+recursions do; what goes stale, for up to $19$ days, is the parameter vector
+(and the fitted $
+u$), which every parametric model here re-estimates daily.
+That is a genuine limitation, not a convenience. (An earlier version reused the
+whole predictive distribution for the $20$ days, freezing VaR/ES; the results
+in this document use the corrected schedule.)
 
 \intuition{Instead of assuming the shape of the variance recursion or the
 tail, hand the raw history to a learner and let it find its own shape. The

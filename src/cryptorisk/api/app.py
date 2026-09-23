@@ -17,6 +17,8 @@ from __future__ import annotations
 import json
 import math
 import os
+import threading
+from contextlib import asynccontextmanager
 from typing import Any
 
 import pandas as pd
@@ -33,8 +35,32 @@ from cryptorisk.models.notes import METHOD_FAMILY as _METHOD_FAMILY
 from cryptorisk.models.notes import MODEL_NOTES as _MODEL_NOTES
 from cryptorisk.study.run_portfolio import _read_bullets
 
+
+def _warm_numba() -> None:
+    """Compile Realized-SV's numba kernels at startup, off the request path.
+    The Overview's default model for BTC is Realized-SV, so without this the
+    first /forecast after every (free-tier) cold start pays the JIT compile
+    inside the request and can time out."""
+    try:
+        import numpy as np
+
+        from cryptorisk.models.stochastic_vol import _filter
+
+        r = np.random.default_rng(0).standard_normal(200) * 0.02
+        _filter(np.array([0.0, 0.05, 4e-4, 0.006, 0.0, np.log(0.3), 0.1, 8.0, 1.0]), r, np.log(r**2 + 1e-6))
+    except Exception:  # noqa: BLE001 - a failed warm-up only costs the first request
+        pass
+
+
+@asynccontextmanager
+async def _lifespan(_app: FastAPI):
+    threading.Thread(target=_warm_numba, daemon=True).start()
+    yield
+
+
 app = FastAPI(
-    title="CUBO+ Risk API",
+    lifespan=_lifespan,
+    title="Cryptorisk API",
     description=(
         "Read-only REST API over the cryptorisk study: VaR/ES per model, "
         "FZ0/MCS ranking, coverage & ES tests, the 4-asset portfolio, FRTB "
@@ -128,7 +154,7 @@ def _check_alpha(alpha: float, alphas: list[float]) -> None:
 
 @app.get("/")
 def root() -> dict:
-    return {"name": "CUBO+ Risk API", "docs": "/docs", "health": "/health"}
+    return {"name": "Cryptorisk API", "docs": "/docs", "health": "/health"}
 
 
 @app.get("/health")

@@ -14,7 +14,7 @@
 
 **Density (Berkowitz):** BTC p=0.972, ETH p=0.784
 
-**Volatility forecast (QLIKE):** BTC rank 8/17 (MZ b=0.96), ETH rank 8/17 (MZ b=0.71)
+**Volatility forecast (QLIKE):** BTC rank 10/17 (MZ b=0.96), ETH rank 10/17 (MZ b=0.71)
 
 **Decision layer:** BTC capital $459,751 (m_c 1.50), N* $895,601; ETH capital $589,056 (m_c 1.50), N* $712,339
 

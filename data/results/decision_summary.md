@@ -16,8 +16,8 @@ Notional $1,000,000 | liquidity horizon 10d | Basel base multiplier 1.5 | 1-day 
 | BTC | AWHS | 1.50 | -0.2873 | -0.2904 | 430,936 |
 | BTC | FHS | 1.50 | -0.2882 | -0.2904 | 432,358 |
 | BTC | Jump-Diffusion | 1.50 | -0.2928 | -0.2904 | 439,183 |
+| BTC | LSTM-Vol | 1.50 | -0.2932 | -0.2904 | 439,844 |
 | BTC | Realized-SV | 1.50 | -0.2942 | -0.2904 | 441,294 |
-| BTC | LSTM-Vol | 1.50 | -0.2950 | -0.2904 | 442,435 |
 | BTC | Realized-GARCH | 1.50 | -0.2953 | -0.2904 | 442,974 |
 | BTC | HS | 1.50 | -0.2971 | -0.2904 | 445,654 |
 | BTC | GJR-GARCH-t | 1.50 | -0.3060 | -0.2904 | 458,928 |
@@ -30,7 +30,7 @@ Notional $1,000,000 | liquidity horizon 10d | Basel base multiplier 1.5 | 1-day 
 | BTC | GARCH-EVT | 1.90 | -0.3053 | -0.2904 | 580,009 |
 | ETH | HARQ | 1.50 | -0.2908 | -0.3855 | 436,271 |
 | ETH | MS-GARCH | 1.50 | -0.3559 | -0.3855 | 533,910 |
-| ETH | LSTM-Vol | 1.50 | -0.3594 | -0.3855 | 539,064 |
+| ETH | LSTM-Vol | 1.50 | -0.3680 | -0.3855 | 551,978 |
 | ETH | EWMA | 1.90 | -0.2920 | -0.3855 | 554,878 |
 | ETH | RF-QR | 1.50 | -0.3714 | -0.3855 | 557,127 |
 | ETH | CAViaR-X-AS | 1.50 | -0.3737 | -0.3855 | 560,601 |
@@ -76,8 +76,8 @@ Parameter / sampling uncertainty on the last 500-day window, three archetypes: H
 | BTC | GARCH-t | 895,601 | 0.407 | 5.20 | 0.0026 | 0.0030 | 421,437 |
 | BTC | GJR-GARCH-t | 899,846 | 0.408 | 5.61 | 0.0026 | 0.0030 | 423,434 |
 | BTC | GARCH-EVT | 927,391 | 0.371 | 6.80 | 0.0026 | 0.0045 | 436,396 |
-| BTC | LSTM-Vol | 947,785 | 0.494 | 2.39 | 0.0030 | 0.0022 | 445,992 |
 | BTC | Realized-GARCH | 949,411 | 0.399 | 5.25 | 0.0030 | 0.0022 | 446,758 |
+| BTC | LSTM-Vol | 953,675 | 0.501 | 2.52 | 0.0030 | 0.0022 | 448,764 |
 | BTC | HS | 985,070 | 0.484 | 1.69 | 0.0030 | 0.0026 | 463,538 |
 | BTC | Realized-SV | 986,543 | 0.376 | 10.32 | 0.0030 | 0.0037 | 464,231 |
 | BTC | Jump-Diffusion | 1,000,905 | 0.593 | 1.75 | 0.0030 | 0.0037 | 470,989 |
@@ -101,11 +101,11 @@ Parameter / sampling uncertainty on the last 500-day window, three archetypes: H
 | ETH | AWHS | 767,016 | 0.509 | 2.10 | 0.0041 | 0.0056 | 433,835 |
 | ETH | Realized-SV | 769,966 | 0.408 | 6.53 | 0.0041 | 0.0041 | 435,504 |
 | ETH | FHS | 773,430 | 0.422 | 7.02 | 0.0045 | 0.0052 | 437,463 |
+| ETH | LSTM-Vol | 773,673 | 0.447 | 2.49 | 0.0045 | 0.0045 | 437,601 |
 | ETH | GARCH-EVT | 775,502 | 0.410 | 6.56 | 0.0045 | 0.0049 | 438,635 |
 | ETH | CAViaR-SAV | 776,454 | 0.426 | 4.61 | 0.0045 | 0.0064 | 439,173 |
 | ETH | CAViaR-AS | 777,809 | 0.398 | 5.49 | 0.0045 | 0.0045 | 439,940 |
 | ETH | CAViaR-X-AS | 784,520 | 0.397 | 5.47 | 0.0052 | 0.0045 | 443,736 |
-| ETH | LSTM-Vol | 791,747 | 0.464 | 2.46 | 0.0052 | 0.0049 | 447,824 |
 | ETH | RF-QR | 822,443 | 0.392 | 3.88 | 0.0060 | 0.0060 | 465,185 |
 | ETH | MS-GARCH | 862,531 | 0.448 | 3.35 | 0.0071 | 0.0056 | 487,860 |
 | ETH | HAR-RV | 1,105,617 | 0.406 | 4.73 | 0.0138 | 0.0097 | 625,353 |
@@ -126,27 +126,27 @@ RTPL is the realized outcome mapped through the model's predictive CDF, so Spear
 | BTC | GARCH-X | 0.998 | 0.064 | green |
 | BTC | LSTM-Vol | 0.999 | 0.068 | green |
 | BTC | Realized-SV | 0.996 | 0.077 | green |
+| BTC | RF-QR | 0.984 | 0.085 | green |
 | BTC | GJR-GARCH-t | 0.995 | 0.085 | green |
 | BTC | GARCH-t | 0.995 | 0.089 | green |
 | BTC | FHS | 0.996 | 0.090 | green |
 | BTC | EGARCH-t | 0.987 | 0.096 | amber |
 | BTC | AWHS | 0.993 | 0.096 | amber |
 | BTC | HS | 0.995 | 0.097 | amber |
-| BTC | RF-QR | 0.980 | 0.097 | amber |
 | BTC | GARCH-EVT | 0.994 | 0.100 | amber |
 | ETH | EWMA | 1.000 | 0.001 | green |
 | ETH | HAR-RV | 1.000 | 0.006 | green |
 | ETH | HARQ | 1.000 | 0.006 | green |
 | ETH | Realized-SV | 0.995 | 0.053 | green |
-| ETH | LSTM-Vol | 0.998 | 0.062 | green |
+| ETH | LSTM-Vol | 0.998 | 0.063 | green |
 | ETH | GARCH-X | 0.998 | 0.064 | green |
 | ETH | FHS | 0.995 | 0.064 | green |
 | ETH | Realized-GARCH | 0.998 | 0.064 | green |
+| ETH | RF-QR | 0.984 | 0.065 | green |
 | ETH | GJR-GARCH-t | 0.995 | 0.074 | green |
 | ETH | EGARCH-t | 0.990 | 0.074 | green |
 | ETH | GARCH-t | 0.995 | 0.075 | green |
 | ETH | GARCH-EVT | 0.994 | 0.076 | green |
-| ETH | RF-QR | 0.980 | 0.077 | green |
 | ETH | AWHS | 0.993 | 0.078 | green |
 
 ## Perpetual hedge (perp return proxied by spot)

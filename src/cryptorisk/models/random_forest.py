@@ -123,7 +123,13 @@ class RandomForestQR:
         if fit is None:
             return EmpiricalDist(ctx.returns)
         _, _, _, y_train, _, weights = fit
-        return EmpiricalDist(sample=y_train, weights=weights, sigma2_value=float(np.var(y_train)))
+        # Conditional variance under the forest's own weights -- NOT the plain
+        # window variance, which is the same for every day's forecast and would
+        # make the volatility-forecast evaluation (QLIKE, Mincer-Zarnowitz) score
+        # an unconditional number.
+        mu = float(np.sum(weights * y_train))
+        var = float(np.sum(weights * (y_train - mu) ** 2))
+        return EmpiricalDist(sample=y_train, weights=weights, sigma2_value=var)
 
     def explain(self, ctx: Context, alpha: float = 0.025) -> dict | None:
         """Why this forecast: per-feature impurity importance, the effective

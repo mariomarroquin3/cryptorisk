@@ -173,6 +173,9 @@ MODEL_NOTES: dict[str, tuple[str, list[str]]] = {
             "The tail is only as resolved as the leaves that survive to the "
             "test point; extreme quantiles rely on however few training "
             "returns land there.",
+            "VaR and ES are built from returns observed in the window, so "
+            "they can never be more extreme than the window's worst day: a "
+            "new record loss is always a violation.",
         ],
     ),
     "LSTM-Vol": (
@@ -183,9 +186,16 @@ MODEL_NOTES: dict[str, tuple[str, list[str]]] = {
         "recursion. VaR/ES come from a Student-t tail fitted to the in-sample "
         "standardized residuals, same as HAR-RV.",
         [
-            "Refits only every 20 days (gradient descent, not a closed form "
-            "or a handful of L-BFGS-B steps) -- coarser than every other "
-            "model here, which refit daily.",
+            "The weights are retrained only every 20 days (gradient descent, "
+            "not a closed form or a handful of L-BFGS-B steps); between "
+            "retrains the stored network still runs daily on the newest 20 "
+            "returns, but its parameters are up to 19 days stale -- coarser "
+            "than every other model here, which refit daily.",
+            "The inputs are raw returns (squared returns are ~1e-4), so "
+            "permutation importance puts ~94% on the signed return: the "
+            "network barely uses its squared-return channels. Standardizing "
+            "them was tried and made calibration worse (hit rates ~4-6% at a "
+            "2.5% target), so this is an open modelling limitation.",
             "A single fixed architecture/seed per window: no hyperparameter "
             "search, no ensembling across initializations.",
         ],

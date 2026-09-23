@@ -7,20 +7,21 @@
 
 | asset | a | hit rate | coverage | ES Z2 | ES ok | FZ0 rank | in MCS |
 |:--|--:|--:|:--:|--:|:--:|--:|:--:|
-| BTC | 0.01 | 0.012 | FAIL | -0.12 | yes | 8/20 | yes |
-| BTC | 0.025 | 0.029 | FAIL | -0.13 | yes | 14/20 | yes |
-| ETH | 0.01 | 0.017 | FAIL | -0.65 | no | 14/20 | yes |
-| ETH | 0.025 | 0.035 | FAIL | -0.41 | no | 19/20 | yes |
+| BTC | 0.01 | 0.013 | pass | -0.19 | yes | 7/20 | yes |
+| BTC | 0.025 | 0.030 | FAIL | -0.14 | yes | 13/20 | yes |
+| ETH | 0.01 | 0.015 | FAIL | -0.37 | yes | 13/20 | yes |
+| ETH | 0.025 | 0.031 | FAIL | -0.25 | no | 15/20 | yes |
 
-**Density (Berkowitz):** BTC p=0.024 (reject), ETH p=0.000 (reject)
+**Density (Berkowitz):** BTC p=0.027 (reject), ETH p=0.004 (reject)
 
-**Volatility forecast (QLIKE):** BTC rank 12/17 (MZ b=0.73), ETH rank 12/17 (MZ b=0.59)
+**Volatility forecast (QLIKE):** BTC rank 12/17 (MZ b=0.75), ETH rank 13/17 (MZ b=0.88)
 
-**Decision layer:** BTC capital $442,435 (m_c 1.50), N* $947,785; ETH capital $539,064 (m_c 1.50), N* $791,747
+**Decision layer:** BTC capital $439,844 (m_c 1.50), N* $953,675; ETH capital $551,978 (m_c 1.50), N* $773,673
 
 ## Known limitations
 
-- Refits only every 20 days (gradient descent, not a closed form or a handful of L-BFGS-B steps) -- coarser than every other model here, which refit daily.
+- The weights are retrained only every 20 days (gradient descent, not a closed form or a handful of L-BFGS-B steps); between retrains the stored network still runs daily on the newest 20 returns, but its parameters are up to 19 days stale -- coarser than every other model here, which refit daily.
+- The inputs are raw returns (squared returns are ~1e-4), so permutation importance puts ~94% on the signed return: the network barely uses its squared-return channels. Standardizing them was tried and made calibration worse (hit rates ~4-6% at a 2.5% target), so this is an open modelling limitation.
 - A single fixed architecture/seed per window: no hyperparameter search, no ensembling across initializations.
 
 _The estimator, likelihood and closed-form VaR/ES are in [`../methodology.tex`](../methodology.tex)._

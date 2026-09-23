@@ -129,10 +129,15 @@ CAViaR-SAV, CAViaR-AS, CAViaR-X-AS · MS-GARCH · RF-QR · LSTM-Vol.
     return/squared-return/squared-down-return) outputs next-day
     log-variance, trained by Gaussian quasi-MLE (same principle as the GARCH
     family); the Student-t tail is fitted post-hoc on standardized residuals,
-    same as HAR-RV. Gradient descent is too slow to refit daily over a
-    multi-year walk-forward, so it uses `refit_every=20`
-    (`config.walk_forward.refit_every["LSTM-Vol"]`, now actually read by
-    `study.run_backtests` — that map used to be documentation-only). Pins
+    same as HAR-RV. Gradient descent is too slow to retrain daily over a
+    multi-year walk-forward, so the weights are retrained every 20 days and
+    **cached on the instance** (`LstmVol.retrain_days`), while the forecast is
+    recomputed every day from the stored net on the newest 20 returns. Keep the
+    engine's `refit_every` at 1 for it: an earlier version set
+    `refit_every=20`, which made the engine reuse the whole PredictiveDist and
+    froze the VaR/ES for 20 days (134 distinct values in 2,674 days; found in the
+    2026-09 review). `config.walk_forward.refit_every` is read by
+    `study.run_backtests`. Pins
     `torch.set_num_threads(1)` + a fixed seed for bit-for-bit determinism
     (CPU intra-op parallelism can reorder floating-point sums run-to-run,
     which a seed alone doesn't fix). `torch==2.14.0` is the optional `ml` extra
@@ -146,8 +151,14 @@ CAViaR-SAV, CAViaR-AS, CAViaR-X-AS · MS-GARCH · RF-QR · LSTM-Vol.
     of the importance sits on the raw signed return; the squared-return channels
     (~1e-4 in raw units, inputs are **not standardized**) carry ~3% each --
     the net is rebuilding volatility from signed returns instead of reading it.
-    Standardizing the inputs is the obvious model fix (would change every LSTM
-    result -- backtest + full battery re-run), deliberately not done silently.
+    **Tried, does not help**: standardizing the inputs (2026-09 review experiment,
+    last 900 OOS days, retrain/20d, daily forecast) *worsened* calibration -- hit
+    rates 4.1%/2.0% (BTC) and 5.7%/3.3% (ETH) at 2.5%/1% targets vs 2.4%/0.7%
+    and 3.9%/2.0% unscaled -- so with 80 full-batch Adam steps the unscaled net
+    is close to an unconditional-vol model and the scaled one overfits. A real fix
+    needs regularisation / early stopping on a validation split, not just scaling.
+    RF-QR target alternatives (|r|, EWMA-standardized z) gave mixed, within-noise
+    differences vs the raw-return target, so that spec is kept.
   - **RF-QR explainability**: `RandomForestQR.explain()` returns impurity
     importances, the QRF effective sample size `1/sum(w^2)`, conditional vs
     flat-weight VaR, and the forecast row as z-scores; `study.run_explain`

@@ -23,7 +23,14 @@ function Row({
   const last = bt && bt.length > 0 ? bt[bt.length - 1] : null;
   const change = price?.change_pct;
   const spot = price?.price ?? (hist && hist.length > 0 ? hist[hist.length - 1].close : null);
-  const varPrice = spot != null && last ? spot * Math.exp(last.var) : null;
+  // The frozen forecast for day D is made from D-1's close, so anchor the
+  // price level there. Applying it to today's live spot would mix two dates.
+  const anchor = (() => {
+    if (!hist || !last) return null;
+    const i = hist.findIndex((h) => h.date.slice(0, 10) === last.date.slice(0, 10));
+    return i > 0 ? hist[i - 1].close : null;
+  })();
+  const varPrice = anchor != null && last ? anchor * Math.exp(last.var) : null;
   return (
     <tr
       onClick={() => onSelect(asset)}
@@ -58,7 +65,7 @@ export function MarketWatch({
   selected: string | null;
   onSelect: (a: string) => void;
 }) {
-  const head = ["asset", "price", "24h", "30d", `VaR ${fmtConfidence(alpha)}`, `ES ${fmtConfidence(alpha)}`, "VaR level", "best model"];
+  const head = ["asset", "price", "24h", "30d", `VaR ${fmtConfidence(alpha)}`, `ES ${fmtConfidence(alpha)}`, "VaR price", "best model"];
   return (
     <div className="card overflow-hidden">
       <div className="border-b border-grid px-4 py-2.5 text-sm font-medium text-text">

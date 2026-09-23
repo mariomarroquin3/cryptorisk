@@ -10,7 +10,7 @@
 | BTC | 0.01 | 0.010 | pass | -0.02 | yes | 9/20 | yes |
 | BTC | 0.025 | 0.023 | pass | +0.05 | yes | 9/20 | yes |
 | ETH | 0.01 | 0.012 | FAIL | -0.21 | yes | 17/20 | yes |
-| ETH | 0.025 | 0.025 | FAIL | -0.04 | yes | 16/20 | no |
+| ETH | 0.025 | 0.025 | FAIL | -0.04 | yes | 17/20 | no |
 
 **Density (Berkowitz):** BTC p=0.212, ETH p=0.098
 

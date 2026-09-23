@@ -61,6 +61,30 @@ function buildBand(
   return { varLine, esLine, breaches };
 }
 
+const DAY_MS = 86_400_000;
+const addDays = (d: string, n: number) =>
+  new Date(Date.parse(d + "T00:00:00Z") + n * DAY_MS).toISOString().slice(0, 10);
+
+/** The frozen backtest band stops at the last pipeline run, but prices keep
+ * coming. Break the dashed line across the uncovered days (a straight join would
+ * pass for a forecast) and end it with the live re-fit for the next close. */
+function appendLiveBand(
+  band: { varLine: PricePoint[]; esLine: PricePoint[] },
+  forecast: { source: string; asof?: string; var_price?: number | null; es_price?: number | null } | undefined,
+) {
+  if (forecast?.source !== "live_refit" || !forecast.asof || forecast.var_price == null || forecast.es_price == null) return;
+  const liveDate = addDays(forecast.asof.slice(0, 10), 1);
+  const last = band.varLine[band.varLine.length - 1]?.time as string | undefined;
+  if (last && last >= liveDate) return;
+  if (last && addDays(last, 1) < liveDate) {
+    const gap = { time: addDays(last, 1) } as unknown as PricePoint;
+    band.varLine.push(gap);
+    band.esLine.push(gap);
+  }
+  band.varLine.push({ time: liveDate, value: forecast.var_price });
+  band.esLine.push({ time: liveDate, value: forecast.es_price });
+}
+
 export default function OverviewPage() {
   return (
     <Suspense>
@@ -104,8 +128,9 @@ function OverviewPageInner() {
       value: p.close,
     }));
     const { varLine, esLine, breaches } = buildBand(prices ?? [], backtests ?? []);
+    appendLiveBand({ varLine, esLine }, forecast);
     return { priceLine, varLine, esLine, breaches };
-  }, [prices, backtests]);
+  }, [prices, backtests, forecast]);
 
   const coneSeries = useMemo(() => buildConeSeries(forecast), [forecast]);
 
@@ -323,7 +348,9 @@ function OverviewPageInner() {
       <p className="text-xs text-muted">
         Amber/red lines are the {effModel ?? "selected model"} walk-forward
         VaR/ES for that day&apos;s close, plotted against the prior close.
-        Markers = realized OOS violations (realized &lt; VaR).
+        Markers = realized OOS violations (realized &lt; VaR). The band is
+        frozen at the last pipeline run; the final point is today&apos;s live
+        re-fit, with the gap in between left blank rather than interpolated.
       </p>
 
       {forecast === undefined ? (

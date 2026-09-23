@@ -23,6 +23,7 @@ import {
   PriceResponse,
   RegimesResponse,
   RfExplain,
+  RfPdp,
 } from "./api";
 
 const fetcher = <T,>(path: string) => apiGet<T>(path);
@@ -151,6 +152,13 @@ export function useLstmExplain(asset: string | null) {
 
 export function useRfExplain(asset: string | null) {
   return useSWR<RfExplain>(asset ? `/explain/rf?asset=${asset}` : null, fetcher);
+}
+
+export function useRfPdp(asset: string | null, feature: string | null, alpha: number) {
+  return useSWR<RfPdp>(
+    asset && feature ? `/explain/rf/pdp?asset=${asset}&feature=${feature}&alpha=${alpha}` : null,
+    fetcher,
+  );
 }
 
 export function useRegimes(asset: string | null, limit = 2000) {

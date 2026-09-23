@@ -154,3 +154,39 @@ class RandomForestQR:
             "inputs": x_fcast.tolist(),
             "zscores": z.tolist(),
         }
+
+    def partial_dependence(
+        self, ctx: Context, feature: str, alpha: float = 0.025, n_points: int = 15
+    ) -> dict | None:
+        """How today's VaR would change if just ``feature`` were different,
+        every other input held at its actual value from this forecast row (an
+        individual conditional expectation curve, not an average over the
+        training sample). Sweeps ``feature`` across its 1st-99th percentile
+        range in the training window, refits nothing -- ``_qrf_weights`` only
+        needs the forest's existing leaf structure, so each grid point is a
+        cheap re-weighting, not a new fit. ``None`` when the window is too
+        short or ``feature`` isn't one of this window's inputs (the realized
+        -measure features are absent without RV)."""
+        fit = self._fit(ctx)
+        if fit is None:
+            return None
+        rf, names, x_train, y_train, x_fcast, _ = fit
+        if feature not in names:
+            return None
+        idx = names.index(feature)
+        lo, hi = np.percentile(x_train[:, idx], [1, 99])
+        if not (hi > lo):
+            return None
+        grid = np.linspace(lo, hi, n_points)
+        var_grid = []
+        for g in grid:
+            xg = x_fcast.copy()
+            xg[idx] = g
+            w = _qrf_weights(rf, x_train, xg)
+            var_grid.append(EmpiricalDist(sample=y_train, weights=w).var(alpha))
+        return {
+            "feature": feature,
+            "grid": grid.tolist(),
+            "var": var_grid,
+            "actual": float(x_fcast[idx]),
+        }

@@ -61,6 +61,13 @@ export interface LstmImportanceRow {
   n_refits: number;
 }
 
+export interface RfPdp {
+  feature: string;
+  grid: number[];
+  var: number[];
+  actual: number;
+}
+
 export interface RfExplain {
   importance: RfImportanceRow[];
   diagnostics: RfDiagnosticsRow[];

@@ -364,6 +364,23 @@ def explain_rf(asset: str) -> dict:
     return out
 
 
+@app.get("/explain/rf/pdp")
+def explain_rf_pdp(asset: str, feature: str, alpha: float = 0.025) -> dict:
+    """RF-QR partial dependence: how today's live-refit VaR would move if just
+    `feature` were different, every other input held at today's actual value
+    (an individual conditional expectation curve on the current window, not
+    an average over history). 404 if the window can't support a fit or
+    `feature` doesn't apply to this asset -- the caller should treat that as
+    "unavailable", not retry."""
+    cfg = load_config()
+    _check_asset(asset, cfg["assets"])
+    _check_alpha(alpha, cfg["alphas"])
+    out = D.rf_partial_dependence(asset, feature, alpha)
+    if out is None:
+        raise HTTPException(404, f"no partial dependence for {asset}/{feature!r} right now")
+    return out
+
+
 @app.get("/explain/lstm")
 def explain_lstm(asset: str) -> list[dict]:
     """LSTM-Vol permutation importance per (lag, feature) input cell, averaged

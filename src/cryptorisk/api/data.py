@@ -227,6 +227,37 @@ def model_names() -> list[str]:
     return sorted(_model_map().keys())
 
 
+@ttl_cache(300)
+def rf_partial_dependence(
+    asset: str, feature: str, alpha: float, window: int = 500
+) -> dict[str, Any] | None:
+    """RF-QR's partial dependence for one feature on the latest live window --
+    same window ``today_forecast`` re-fits on. ``None`` if the window is too
+    short, RF-QR isn't registered, or ``feature`` doesn't apply to this asset
+    (e.g. a log-RV feature when realized measures are absent)."""
+    from cryptorisk.models.random_forest import RandomForestQR
+
+    model = _model_map().get("RF-QR")
+    if not isinstance(model, RandomForestQR):
+        return None
+    win = load_price_window(asset, n=window + 30)
+    if len(win) < window:
+        return None
+    win = win.tail(window)
+    realized = {c: win[c].to_numpy(float) for c in _REALIZED_COLS if c in win}
+    ctx = Context(
+        returns=win["log_return"].to_numpy(float),
+        dates=win["date"].to_numpy("datetime64[D]"),
+        asof=win["date"].to_numpy("datetime64[D]")[-1],
+        asset=asset,
+        realized=realized,
+    )
+    try:
+        return model.partial_dependence(ctx, feature, alpha=alpha)
+    except Exception:  # noqa: BLE001 - malformed feature name etc. -> caller shows "unavailable"
+        return None
+
+
 @ttl_cache(600)
 def today_forecast(
     asset: str,

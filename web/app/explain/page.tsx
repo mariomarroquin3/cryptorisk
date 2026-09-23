@@ -17,6 +17,7 @@ import {
 } from "@/components/ExplainCharts";
 import { Field } from "@/components/Field";
 import { LstmFeatureShare, LstmImportanceHeatmap, LstmLagProfile } from "@/components/LstmCharts";
+import { RfPdpChart } from "@/components/RfPdpChart";
 import { ChartSkeleton } from "@/components/Skeleton";
 import { fmtConfidence } from "@/lib/format";
 import {
@@ -28,6 +29,7 @@ import {
   useModelsComparison,
   useModelsInfo,
   useRfExplain,
+  useRfPdp,
 } from "@/lib/hooks";
 import { useQueryParam } from "@/lib/useQueryParam";
 
@@ -62,6 +64,11 @@ function ExplainPageInner() {
   const { data: comparison } = useModelsComparison(effAsset, effAlpha);
   const { data: rf } = useRfExplain(effAsset);
   const { data: lstm } = useLstmExplain(effAsset);
+
+  const rfFeatures = [...new Set((rf?.importance ?? []).map((r) => r.feature))];
+  const [pdpFeatureQ, setPdpFeature] = useQueryParam("pdpFeature");
+  const pdpFeature = pdpFeatureQ ?? (rfFeatures.includes("r2_w") ? "r2_w" : (rfFeatures[0] ?? null));
+  const { data: pdp, error: pdpError } = useRfPdp(effAsset, pdpFeature, effAlpha);
 
   const ready = bt !== undefined;
   const hasBt = ready && bt.length > 0;
@@ -220,6 +227,33 @@ function ExplainPageInner() {
               <RfConditioningShift rows={rf.diagnostics} />
             </ChartCard>
           </div>
+          <ChartCard
+            title={`Partial dependence: how today's VaR moves with one feature`}
+            caption="Sweeps the selected input across its historical range, everything else pinned at today's actual values, and re-reads the forest's VaR at each point -- a live 'what if' for today's forecast, not a historical average. Not necessarily monotone: the forest routes through discrete leaves, so the curve can step rather than glide."
+          >
+            <div className="mb-3">
+              <Field label="Feature">
+                <select
+                  className="select"
+                  value={pdpFeature ?? ""}
+                  onChange={(e) => setPdpFeature(e.target.value)}
+                >
+                  {rfFeatures.map((f) => (
+                    <option key={f} value={f}>
+                      {f}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+            {pdpError ? (
+              <div className="text-sm text-muted">No partial dependence available for this selection.</div>
+            ) : pdp === undefined ? (
+              <ChartSkeleton height={240} />
+            ) : (
+              <RfPdpChart pdp={pdp} />
+            )}
+          </ChartCard>
         </>
       )}
 

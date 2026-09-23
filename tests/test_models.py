@@ -255,3 +255,25 @@ def test_random_forest_sigma2_is_conditional_not_window_variance():
                     realized={"rv": rv[t - 300 : t]})
         v.append(m.fit_predict(c).sigma2())
     assert len(set(np.round(v, 12))) == 3 and max(v) / min(v) > 1.2
+
+
+def test_random_forest_qr_partial_dependence():
+    from cryptorisk.models.random_forest import RandomForestQR
+
+    rng = np.random.default_rng(13)
+    n = 400
+    r = rng.standard_t(6, n) * 0.02
+    rv = (r**2) * rng.uniform(0.7, 1.3, n) + 1e-6
+    dates = pd.date_range("2020-01-01", periods=n).to_numpy()
+    c = Context(returns=r, dates=dates, asof=dates[-1], realized={"rv": rv})
+    m = RandomForestQR(n_estimators=50)
+
+    pdp = m.partial_dependence(c, "r2_w", alpha=0.025, n_points=8)
+    assert pdp is not None
+    assert pdp["feature"] == "r2_w"
+    assert len(pdp["grid"]) == len(pdp["var"]) == 8
+    assert all(v < 0 for v in pdp["var"])  # still a lower-tail VaR at every grid point
+    assert pdp["grid"][0] < pdp["grid"][-1]
+
+    assert m.partial_dependence(c, "not_a_real_feature") is None
+    assert m.partial_dependence(Context(returns=r[:60], dates=dates[:60], asof=dates[59]), "r2_w") is None

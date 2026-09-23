@@ -10,6 +10,7 @@ import { PriceChart, PricePoint } from "@/components/PriceChart";
 import { RegimeDistribution } from "@/components/RegimeDistribution";
 import { RiskZoneCard } from "@/components/RiskZoneCard";
 import { ChartSkeleton, MetricCardSkeleton, Skeleton } from "@/components/Skeleton";
+import { WhyThisVar } from "@/components/WhyThisVar";
 import { ForecastResponse } from "@/lib/api";
 import { fmtConfidence, fmtDate, fmtPct, fmtUsd } from "@/lib/format";
 import {
@@ -248,6 +249,8 @@ function OverviewPageInner() {
           models) and compare what a normal vs. crisis day looks like.
         </p>
       )}
+
+      <WhyThisVar asset={effAsset} alpha={effAlpha} model={effModel} />
 
       {forecast && (
         <div className="flex items-center gap-2 text-sm text-muted">

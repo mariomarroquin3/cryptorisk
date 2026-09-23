@@ -1,4 +1,4 @@
-"""CUBO+ Risk Terminal -- Overview page (live price + VaR/ES band).
+"""Cryptorisk Terminal -- Overview page (live price + VaR/ES band).
 
 ``streamlit run src/cryptorisk/dashboard/app.py`` (or ``make dashboard``).
 Streamlit auto-discovers ``pages/*.py`` next to this file for the other tabs.
@@ -20,7 +20,7 @@ cfg = load_config()
 assets = list(cfg["assets"])
 alphas = list(cfg["alphas"])
 
-st.title("◈ CUBO+ Risk Terminal")
+st.title("◈ Cryptorisk Terminal")
 st.caption(
     "Live spot price vs. the study's out-of-sample VaR/ES band. "
     "Backtest numbers are frozen at the last pipeline run; the band's model "

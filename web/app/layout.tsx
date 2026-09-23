@@ -19,7 +19,7 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "CUBO+ Risk Terminal",
+  title: "Cryptorisk Terminal",
   description:
     "Live VaR/ES, model comparison, portfolio, capital, and regimes for the cryptorisk study.",
 };

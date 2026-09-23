@@ -123,7 +123,7 @@ function OverviewPageInner() {
           className="bg-clip-text text-3xl font-semibold text-transparent"
           style={{ backgroundImage: "linear-gradient(90deg, var(--text), var(--amber))" }}
         >
-          &#9672; CUBO+ Risk Terminal
+          &#9672; Cryptorisk Terminal
         </h1>
         <p className="mt-1.5 max-w-3xl text-sm text-muted">
           Live spot price vs. the study&apos;s out-of-sample VaR/ES band. Backtest

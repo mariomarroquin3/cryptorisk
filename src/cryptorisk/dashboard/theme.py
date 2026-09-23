@@ -61,5 +61,5 @@ def inject_css() -> None:
 
 
 def page_setup(title: str) -> None:
-    st.set_page_config(page_title=f"CUBO+ | {title}", page_icon="◈", layout="wide")
+    st.set_page_config(page_title=f"Cryptorisk | {title}", page_icon="◈", layout="wide")
     inject_css()

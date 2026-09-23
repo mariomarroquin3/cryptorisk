@@ -29,7 +29,7 @@ function Logo() {
       >
         &#9672;
       </span>
-      <span className="font-display text-lg font-semibold tracking-wide text-text">CUBO+</span>
+      <span className="font-display text-lg font-semibold tracking-wide text-text">Cryptorisk</span>
     </Link>
   );
 }

@@ -6,6 +6,7 @@ import { ConeChart, ConeSeries } from "@/components/ConeChart";
 import { Field } from "@/components/Field";
 import { MarketWatch } from "@/components/MarketWatch";
 import { MetricCard } from "@/components/MetricCard";
+import { ModelSpread } from "@/components/ModelSpread";
 import { PriceChart, PricePoint } from "@/components/PriceChart";
 import { RegimeDistribution } from "@/components/RegimeDistribution";
 import { RiskZoneCard } from "@/components/RiskZoneCard";
@@ -20,6 +21,7 @@ import {
   useForecast,
   useModels,
   useModelsComparison,
+  useModelsLatest,
   usePrice,
   usePrices,
 } from "@/lib/hooks";
@@ -89,6 +91,11 @@ function OverviewPageInner() {
   const { data: forecast } = useForecast(effAsset, effAlpha, effModel);
   const { data: backtests } = useBacktests(effAsset, effModel, effAlpha, 180);
   const { data: coverage } = useCoverage(effAsset, effAlpha);
+  const { data: modelsLatest } = useModelsLatest(effAsset, effAlpha);
+  const inMcsByModel = useMemo(
+    () => Object.fromEntries((comparison ?? []).map((r) => [r.model, r.in_mcs])),
+    [comparison],
+  );
   const coverageRow = coverage?.find((r) => r.model === effModel) ?? null;
 
   const chartData = useMemo(() => {
@@ -251,6 +258,16 @@ function OverviewPageInner() {
       )}
 
       <WhyThisVar asset={effAsset} alpha={effAlpha} model={effModel} />
+
+      {modelsLatest && modelsLatest.length > 0 && (
+        <ModelSpread
+          rows={modelsLatest}
+          alpha={effAlpha}
+          inMcs={inMcsByModel}
+          highlight={effModel}
+          onSelect={setModelOverride}
+        />
+      )}
 
       {forecast && (
         <div className="flex items-center gap-2 text-sm text-muted">

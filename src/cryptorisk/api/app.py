@@ -279,6 +279,17 @@ def forecast(
     }
 
 
+@app.get("/models/latest")
+def models_latest(asset: str, alpha: float) -> list[dict]:
+    """Every model's most recent frozen VaR/ES for this (asset, alpha), one
+    row per model -- the whole model-risk spread on the same day. Powers the
+    Overview's model-agreement strip plot."""
+    cfg = load_config()
+    _check_asset(asset, cfg["assets"])
+    _check_alpha(alpha, cfg["alphas"])
+    return _records(D.latest_by_model(asset, alpha))
+
+
 @app.get("/models/comparison")
 def models_comparison(asset: str, alpha: float) -> list[dict]:
     cfg = load_config()

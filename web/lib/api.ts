@@ -137,6 +137,14 @@ export interface ForecastCone {
   garch_evt: ConePoint[];
 }
 
+export interface ModelLatestRow {
+  model: string;
+  date: string;
+  var: number;
+  es: number;
+  violation: boolean;
+}
+
 export interface Fz0Row {
   asset: string;
   window: number;

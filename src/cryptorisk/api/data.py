@@ -66,6 +66,27 @@ def load_backtests() -> pd.DataFrame:
     return pd.read_parquet(path) if path.exists() else pd.DataFrame()
 
 
+@ttl_cache(300)
+def latest_by_model(asset: str, alpha: float, window: int = 500) -> pd.DataFrame:
+    """Every model's most recent frozen (date, VaR, ES) for one (asset, alpha)
+    -- the whole model-risk spread on the same day, one row per model. Used
+    for the Overview's model-agreement strip plot; a single call over the
+    already-cached ``backtests.parquet`` instead of one `/backtests` request
+    per model."""
+    bt = load_backtests()
+    if bt.empty:
+        return bt
+    sub = bt[(bt.asset == asset) & (bt.alpha == alpha) & (bt.window == window)]
+    if sub.empty:
+        return sub
+    return (
+        sub.sort_values("date")
+        .groupby("model", as_index=False, observed=True)
+        .tail(1)[["model", "date", "var", "es", "violation"]]
+        .reset_index(drop=True)
+    )
+
+
 @lru_cache(maxsize=1)
 def _price_history() -> pd.DataFrame:
     path = _RESULTS / "price_history.parquet"

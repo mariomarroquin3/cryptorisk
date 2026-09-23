@@ -16,6 +16,7 @@ import {
   LimitsRow,
   LstmImportanceRow,
   ModelInfo,
+  ModelLatestRow,
   PortfolioComposition,
   PortfolioEvalRow,
   PriceHistoryRow,
@@ -36,6 +37,13 @@ export function useModels() {
 
 export function useModelsInfo() {
   return useSWR<Record<string, ModelInfo>>("/models/info", fetcher);
+}
+
+export function useModelsLatest(asset: string | null, alpha: number) {
+  return useSWR<ModelLatestRow[]>(
+    asset ? `/models/latest?asset=${asset}&alpha=${alpha}` : null,
+    fetcher,
+  );
 }
 
 export function usePrice(asset: string | null) {

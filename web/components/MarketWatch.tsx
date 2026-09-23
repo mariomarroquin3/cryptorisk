@@ -19,7 +19,7 @@ function Row({
   const { data: hist } = usePrices(asset, 30);
   const { data: comparison } = useModelsComparison(asset, alpha);
   const best = comparison?.find((r) => r.is_best)?.model ?? null;
-  const { data: bt } = useBacktests(asset, best, alpha, 1);
+  const { data: bt } = useBacktests(asset, best, alpha, 1, true);
   const last = bt && bt.length > 0 ? bt[bt.length - 1] : null;
   const change = price?.change_pct;
   const spot = price?.price ?? (hist && hist.length > 0 ? hist[hist.length - 1].close : null);

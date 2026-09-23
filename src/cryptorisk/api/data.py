@@ -68,13 +68,30 @@ def load_backtests() -> pd.DataFrame:
 
 
 @ttl_cache(300)
+def load_backtests_live() -> pd.DataFrame:
+    """Frozen study backtests plus the days since the sample end
+    (``study.extend_backtests`` -> ``backtests_live.parquet``). For live views
+    only: the evaluation tables and explain charts stay on the frozen file."""
+    frozen = load_backtests()
+    path = _RESULTS / "backtests_live.parquet"
+    if not path.exists():
+        return frozen
+    live = pd.read_parquet(path)
+    if live.empty:
+        return frozen
+    return pd.concat([frozen, live], ignore_index=True).drop_duplicates(
+        ["model", "asset", "window", "alpha", "date"], keep="last"
+    )
+
+
+@ttl_cache(300)
 def latest_by_model(asset: str, alpha: float, window: int = 500) -> pd.DataFrame:
     """Every model's most recent frozen (date, VaR, ES) for one (asset, alpha)
     -- the whole model-risk spread on the same day, one row per model. Used
     for the Overview's model-agreement strip plot; a single call over the
     already-cached ``backtests.parquet`` instead of one `/backtests` request
     per model."""
-    bt = load_backtests()
+    bt = load_backtests_live()
     if bt.empty:
         return bt
     sub = bt[(bt.asset == asset) & (bt.alpha == alpha) & (bt.window == window)]

@@ -458,3 +458,14 @@ review, not open work:
   to CRLF, which breaks recipe tabs).
 - Blunt honesty on what doesn't work — the "what the mathematics does not fix"
   section of methodology.tex is the model for that.
+
+## Live extension (not part of the frozen study)
+
+`data/results/backtests.parquet` and every evaluation table are frozen at the
+sample end (2026-09-10). `study/extend_backtests.py` rolls `price_history.parquet`
+forward (Binance 5-min klines via `api/live_tail.py`) and runs the same
+walk-forward for the later days into a SEPARATE `backtests_live.parquet`, read
+only by the API (`load_backtests_live`: `/backtests?live=true`, `/models/latest`).
+MS-GARCH is excluded (R-only). Daily via `.github/workflows/refresh-data.yml`.
+Never merge the live file into `backtests.parquet`: it would change the study.
+LSTM-Vol's weights restart from scratch in each run (cache is per process).

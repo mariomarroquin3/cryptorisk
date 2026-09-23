@@ -1,4 +1,4 @@
-name: Refresh price history
+name: Refresh data
 
 on:
   schedule:
@@ -16,11 +16,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: python -m pip install -e ".[api]"
-      - run: python -m cryptorisk.study.refresh_price_history
+      - run: python -m pip install -e ".[api,ml]"
+      - run: python -m cryptorisk.study.extend_backtests   # rolls price_history forward, then the live walk-forward
       - name: Commit if changed
         run: |
           git config user.name "cryptorisk-bot"
           git config user.email "cryptorisk-bot@users.noreply.github.com"
-          git add data/results/price_history.parquet
-          git diff --cached --quiet || (git commit -m "data: roll price history forward" && git push)
+          git add data/results/price_history.parquet data/results/backtests_live.parquet
+          git diff --cached --quiet || (git commit -m "data: roll price history and live walk-forward forward" && git push)

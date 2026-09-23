@@ -354,8 +354,11 @@ def backtests(
     model: str,
     alpha: float,
     limit: int = Query(500, le=5000, description="Most recent N days"),
+    live: bool = Query(
+        False, description="Include the days since the frozen sample end (live walk-forward)"
+    ),
 ) -> list[dict]:
-    bt = D.load_backtests()
+    bt = D.load_backtests_live() if live else D.load_backtests()
     if bt.empty:
         return []
     sub = bt[(bt.asset == asset) & (bt.model == model) & (bt.alpha == alpha)]

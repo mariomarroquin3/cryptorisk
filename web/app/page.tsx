@@ -113,7 +113,7 @@ function OverviewPageInner() {
   const { data: price } = usePrice(effAsset);
   const { data: prices } = usePrices(effAsset, 200);
   const { data: forecast } = useForecast(effAsset, effAlpha, effModel);
-  const { data: backtests } = useBacktests(effAsset, effModel, effAlpha, 180);
+  const { data: backtests } = useBacktests(effAsset, effModel, effAlpha, 180, true);
   const { data: coverage } = useCoverage(effAsset, effAlpha);
   const { data: modelsLatest } = useModelsLatest(effAsset, effAlpha);
   const inMcsByModel = useMemo(
@@ -348,9 +348,10 @@ function OverviewPageInner() {
       <p className="text-xs text-muted">
         Amber/red lines are the {effModel ?? "selected model"} walk-forward
         VaR/ES for that day&apos;s close, plotted against the prior close.
-        Markers = realized OOS violations (realized &lt; VaR). The band is
-        frozen at the last pipeline run; the final point is today&apos;s live
-        re-fit, with the gap in between left blank rather than interpolated.
+        Markers = realized OOS violations (realized &lt; VaR). Days after
+        the study&apos;s frozen sample end come from a daily incremental
+        walk-forward (same model and window, not part of the evaluation
+        tables); the final point is today&apos;s live re-fit.
       </p>
 
       {forecast === undefined ? (

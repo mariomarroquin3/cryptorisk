@@ -104,10 +104,11 @@ export function useBacktests(
   model: string | null,
   alpha: number,
   limit = 180,
+  live = false,
 ) {
   return useSWR<BacktestRow[]>(
     asset && model
-      ? `/backtests?asset=${asset}&model=${encodeURIComponent(model)}&alpha=${alpha}&limit=${limit}`
+      ? `/backtests?asset=${asset}&model=${encodeURIComponent(model)}&alpha=${alpha}&limit=${limit}${live ? "&live=true" : ""}`
       : null,
     fetcher,
   );

@@ -65,24 +65,27 @@ const DAY_MS = 86_400_000;
 const addDays = (d: string, n: number) =>
   new Date(Date.parse(d + "T00:00:00Z") + n * DAY_MS).toISOString().slice(0, 10);
 
-/** The frozen backtest band stops at the last pipeline run, but prices keep
- * coming. Break the dashed line across the uncovered days (a straight join would
- * pass for a forecast) and end it with the live re-fit for the next close. */
-function appendLiveBand(
+/** The walk-forward band stops at the last computed day. If that is the day
+ * before today's forecast, extend the line with the live re-fit; otherwise
+ * (band older than that) return the live re-fit as detached points -- a line
+ * across the uncovered days would pass for a forecast. */
+function liveBandPoints(
   band: { varLine: PricePoint[]; esLine: PricePoint[] },
   forecast: { source: string; asof?: string; var_price?: number | null; es_price?: number | null } | undefined,
-) {
-  if (forecast?.source !== "live_refit" || !forecast.asof || forecast.var_price == null || forecast.es_price == null) return;
+): { liveVar: PricePoint | null; liveEs: PricePoint | null } {
+  const none = { liveVar: null, liveEs: null };
+  if (forecast?.source !== "live_refit" || !forecast.asof || forecast.var_price == null || forecast.es_price == null) return none;
   const liveDate = addDays(forecast.asof.slice(0, 10), 1);
   const last = band.varLine[band.varLine.length - 1]?.time as string | undefined;
-  if (last && last >= liveDate) return;
-  if (last && addDays(last, 1) < liveDate) {
-    const gap = { time: addDays(last, 1) } as unknown as PricePoint;
-    band.varLine.push(gap);
-    band.esLine.push(gap);
+  if (last && last >= liveDate) return none;
+  const v = { time: liveDate, value: forecast.var_price };
+  const e = { time: liveDate, value: forecast.es_price };
+  if (last && addDays(last, 1) === liveDate) {
+    band.varLine.push(v);
+    band.esLine.push(e);
+    return none;
   }
-  band.varLine.push({ time: liveDate, value: forecast.var_price });
-  band.esLine.push({ time: liveDate, value: forecast.es_price });
+  return { liveVar: v, liveEs: e };
 }
 
 export default function OverviewPage() {
@@ -128,8 +131,8 @@ function OverviewPageInner() {
       value: p.close,
     }));
     const { varLine, esLine, breaches } = buildBand(prices ?? [], backtests ?? []);
-    appendLiveBand({ varLine, esLine }, forecast);
-    return { priceLine, varLine, esLine, breaches };
+    const { liveVar, liveEs } = liveBandPoints({ varLine, esLine }, forecast);
+    return { priceLine, varLine, esLine, breaches, liveVar, liveEs };
   }, [prices, backtests, forecast]);
 
   const coneSeries = useMemo(() => buildConeSeries(forecast), [forecast]);
@@ -340,6 +343,8 @@ function OverviewPageInner() {
             esLine={chartData.esLine}
             breaches={chartData.breaches}
             livePrice={price?.price}
+            liveVar={chartData.liveVar}
+            liveEs={chartData.liveEs}
           />
         </div>
       ) : (

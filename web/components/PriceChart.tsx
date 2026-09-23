@@ -22,9 +22,13 @@ export interface ChartProps {
   esLine: PricePoint[];
   breaches: PricePoint[];
   livePrice?: number | null;
+  /** Today's live re-fit when the backtest band does not reach it: drawn as
+   * detached points, never joined to the (older) walk-forward line. */
+  liveVar?: PricePoint | null;
+  liveEs?: PricePoint | null;
 }
 
-export function PriceChart({ price, varLine, esLine, breaches, livePrice }: ChartProps) {
+export function PriceChart({ price, varLine, esLine, breaches, livePrice, liveVar, liveEs }: ChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
 
@@ -70,6 +74,18 @@ export function PriceChart({ price, varLine, esLine, breaches, livePrice }: Char
     });
     esSeries.setData(esLine);
 
+    for (const [pt, color, title] of [[liveVar, "#ffb020", "VaR live"], [liveEs, "#ff4d4f", "ES live"]] as const) {
+      if (!pt) continue;
+      const dot = chart.addSeries(LineSeries, {
+        color,
+        lineVisible: false,
+        pointMarkersVisible: true,
+        pointMarkersRadius: 3.5,
+        title,
+      });
+      dot.setData([pt]);
+    }
+
     if (breaches.length > 0) {
       const markers: SeriesMarker<Time>[] = breaches.map((b) => ({
         time: b.time as Time,
@@ -97,7 +113,7 @@ export function PriceChart({ price, varLine, esLine, breaches, livePrice }: Char
       chart.remove();
       chartRef.current = null;
     };
-  }, [price, varLine, esLine, breaches, livePrice]);
+  }, [price, varLine, esLine, breaches, livePrice, liveVar, liveEs]);
 
   return <div ref={containerRef} className="h-[420px] w-full" />;
 }

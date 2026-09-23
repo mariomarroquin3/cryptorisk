@@ -616,11 +616,13 @@ def results_md(D: dict, figs: dict[str, str]) -> str:
         P("### Estimation risk (final estimation window)\n")
         P(
             "Parameter / sampling uncertainty on the last "
-            f"{cfg['walk_forward']['windows'][0]}-day window, for three archetypes. "
+            f"{cfg['walk_forward']['windows'][0]}-day window, for five archetypes. "
             "HS is a stationary block bootstrap of the window; GARCH-t draws the "
             "parameters from the fitted asymptotic covariance and re-forecasts "
             "(no refit); FHS combines a parameter draw for the vol path with a "
-            "residual resample. `ES p5` is the prudent (5th-percentile) draw; the "
+            "residual resample; RF-QR resamples which of the fitted forest's trees "
+            "vote (no refit); LSTM-Vol block-bootstraps the window and retrains "
+            "the network per draw. `ES p5` is the prudent (5th-percentile) draw; the "
             "add-on is `capital(prudent ES) &minus; capital(point ES)` at the "
             "Basel base multiplier, isolating the estimation-risk contribution.\n"
         )
@@ -641,9 +643,14 @@ def results_md(D: dict, figs: dict[str, str]) -> str:
         )
         P(
             f"\nThe estimation-risk add-on ranges ${add.min() / 1e3:,.0f}k&ndash;"
-            f"${add.max() / 1e3:,.0f}k across the three archetypes and two assets"
+            f"${add.max() / 1e3:,.0f}k across the five archetypes and two assets"
             f"{mr_txt}. It bounds the §9 caveat: estimation risk is real but, at "
-            "the decision layer, second-order.\n"
+            "the decision layer, second-order. Read the ML rows with care: the "
+            "RF-QR band is tight because resampling trees measures only the "
+            "forest's own Monte Carlo noise, not the sampling uncertainty of the "
+            "data, so it is a lower bound; the LSTM-Vol band retrains on "
+            "resampled data but uses only 40 draws, so its 5th percentile is "
+            "itself noisy.\n"
         )
     if not D["lim"].empty:
         P("### Position limit N* and the framework backtest\n")
@@ -713,7 +720,7 @@ def results_md(D: dict, figs: dict[str, str]) -> str:
         "- **Estimation risk is only bounded, not propagated.** The daily "
         "backtests use the parameter point estimate. §8 quantifies the "
         "parameter / sampling uncertainty on the final estimation window for "
-        "three archetypes (a prudent-percentile capital add-on); it is not "
+        "five archetypes (a prudent-percentile capital add-on); it is not "
         "carried through every day of every model."
     )
     P("- **ES p-values are approximate** (asymptotic normal, not simulated).")

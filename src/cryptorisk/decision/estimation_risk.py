@@ -16,6 +16,17 @@ that would forecast the next day) for three archetypes:
   quantile / tail mean per resample (Historical Simulation).
 * ``fhs_band``      -- GARCH(1,1)-normal: parameter draw for the vol path plus a
   residual resample for the tail (Filtered HS).
+* ``rf_qr_band``    -- tree-resampling of the *already-fitted* forest: for each
+  draw, bootstrap-resample which of its ``n_estimators`` trees vote (an
+  infinitesimal-jackknife-style forest variance, Wager, Hastie & Efron, 2014)
+  and re-run Meinshausen's quantile weighting over that subset. No refit --
+  cheap enough for thousands of draws -- because what varies is which trees
+  this specific forest grew, not the training data itself; it does not cover
+  uncertainty from a different bootstrap sample of *rows*.
+* ``lstm_band``     -- stationary block bootstrap of the window, ``LstmVol``
+  retrained on each resample. The one archetype that pays a full refit per
+  draw (gradient descent, not a closed form), so ``n_draws`` defaults far
+  lower than the others; optional (skipped if ``torch`` isn't installed).
 
 Each returns an :class:`EstimationRiskBand`: point, bootstrap mean / s.e., the
 5th/95th-percentile interval, and a **prudent** ES (the 5th percentile of the
@@ -31,6 +42,7 @@ import numpy as np
 
 from cryptorisk.decision.capital import es_capital
 from cryptorisk.models._dist import student_t_z
+from cryptorisk.models.base import Context, EmpiricalDist
 
 try:
     from arch import arch_model
@@ -258,6 +270,123 @@ def fhs_band(
             vd[i] = mu + sig * qb
             ed[i] = mu + sig * (tb.mean() if tb.size else qb)
         out.append(_summarise("FHS", a, vp, ep, vd, ed))
+    return out
+
+
+def _nan_bands(name: str, alphas: list[float]) -> list[EstimationRiskBand]:
+    return [EstimationRiskBand(name, a, 0, *([float("nan")] * 11)) for a in alphas]
+
+
+def _synthetic_dates(n: int) -> np.ndarray:
+    """A model's ``_fit``/quasi-MLE only needs *relative* day order (rolling
+    windows, ``asof`` as "last observation"), never calendar arithmetic, so a
+    dummy daily grid is fine here -- ``estimation_risk_table`` only has a bare
+    return array from the store, no date column."""
+    return (np.datetime64("2000-01-01") + np.arange(n)).astype("datetime64[D]")
+
+
+def rf_qr_band(
+    returns, alphas: list[float], *, n_draws: int = 1000, seed: int | None = None,
+) -> list[EstimationRiskBand]:
+    """Tree-resampling band for RF-QR: fit once, then bootstrap which trees
+    vote (see module docstring). Runs on squared-return features only (no
+    realized measure -- ``estimation_risk_table`` doesn't fetch RV), matching
+    RF-QR's own fallback when RV is absent."""
+    from cryptorisk.models.random_forest import _MIN_TRAIN, RandomForestQR
+
+    r = np.asarray(returns, float)
+    r = r[np.isfinite(r)]
+    if r.size < _MIN_TRAIN + 25:
+        return _nan_bands("RF-QR", alphas)
+
+    dates = _synthetic_dates(r.size)
+    ctx = Context(returns=r, dates=dates, asof=dates[-1])
+    model = RandomForestQR()
+    fit = model._fit(ctx)  # noqa: SLF001 - internal reuse within the package
+    if fit is None:
+        return _nan_bands("RF-QR", alphas)
+    rf, _names, x_train, y_train, x_fcast, weights_point = fit
+
+    n_trees = rf.n_estimators
+    leaves_train = rf.apply(x_train)  # (n_train, n_trees), reused across every draw and alpha
+    leaf_fcast = rf.apply(x_fcast.reshape(1, -1))[0]  # (n_trees,)
+    rng = np.random.default_rng(seed)
+    tree_draws = rng.integers(0, n_trees, size=(n_draws, n_trees))
+
+    weight_draws = np.empty((n_draws, y_train.size))
+    for i, trees in enumerate(tree_draws):
+        matches = leaves_train[:, trees] == leaf_fcast[trees][None, :]
+        counts = matches.sum(axis=0)
+        counts = np.where(counts == 0, 1, counts)  # guard only; see _qrf_weights
+        weight_draws[i] = (matches / counts[None, :]).sum(axis=1) / n_trees
+
+    out = []
+    for a in alphas:
+        point = EmpiricalDist(sample=y_train, weights=weights_point)
+        vp, ep = point.var(a), point.es(a)
+        vd = np.empty(n_draws)
+        ed = np.empty(n_draws)
+        for i in range(n_draws):
+            dist = EmpiricalDist(sample=y_train, weights=weight_draws[i])
+            vd[i] = dist.var(a)
+            ed[i] = dist.es(a)
+        out.append(_summarise("RF-QR", a, vp, ep, vd, ed))
+    return out
+
+
+def lstm_band(
+    returns, alphas: list[float], *, n_draws: int = 40, block_len: int = 20, seed: int | None = None,
+) -> list[EstimationRiskBand]:
+    """Stationary block bootstrap of the window, LSTM-Vol retrained on each
+    resample -- the only band here that pays a full fit per draw, hence the
+    much smaller default ``n_draws`` than the other archetypes. Returns
+    all-NaN bands if ``torch`` (the optional ``ml`` extra) isn't installed."""
+    import importlib.util
+
+    if importlib.util.find_spec("torch") is None:  # optional `ml` extra
+        return _nan_bands("LSTM-Vol", alphas)
+    from cryptorisk.models.lstm_vol import _MIN_TRAIN, _SEQ_LEN, LstmVol
+
+    r = np.asarray(returns, float)
+    r = r[np.isfinite(r)]
+    if r.size < _MIN_TRAIN + _SEQ_LEN + 25:
+        return _nan_bands("LSTM-Vol", alphas)
+
+    dates = _synthetic_dates(r.size)
+    point_dist = LstmVol().fit_predict(Context(returns=r, dates=dates, asof=dates[-1]))
+    try:
+        vp0 = {a: point_dist.var(a) for a in alphas}
+        ep0 = {a: point_dist.es(a) for a in alphas}
+    except NotImplementedError:
+        return _nan_bands("LSTM-Vol", alphas)
+
+    n = r.size
+    rng = np.random.default_rng(seed)
+    p = 1.0 / max(block_len, 1.0)
+    vd = {a: np.empty(n_draws) for a in alphas}
+    ed = {a: np.empty(n_draws) for a in alphas}
+    ok = np.zeros(n_draws, dtype=bool)
+    for i in range(n_draws):
+        idx = np.empty(n, dtype=np.int64)
+        cur = int(rng.integers(n))
+        for t in range(n):
+            if t and rng.random() < p:
+                cur = int(rng.integers(n))
+            idx[t] = cur
+            cur = (cur + 1) % n
+        rb = r[idx]
+        try:
+            db = LstmVol().fit_predict(Context(returns=rb, dates=dates, asof=dates[-1]))
+            for a in alphas:
+                vd[a][i] = db.var(a)
+                ed[a][i] = db.es(a)
+            ok[i] = True
+        except Exception:  # noqa: BLE001 - a failed bootstrap draw is just dropped
+            ok[i] = False
+
+    out = []
+    for a in alphas:
+        out.append(_summarise("LSTM-Vol", a, vp0[a], ep0[a], vd[a][ok], ed[a][ok]))
     return out
 
 

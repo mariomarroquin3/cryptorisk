@@ -188,7 +188,7 @@ def pla_table(bt, mcs, cfg) -> pd.DataFrame:
 
 def estimation_risk_table(cfg) -> pd.DataFrame:
     """Parameter / sampling uncertainty on the *final* estimation window, for
-    three archetypes (HS, GARCH-t, FHS). The capital delta uses the Basel base
+    five archetypes (HS, GARCH-t, FHS, RF-QR, LSTM-Vol). The capital delta uses the Basel base
     multiplier so the three are comparable -- it isolates the estimation-risk
     contribution, not the absolute capital."""
     import duckdb
@@ -212,6 +212,8 @@ def estimation_risk_table(cfg) -> pd.DataFrame:
             "HS": er.hs_band(r, [a_cap], seed=seed)[0],
             "GARCH-t": er.garch_t_band(r, [a_cap], seed=seed)[0],
             "FHS": er.fhs_band(r, [a_cap], seed=seed)[0],
+            "RF-QR": er.rf_qr_band(r, [a_cap], seed=seed)[0],
+            "LSTM-Vol": er.lstm_band(r, [a_cap], seed=seed)[0],
         }
         for name, b in bands.items():
             rows.append(
@@ -301,10 +303,12 @@ def _summary_md(capdf, limdf, pladf, hgdf, erdf, cfg) -> str:
         o.append("## Estimation-risk band (final estimation window)\n")
         o.append(
             "Parameter / sampling uncertainty on the last "
-            f"{cfg['walk_forward']['windows'][0]}-day window, three archetypes: HS "
+            f"{cfg['walk_forward']['windows'][0]}-day window, five archetypes: HS "
             "(stationary block bootstrap), GARCH-t (draw from the fitted "
             "asymptotic covariance, re-forecast), FHS (parameter draw + residual "
-            "resample). `ES 97.5% p5` is the prudent (conservative) draw; the "
+            "resample), RF-QR (bootstrap which of the fitted forest's trees "
+            "vote), LSTM-Vol (block bootstrap of the window, retrained per draw). "
+            "`ES 97.5% p5` is the prudent (conservative) draw; the "
             "add-on is `capital(prudent ES) - capital(point ES)` at the Basel "
             "base multiplier, so it isolates estimation risk.\n"
         )

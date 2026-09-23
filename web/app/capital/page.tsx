@@ -263,7 +263,9 @@ function CapitalPageInner() {
         <p className="mt-2 text-xs text-muted">
           Prudent ES = 5th-percentile of the bootstrap draws (HS: block
           bootstrap; GARCH-t / FHS: parameter draw from the fitted covariance,
-          no refit). Add-on is second-order next to the model-risk add-on
+          no refit; RF-QR: bootstrap which of the fitted forest&apos;s trees
+          vote, no refit; LSTM-Vol: block bootstrap of the window, retrained
+          per draw). Add-on is second-order next to the model-risk add-on
           above.
         </p>
       </div>

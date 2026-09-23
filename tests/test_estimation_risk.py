@@ -88,3 +88,32 @@ def test_band_handles_a_too_short_series():
     assert b.n_draws == 0
     assert not np.isfinite(b.es_se)
     assert np.isnan(capital_addon(b, liquidity_horizon=10, multiplier=1.5, notional=1e6))
+
+
+def test_rf_qr_band_is_ordered_and_tight():
+    from cryptorisk.decision.estimation_risk import rf_qr_band
+
+    r = _garch_series(600, seed=2)
+    b = rf_qr_band(r, [_A], n_draws=200, seed=0)[0]
+    assert b.estimator == "RF-QR"
+    assert b.es_se >= 0
+    assert b.var_point < 0 and b.es_prudent <= b.es_point + 1e-9
+    # tree resampling only sees forest Monte Carlo noise: far tighter than an HS bootstrap
+    hs = hs_band(r, [_A], n_boot=500, seed=0)[0]
+    assert b.es_se < hs.es_se
+
+
+def test_lstm_band_nan_below_min_draws_and_finite_with_enough():
+    import importlib.util
+
+    import pytest
+
+    if importlib.util.find_spec("torch") is None:
+        pytest.skip("torch not installed")
+    from cryptorisk.decision.estimation_risk import lstm_band
+
+    r = _garch_series(300, seed=3)
+    few = lstm_band(r, [_A], n_draws=3, seed=0)[0]
+    assert np.isnan(few.es_prudent)
+    ok = lstm_band(r, [_A], n_draws=20, seed=0)[0]
+    assert ok.estimator == "LSTM-Vol" and np.isfinite(ok.es_prudent)

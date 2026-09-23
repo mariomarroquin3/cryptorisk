@@ -54,16 +54,20 @@ ETH: model-risk add-on (capital spread across the MCS) = $185,295.
 
 ## Estimation-risk band (final estimation window)
 
-Parameter / sampling uncertainty on the last 500-day window, three archetypes: HS (stationary block bootstrap), GARCH-t (draw from the fitted asymptotic covariance, re-forecast), FHS (parameter draw + residual resample). `ES 97.5% p5` is the prudent (conservative) draw; the add-on is `capital(prudent ES) - capital(point ES)` at the Basel base multiplier, so it isolates estimation risk.
+Parameter / sampling uncertainty on the last 500-day window, five archetypes: HS (stationary block bootstrap), GARCH-t (draw from the fitted asymptotic covariance, re-forecast), FHS (parameter draw + residual resample), RF-QR (bootstrap which of the fitted forest's trees vote), LSTM-Vol (block bootstrap of the window, retrained per draw). `ES 97.5% p5` is the prudent (conservative) draw; the add-on is `capital(prudent ES) - capital(point ES)` at the Basel base multiplier, so it isolates estimation risk.
 
 | asset | estimator | ES 97.5% point | ES s.e. | ES 97.5% p5 (prudent) | abs-ES widening | est.-risk add-on $ |
 |:--|:--|--:|--:|--:|--:|--:|
 | BTC | FHS | -0.0480 | 0.0062 | -0.0584 | +0.0104 | 49,370 |
 | BTC | GARCH-t | -0.0533 | 0.0048 | -0.0600 | +0.0068 | 32,157 |
 | BTC | HS | -0.0595 | 0.0090 | -0.0735 | +0.0140 | 66,396 |
+| BTC | LSTM-Vol | -0.0575 | 0.0108 | -0.0772 | +0.0197 | 93,270 |
+| BTC | RF-QR | -0.0462 | 0.0014 | -0.0476 | +0.0014 | 6,460 |
 | ETH | FHS | -0.0807 | 0.0115 | -0.0961 | +0.0154 | 72,933 |
 | ETH | GARCH-t | -0.0884 | 0.0132 | -0.1017 | +0.0133 | 62,913 |
 | ETH | HS | -0.0913 | 0.0100 | -0.1053 | +0.0140 | 66,183 |
+| ETH | LSTM-Vol | -0.0987 | 0.0100 | -0.1159 | +0.0172 | 81,769 |
+| ETH | RF-QR | -0.0780 | 0.0004 | -0.0785 | +0.0005 | 2,504 |
 
 ## Position limit N* (mean 1-day 99% ES = budget) + framework backtest
 

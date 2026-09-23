@@ -250,12 +250,15 @@ Non-obvious, still-relevant facts:
   ≈ 1 by construction — the KS is the discriminating metric.
 - **Phase 5 estimation risk** `decision/estimation_risk.py` (`estimation_risk_table`
   in `run_decision` → `decision_estimation_risk.csv`, §8 of the report): bootstrap
-  the **final** estimation window for 3 archetypes — HS (stationary block
+  the **final** estimation window for 5 archetypes — HS (stationary block
   bootstrap), GARCH-t (draw θ*~N(θ̂,Σ̂) from `arch`'s `param_cov`, re-`forecast`
-  with `params=θ*`, no refit), FHS (θ* for the vol path + residual resample).
-  Prudent = 5th-pct ES draw; add-on = `es_capital(prudent) − es_capital(point)`
-  at the Basel base multiplier. On this sample $32k–$73k (vs a ~$228k model-risk
-  add-on) → second-order. Closes the "estimation risk not propagated" §9 caveat
+  with `params=θ*`, no refit), FHS (θ* for the vol path + residual resample),
+  RF-QR (`rf_qr_band`: resample which trees vote, no refit — a LOWER bound, it
+  only sees forest Monte Carlo noise, add-on $2k–$6k), LSTM-Vol (`lstm_band`:
+  block bootstrap, retrain per draw, 40 draws so p5 is noisy, add-on $82k–$93k;
+  needs torch, else NaN band). Prudent = 5th-pct ES draw; add-on =
+  `es_capital(prudent) − es_capital(point)` at the Basel base multiplier. On
+  this sample $2k–$93k (vs a $185k–$228k model-risk add-on) → second-order. Closes the "estimation risk not propagated" §9 caveat
   (now "bounded, not propagated").
 - **Phase 6** `study.report` is a pure assembler: it reads `data/results/*.csv`
   + the store, writes `docs/results.md` (versioned), `docs/model_cards/*.md`

@@ -1578,16 +1578,23 @@ $\alpha = 0.01$.
 use the parameter point estimate $\hat\theta$, so the reported one-day interval
 is conditional on $\hat\theta=\theta$. The sampling distribution of $\hat\theta$
 would widen it (Christoffersen \& Gon\c{c}alves, 2005). We bound the effect on
-the \emph{final} estimation window for three archetypes --- Historical
+the \emph{final} estimation window for five archetypes --- Historical
 Simulation (a stationary block bootstrap of the window), GARCH-$t$ (draw
 $\theta^\star\sim\mathcal{N}(\hat\theta,\widehat{\Sigma}_{\hat\theta})$ from the fitted
 asymptotic covariance and re-forecast $\sigma_{t+1}$ without refitting), and
 Filtered HS (a parameter draw for the volatility path plus a residual
-resample). The prudent ($5$th-percentile) ES draw feeds an
+resample), plus the two machine-learning models. For RF-QR we resample which
+trees vote (the leaf co-membership weights are recomputed from a bootstrap of
+the fitted forest's trees, no refit); this captures the forest's own Monte Carlo
+noise but not the sampling uncertainty of the data, so it is a lower bound
+(\$2k--\$6k). For LSTM-Vol we block-bootstrap the window and retrain the network
+per draw (40 draws, so the $5$th percentile is itself noisy). The prudent
+($5$th-percentile) ES draw feeds an
 estimation-risk capital add-on, $\mathrm{Cap}(\mathrm{ES}^{\mathrm{prudent}})
 -\mathrm{Cap}(\widehat{\mathrm{ES}})$, reported next to the model-risk add-on in
-\S7. On this sample it is \$32k--\$73k, an order of magnitude below the
-model-risk term: real, but second-order at the decision layer. It is not
+\S7. On this sample it is \$32k--\$73k for the three classical archetypes and
+\$82k--\$93k for the retrained LSTM, against a model-risk add-on of
+\$185k--\$228k: real, but second-order at the decision layer. It is not
 carried through every day of every model.
 
 None of (i)--(iii) are bugs. They are what the comparative study is for: to say,

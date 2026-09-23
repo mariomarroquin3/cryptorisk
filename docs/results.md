@@ -603,18 +603,22 @@ ETH: model-risk add-on = $185,295.
 
 ### Estimation risk (final estimation window)
 
-Parameter / sampling uncertainty on the last 500-day window, for three archetypes. HS is a stationary block bootstrap of the window; GARCH-t draws the parameters from the fitted asymptotic covariance and re-forecasts (no refit); FHS combines a parameter draw for the vol path with a residual resample. `ES p5` is the prudent (5th-percentile) draw; the add-on is `capital(prudent ES) &minus; capital(point ES)` at the Basel base multiplier, isolating the estimation-risk contribution.
+Parameter / sampling uncertainty on the last 500-day window, for five archetypes. HS is a stationary block bootstrap of the window; GARCH-t draws the parameters from the fitted asymptotic covariance and re-forecasts (no refit); FHS combines a parameter draw for the vol path with a residual resample; RF-QR resamples which of the fitted forest's trees vote (no refit); LSTM-Vol block-bootstraps the window and retrains the network per draw. `ES p5` is the prudent (5th-percentile) draw; the add-on is `capital(prudent ES) &minus; capital(point ES)` at the Basel base multiplier, isolating the estimation-risk contribution.
 
 | asset | estimator | ES 97.5% point | ES s.e. | ES p5 (prudent) | est.-risk add-on $ |
 |:--|:--|--:|--:|--:|--:|
 | BTC | FHS | -0.0480 | 0.0062 | -0.0584 | 49,370 |
 | BTC | GARCH-t | -0.0533 | 0.0048 | -0.0600 | 32,157 |
 | BTC | HS | -0.0595 | 0.0090 | -0.0735 | 66,396 |
+| BTC | LSTM-Vol | -0.0575 | 0.0108 | -0.0772 | 93,270 |
+| BTC | RF-QR | -0.0462 | 0.0014 | -0.0476 | 6,460 |
 | ETH | FHS | -0.0807 | 0.0115 | -0.0961 | 72,933 |
 | ETH | GARCH-t | -0.0884 | 0.0132 | -0.1017 | 62,913 |
 | ETH | HS | -0.0913 | 0.0100 | -0.1053 | 66,183 |
+| ETH | LSTM-Vol | -0.0987 | 0.0100 | -0.1159 | 81,769 |
+| ETH | RF-QR | -0.0780 | 0.0004 | -0.0785 | 2,504 |
 
-The estimation-risk add-on ranges $32k&ndash;$73k across the three archetypes and two assets &mdash; smaller than the model-risk add-on ($228k). It bounds the §9 caveat: estimation risk is real but, at the decision layer, second-order.
+The estimation-risk add-on ranges $3k&ndash;$93k across the five archetypes and two assets &mdash; smaller than the model-risk add-on ($228k). It bounds the §9 caveat: estimation risk is real but, at the decision layer, second-order. Read the ML rows with care: the RF-QR band is tight because resampling trees measures only the forest's own Monte Carlo noise, not the sampling uncertainty of the data, so it is a lower bound; the LSTM-Vol band retrains on resampled data but uses only 40 draws, so its 5th percentile is itself noisy.
 
 ### Position limit N* and the framework backtest
 
@@ -713,7 +717,7 @@ Funding carry is annualised; **positive = the short-perp hedge earns it** (longs
 
 - **The MCS is wide.** With one asset-pair and ~2,700 heavy-tailed days the test cannot rank the middle of the field. A firmer answer needs more assets, a longer sample, or a rolling-origin MCS stability analysis.
 - **Multiple testing.** 20 models x 2 assets x 2 alpha, no family-wise correction; the sub-period split makes this worse (n drops fast).
-- **Estimation risk is only bounded, not propagated.** The daily backtests use the parameter point estimate. §8 quantifies the parameter / sampling uncertainty on the final estimation window for three archetypes (a prudent-percentile capital add-on); it is not carried through every day of every model.
+- **Estimation risk is only bounded, not propagated.** The daily backtests use the parameter point estimate. §8 quantifies the parameter / sampling uncertainty on the final estimation window for five archetypes (a prudent-percentile capital add-on); it is not carried through every day of every model.
 - **ES p-values are approximate** (asymptotic normal, not simulated).
 - **The main study is one asset at a time, spot only** &mdash; no options and the perp hedge uses spot as a price proxy. A fixed-weight 4-asset basket (BTC/ETH/SOL/BNB) with a k-dimensional copula tail is the Phase-7 extension in [`portfolio.md`](portfolio.md).
 - Model-specific caveats are in the model cards and in [`methodology.tex`](methodology.tex) §9.

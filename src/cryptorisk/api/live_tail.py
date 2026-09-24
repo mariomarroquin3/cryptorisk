@@ -69,12 +69,15 @@ def fetch_5m(asset: str, lo: pd.Timestamp, hi: pd.Timestamp) -> pd.DataFrame | N
         rows += batch
         t = int(batch[-1][0]) + _BAR_MS
     if not rows:
-        return pd.DataFrame(columns=["ts", "close"])
-    df = pd.DataFrame(rows).iloc[:, [0, 4]]
-    df.columns = ["open_time", "close"]
-    out = pd.DataFrame(
-        {"ts": pd.to_datetime(pd.to_numeric(df["open_time"]), unit="ms"), "close": pd.to_numeric(df["close"])}
-    )
+        return pd.DataFrame(columns=["ts", "close", "low", "high"])
+    df = pd.DataFrame(rows).iloc[:, [0, 2, 3, 4]]   # klines row: open_time, open, high, low, close, ...
+    df.columns = ["open_time", "high", "low", "close"]
+    out = pd.DataFrame({
+        "ts": pd.to_datetime(pd.to_numeric(df["open_time"]), unit="ms"),
+        "close": pd.to_numeric(df["close"]),
+        "low": pd.to_numeric(df["low"]),
+        "high": pd.to_numeric(df["high"]),
+    })
     return out.drop_duplicates("ts").sort_values("ts").reset_index(drop=True)
 
 
@@ -100,8 +103,12 @@ def extend_history(asset: str, hist: pd.DataFrame, *, today: pd.Timestamp | None
 
     day = bars["ts"].dt.normalize()
     new = bars[day > last]
-    counts = new.groupby(new["ts"].dt.normalize())["close"].size()
-    complete = counts[counts >= _MIN_BARS].index
+    by_day = new.groupby(new["ts"].dt.normalize())
+    counts = by_day["close"].size()
+    # A day is complete when it has (nearly) all its bars AND ends on the 23:55 bar: the daily
+    # close is that bar's close, so a day missing its last bar would record the wrong close.
+    ends_on_time = by_day["ts"].max() == counts.index + pd.Timedelta(hours=23, minutes=55)
+    complete = counts[(counts >= _MIN_BARS) & ends_on_time].index
     if len(complete) == 0:
         return hist
     closes = new[new["ts"].dt.normalize().isin(complete)].groupby(new["ts"].dt.normalize())["close"].last()
@@ -136,13 +143,17 @@ def today_so_far(asset: str, ref_close: float, *, now: pd.Timestamp | None = Non
     if bars is None or bars.empty:
         return None
     px = bars["close"].to_numpy(float)
+    # The day's true extremes are the bars' low/high, not the extremes of the 5-min closes: a wick
+    # through the VaR between two closes is still a breach.
+    lo = float(bars["low"].min()) if "low" in bars else float(px.min())
+    hi = float(bars["high"].max()) if "high" in bars else float(px.max())
     return {
         "date": str(start.date()),
         "n_bars": int(len(px)),
         "fraction_of_day": float(min(len(px) / _BARS_PER_DAY, 1.0)),
         "price": float(px[-1]),
         "ret_so_far": float(np.log(px[-1] / ref_close)),
-        "low_ret": float(np.log(px.min() / ref_close)),
-        "high_ret": float(np.log(px.max() / ref_close)),
+        "low_ret": float(np.log(min(lo, px.min()) / ref_close)),
+        "high_ret": float(np.log(max(hi, px.max()) / ref_close)),
         "fetched_at": time.time(),
     }

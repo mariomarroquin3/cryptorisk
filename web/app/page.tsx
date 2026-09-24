@@ -144,6 +144,18 @@ function OverviewPageInner() {
     // refresh, and a new chartData rebuilds the whole chart (and drops the user's zoom).
   }, [prices, backtests, fcSource, fcAsof, fcVarPrice, fcEsPrice]);
 
+  // The strip is "everyone's VaR for the same day": a model whose latest row is older
+  // (MS-GARCH, whose walk-forward runs offline in R) would sit in it as if it were today's.
+  const { freshLatest, staleLatest } = useMemo(() => {
+    const rows = modelsLatest ?? [];
+    const newest = rows.reduce((m, r) => (r.date > m ? r.date : m), "");
+    const day = (d: string) => d.slice(0, 10);
+    return {
+      freshLatest: rows.filter((r) => day(r.date) === day(newest)),
+      staleLatest: rows.filter((r) => day(r.date) !== day(newest)),
+    };
+  }, [modelsLatest]);
+
   const coneSeries = useMemo(() => buildConeSeries(forecast), [forecast]);
 
   if (!config || !effAsset) {
@@ -298,12 +310,19 @@ function OverviewPageInner() {
 
       {modelsLatest && modelsLatest.length > 0 && (
         <ModelSpread
-          rows={modelsLatest}
+          rows={freshLatest}
           alpha={effAlpha}
           inMcs={inMcsByModel}
           highlight={effModel}
           onSelect={setModelOverride}
         />
+      )}
+      {staleLatest.length > 0 && (
+        <p className="-mt-3 text-xs text-muted">
+          Not in the strip above (no forecast for the latest day):{" "}
+          {staleLatest.map((r) => `${r.model} (last ${r.date.slice(0, 10)})`).join(", ")}. A model with no fresh row
+          is usually one whose walk-forward runs offline (MS-GARCH, in R) and is not rolled forward daily.
+        </p>
       )}
 
       {forecast && (

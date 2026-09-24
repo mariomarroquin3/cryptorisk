@@ -13,6 +13,7 @@ very different caching models.
 from __future__ import annotations
 
 import copy
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from functools import lru_cache
@@ -428,6 +429,12 @@ def _shock_day_realized(win: pd.DataFrame, shock: float) -> dict[str, float]:
     }
 
 
+#: At most this many what-if re-fits run at once. The page fires several models in parallel and
+#: each fit (RF-QR's forest, Realized-SV's optimiser) allocates; on a 512 MB free-tier host
+#: unbounded concurrency is how the API ran out of memory before. Extra requests wait their turn.
+_WHATIF_SLOTS = threading.BoundedSemaphore(2)
+
+
 @ttl_cache(1800)
 def whatif_forecast(
     asset: str, model_name: str, shock: float, alphas: tuple[float, ...] = (0.01, 0.025), window: int = 500
@@ -457,7 +464,8 @@ def whatif_forecast(
         realized = {c: np.append(win[c].to_numpy(float), day[c]) for c in _REALIZED_COLS if c in win}
     ctx = Context(returns=returns, dates=dates, asof=dates[-1], asset=asset, realized=realized)
     try:
-        dist = model.fit_predict(ctx)
+        with _WHATIF_SLOTS:
+            dist = model.fit_predict(ctx)
     except Exception:
         return None
     out: dict[str, Any] = {"model": model_name, "asof": pd.Timestamp(dates[-1])}

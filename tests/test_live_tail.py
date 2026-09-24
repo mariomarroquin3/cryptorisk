@@ -43,3 +43,23 @@ def test_today_so_far(monkeypatch):
     monkeypatch.setattr(L, "fetch_5m", lambda *a, **k: bars)
     st = L.today_so_far("BTC", 100.0, now=pd.Timestamp("2026-01-04 08:20"))
     assert st["n_bars"] == 100 and st["low_ret"] <= st["ret_so_far"] <= st["high_ret"]
+
+
+def test_day_missing_its_last_bar_is_not_recorded(monkeypatch):
+    bars = _bars("2026-01-01 23:55", 3)
+    bars = bars[bars["ts"] < "2026-01-04"]                          # Jan 2 and Jan 3 complete
+    bars = bars[bars["ts"] != pd.Timestamp("2026-01-03 23:55")]      # ... but Jan 3 lost its 23:55 bar
+    monkeypatch.setattr(L, "fetch_5m", lambda *a, **k: bars)
+    out = L.extend_history("BTC", _hist("2026-01-01"), today=pd.Timestamp("2026-01-04"))
+    assert list(out["date"].dt.day) == [1, 2]                        # Jan 3 is left for the next run
+
+
+def test_today_so_far_uses_bar_lows_not_just_closes(monkeypatch):
+    bars = _bars("2026-01-04", 1).iloc[:50].copy()
+    bars["low"] = bars["close"]
+    bars["high"] = bars["close"]
+    bars.loc[10, "low"] = bars["close"].min() * 0.97      # a wick well below every close
+    monkeypatch.setattr(L, "fetch_5m", lambda *a, **k: bars)
+    st = L.today_so_far("BTC", float(bars["close"].iloc[0]), now=pd.Timestamp("2026-01-04 04:10"))
+    wick = np.log(bars["low"].min() / bars["close"].iloc[0])
+    assert np.isclose(st["low_ret"], wick) and st["low_ret"] < np.log(bars["close"].min() / bars["close"].iloc[0])

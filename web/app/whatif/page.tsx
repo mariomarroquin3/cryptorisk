@@ -137,8 +137,11 @@ function WhatIfInner() {
           </ChartCard>
           <DataTable columns={cols} rows={tableRows} keyField="model" filterKey="model" />
           <p className="text-xs text-muted">
-            MS-GARCH is not shown: its forecasts come from an offline R run. The hypothetical day is
-            not added to any stored data, and none of this is part of the study&apos;s results.
+            Assumption for the realized-measure models (HAR-RV, HARQ, Realized-GARCH/SV, GARCH-X,
+            RF-QR): the intraday path of the hypothetical day is unknown, so its realized variance is
+            taken as the squared shock, with no jump. Their reaction depends on that choice. MS-GARCH
+            is not shown: its forecasts come from an offline R run. The hypothetical day is not
+            added to any stored data, and none of this is part of the study&apos;s results.
           </p>
         </>
       )}

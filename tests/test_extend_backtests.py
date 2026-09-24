@@ -73,3 +73,29 @@ def test_live_track_record_counts_violations_and_ranks(monkeypatch, tmp_path):
     assert 0 < by["B"]["p_at_least"] < 1 and by["A"]["p_at_least"] == 1.0
     assert sorted(m["fz0_rank"] for m in out["models"]) == [1, 2]
     D.live_track_record.cache_clear()
+
+
+def test_whatif_shock_raises_reactive_models_and_leaves_lstm_cache_alone(monkeypatch):
+    from cryptorisk.api import data as D
+
+    rng = np.random.default_rng(1)
+    n = 560
+    r = rng.standard_t(6, n) * 0.02
+    rv = r**2 + 1e-5
+    win = pd.DataFrame({
+        "date": pd.date_range("2025-01-01", periods=n), "close": 100 * np.exp(np.cumsum(r)),
+        "log_return": r, "rv": rv, "bv": rv * 0.9, "rsv_pos": rv / 2, "rsv_neg": rv / 2,
+        "jump": 0.0, "rq": rv**2,
+    })
+    monkeypatch.setattr(D, "load_price_window", lambda asset, n=900: win.tail(n))
+    D.whatif_forecast.cache_clear()
+    calm = D.whatif_forecast("BTC", "GARCH-t", 0.0)
+    crash = D.whatif_forecast("BTC", "GARCH-t", -0.15)
+    assert crash["var_0.025"] < calm["var_0.025"] < 0
+    rv_crash = D._shock_day_realized(win, -0.15)
+    assert rv_crash["rv"] == 0.15**2 and rv_crash["rsv_neg"] == rv_crash["rv"] and rv_crash["rsv_pos"] == 0.0
+    shared = D._model_map()["LSTM-Vol"]
+    before = dict(getattr(shared, "_cache", {}))
+    D.whatif_forecast("BTC", "HAR-RV", -0.1)
+    assert dict(getattr(shared, "_cache", {})) == before
+    D.whatif_forecast.cache_clear()

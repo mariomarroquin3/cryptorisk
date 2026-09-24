@@ -292,6 +292,44 @@ def _intraday(asset: str, last_close: float, var: float | None, es: float | None
     }
 
 
+@app.get("/whatif/{asset}")
+def whatif(
+    asset: str,
+    model: str,
+    shock: float = Query(..., ge=-0.5, le=0.5, description="Hypothetical next-day SIMPLE return, e.g. -0.08"),
+    alpha: float = Query(0.025),
+) -> dict:
+    """VaR/ES for the day after a hypothetical move: the model re-fitted with the
+    shock appended, next to today's baseline forecast. One model per call so a
+    client can fill in results as the fast models return."""
+    cfg = load_config()
+    _check_asset(asset, cfg["assets"])
+    _check_alpha(alpha, cfg["alphas"])
+    if model not in D.model_names() or model == "MS-GARCH":
+        # MS-GARCH's forecasts come from an offline R run, not a live re-fit
+        raise HTTPException(404, f"no live re-fit for model {model!r}")
+    log_shock = math.log1p(shock)
+    alphas = tuple(cfg["alphas"])
+    base = D.today_forecast(asset, model, alphas=alphas)
+    hit = D.whatif_forecast(asset, model, round(log_shock, 4), alphas)
+    if base is None or hit is None:
+        raise HTTPException(404, f"no what-if available for {asset}/{model}")
+    last = base["last_close"]
+    shocked_close = last * (1 + shock)
+    return {
+        "asset": asset,
+        "model": model,
+        "alpha": alpha,
+        "shock": shock,
+        "last_close": last,
+        "shocked_close": shocked_close,
+        "baseline": {"var": base[f"var_{alpha}"], "es": base[f"es_{alpha}"]},
+        "shocked": {"var": hit[f"var_{alpha}"], "es": hit[f"es_{alpha}"]},
+        "baseline_var_price": _price(last, base[f"var_{alpha}"]),
+        "shocked_var_price": _price(shocked_close, hit[f"var_{alpha}"]),
+    }
+
+
 @app.get("/live/track-record")
 def live_track_record(asset: str, alpha: float) -> dict:
     """Per-model violations / FZ0 on the days since the frozen sample end

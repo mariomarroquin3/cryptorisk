@@ -11,6 +11,7 @@ const LINKS = [
   { href: "/capital", label: "Capital & Decision" },
   { href: "/regimes", label: "Regimes" },
   { href: "/live", label: "Live Record" },
+  { href: "/whatif", label: "What-if" },
   { href: "/explain", label: "Explainability" },
 ];
 

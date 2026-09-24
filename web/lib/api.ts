@@ -376,3 +376,16 @@ export interface LiveTrackRecord {
   days: LiveDay[];
   models: LiveModelRow[];
 }
+
+export interface WhatIfRow {
+  asset: string;
+  model: string;
+  alpha: number;
+  shock: number;
+  last_close: number;
+  shocked_close: number;
+  baseline: { var: number; es: number };
+  shocked: { var: number; es: number };
+  baseline_var_price: number | null;
+  shocked_var_price: number | null;
+}

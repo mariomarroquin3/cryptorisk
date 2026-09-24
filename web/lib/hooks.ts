@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import useSWR from "swr";
 import {
   apiGet,
@@ -25,6 +26,7 @@ import {
   RegimesResponse,
   RfExplain,
   RfPdp,
+  WhatIfRow,
 } from "./api";
 
 const fetcher = <T,>(path: string) => apiGet<T>(path);
@@ -175,4 +177,51 @@ export function useLiveTrackRecord(asset: string | null, alpha: number) {
     asset ? `/live/track-record?asset=${asset}&alpha=${alpha}` : null,
     fetcher,
   );
+}
+
+/** Slow re-fits go last so the fast models fill in first. */
+const SLOW_LAST = ["RF-QR", "Realized-SV", "LSTM-Vol"];
+
+/** What-if VaR/ES for every model under one hypothetical next-day return.
+ * One request per model, at most four in flight, results appear as they
+ * arrive (`undefined` = pending, `null` = failed). */
+export function useWhatIfAll(
+  asset: string | null,
+  models: string[],
+  shock: number,
+  alpha: number,
+): Record<string, WhatIfRow | null | undefined> {
+  type Rows = Record<string, WhatIfRow | null | undefined>;
+  const key = models.join(",");
+  const sig = `${asset}|${key}|${shock}|${alpha}`;
+  // Results are tagged with the parameters they answer, so stale ones are
+  // ignored when the inputs change (no reset-in-effect needed).
+  const [state, setState] = useState<{ sig: string; rows: Rows }>({ sig: "", rows: {} });
+  useEffect(() => {
+    if (!asset || !key) return;
+    let cancelled = false;
+    const queue = key
+      .split(",")
+      .sort((a, b) => SLOW_LAST.indexOf(a) - SLOW_LAST.indexOf(b));
+    const put = (m: string, r: WhatIfRow | null) =>
+      setState((p) => ({ sig, rows: { ...(p.sig === sig ? p.rows : {}), [m]: r } }));
+    const worker = async () => {
+      while (queue.length > 0 && !cancelled) {
+        const m = queue.shift() as string;
+        try {
+          const r = await apiGet<WhatIfRow>(
+            `/whatif/${asset}?model=${encodeURIComponent(m)}&shock=${shock}&alpha=${alpha}`,
+          );
+          if (!cancelled) put(m, r);
+        } catch {
+          if (!cancelled) put(m, null);
+        }
+      }
+    };
+    void Promise.all(Array.from({ length: 4 }, worker));
+    return () => {
+      cancelled = true;
+    };
+  }, [asset, key, shock, alpha, sig]);
+  return state.sig === sig ? state.rows : {};
 }

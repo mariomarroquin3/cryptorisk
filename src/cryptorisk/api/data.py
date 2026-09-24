@@ -12,6 +12,7 @@ very different caching models.
 
 from __future__ import annotations
 
+import copy
 import time
 from concurrent.futures import ThreadPoolExecutor
 from functools import lru_cache
@@ -405,4 +406,65 @@ def today_forecast(
             out[f"upper_{a}"] = float(dist.ppf(1 - a))
         except NotImplementedError:
             out[f"upper_{a}"] = np.nan
+    return out
+
+
+def _shock_day_realized(win: pd.DataFrame, shock: float) -> dict[str, float]:
+    """Realized measures for a hypothetical day with log-return ``shock``. The
+    intraday path is unknown, so assume the move arrived smoothly (no jump):
+    RV = shock^2, the usual bipower/RV ratio of the window, RQ = shock^4 / 3
+    (evenly spread over the 5-min grid)."""
+    rv = shock**2
+    ratio = float(np.nanmedian(win["bv"].to_numpy(float) / np.where(win["rv"] > 0, win["rv"], np.nan)))
+    ratio = ratio if np.isfinite(ratio) and ratio > 0 else 1.0
+    bv = rv * min(ratio, 1.0)
+    return {
+        "rv": rv,
+        "bv": bv,
+        "rsv_pos": rv if shock > 0 else 0.0,
+        "rsv_neg": rv if shock < 0 else 0.0,
+        "jump": max(rv - bv, 0.0),
+        "rq": shock**4 / 3.0,
+    }
+
+
+@ttl_cache(1800)
+def whatif_forecast(
+    asset: str, model_name: str, shock: float, alphas: tuple[float, ...] = (0.01, 0.025), window: int = 500
+) -> dict[str, Any] | None:
+    """One-step-ahead VaR/ES if the *next* daily log-return were ``shock``: the
+    model is re-fitted on the latest ``window - 1`` days plus a hypothetical day
+    (so the window keeps its length) and forecasts the day after. Uses a private
+    copy of the model so stateful ones (LSTM-Vol's weight cache) are not
+    disturbed. ``None`` if the model is unavailable or the fit fails."""
+    base = _model_map().get(model_name)
+    if base is None:
+        return None
+    win = load_price_window(asset, n=window + 30)
+    if len(win) < window:
+        return None
+    win = win.tail(window - 1)
+    model = copy.copy(base)
+    if hasattr(model, "_cache"):
+        model._cache = {}
+
+    last_date = win["date"].iloc[-1]
+    dates = np.append(win["date"].to_numpy("datetime64[D]"), np.datetime64((last_date + pd.Timedelta(days=1)).date()))
+    returns = np.append(win["log_return"].to_numpy(float), shock)
+    realized = None
+    if model_name in _NEEDS_REALIZED:
+        day = _shock_day_realized(win, shock)
+        realized = {c: np.append(win[c].to_numpy(float), day[c]) for c in _REALIZED_COLS if c in win}
+    ctx = Context(returns=returns, dates=dates, asof=dates[-1], asset=asset, realized=realized)
+    try:
+        dist = model.fit_predict(ctx)
+    except Exception:
+        return None
+    out: dict[str, Any] = {"model": model_name, "asof": pd.Timestamp(dates[-1])}
+    for a in alphas:
+        for key, fn in ((f"var_{a}", dist.var), (f"es_{a}", dist.es)):
+            try:
+                out[key] = float(fn(a))
+            except Exception:
+                out[key] = np.nan
     return out

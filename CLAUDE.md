@@ -469,3 +469,17 @@ only by the API (`load_backtests_live`: `/backtests?live=true`, `/models/latest`
 MS-GARCH is excluded (R-only). Daily via `.github/workflows/refresh-data.yml`.
 Never merge the live file into `backtests.parquet`: it would change the study.
 LSTM-Vol's weights restart from scratch in each run (cache is per process).
+
+## Ops Center (local only)
+
+`make ops` -> http://127.0.0.1:8502 (`src/cryptorisk/ops/`, Streamlit, bound to
+127.0.0.1; never deploy it). Tabs: Status (data freshness, git, result files),
+Daily update (`extend_backtests`), Pipeline (every Makefile stage as a job),
+Models (per-model refit location + frozen/live end dates), Jobs (live logs,
+cancel), Deploy (commit selected files, push behind a typed confirmation, and
+production checks). Jobs run in a detached `ops.runner` process (state in
+`data/ops/jobs/<id>/`, gitignored) so they survive page reloads; they declare
+locks (`store`, `results`, `live`) and overlapping jobs are refused. Stages that
+rewrite the frozen study are marked FROZEN and need a confirmation tick. Commit
+messages get any Co-Authored-By trailer stripped. The GitHub workflow
+`refresh-data.yml` already does the daily update in CI (torch included).

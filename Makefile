@@ -6,7 +6,7 @@ ifeq ($(OS),)
   PY := .venv/bin/python
 endif
 
-.PHONY: help install test lint fmt data realized msgarch backtest evaluate subperiods regime-id regime-band decide report explain portfolio price-snapshot dashboard api web dev clean
+.PHONY: help install test lint fmt data realized msgarch backtest evaluate subperiods regime-id regime-band decide report explain portfolio price-snapshot dashboard ops api web dev clean
 
 help:
 	@echo "install   - create .venv and install (editable) with dev extras"
@@ -25,6 +25,7 @@ help:
 	@echo "portfolio - BTC+ETH basket VaR/ES with a copula tail -> portfolio_* (Phase 7)"
 	@echo "price-snapshot - export data/results/price_history.parquet for the API (run after data/realized change; commit the diff before deploying)"
 	@echo "dashboard - Streamlit live risk terminal over data/results/ + a live price feed"
+	@echo "ops       - local Ops Center (jobs, data freshness, deploy checks) -> http://127.0.0.1:8502"
 	@echo "api       - FastAPI read-only REST API over data/results/ -> http://localhost:8000/docs"
 	@echo "web       - Next.js frontend (npm install first, in web/) -> http://localhost:3000"
 	@echo "dev       - api + web together (Ctrl+C stops both) -> http://localhost:3000"
@@ -84,6 +85,9 @@ price-snapshot:
 
 dashboard:
 	$(PY) -m streamlit run src/cryptorisk/dashboard/app.py
+
+ops:
+	$(PY) -m streamlit run src/cryptorisk/ops/app.py --server.address 127.0.0.1 --server.port 8502
 
 api:
 	$(PY) -m uvicorn cryptorisk.api.app:app --port 8000

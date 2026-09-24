@@ -1,0 +1,118 @@
+"""Git and production checks for the ops center.
+
+Nothing here runs on its own: commit and push are explicit calls the UI makes
+after the user confirms. Commit messages never carry a Co-Authored-By trailer.
+"""
+
+from __future__ import annotations
+
+import os
+import subprocess
+from typing import Any
+
+import requests
+
+from cryptorisk.config import repo_root
+from cryptorisk.ops.status import utc_yesterday
+
+API_URL = os.environ.get("CRYPTORISK_API_URL", "https://cryptorisk-api.onrender.com").rstrip("/")
+WEB_URL = os.environ.get("CRYPTORISK_WEB_URL", "https://cryptorisk-mauve.vercel.app").rstrip("/")
+
+
+def _git(*args: str, timeout: float = 60) -> tuple[int, str]:
+    p = subprocess.run(  # noqa: S603
+        ["git", *args], cwd=repo_root(), capture_output=True, text=True, timeout=timeout, check=False,
+    )
+    # rstrip only newlines: `git status --porcelain` lines start with a significant space
+    return p.returncode, (p.stdout + p.stderr).rstrip("\r\n")
+
+
+def git_state(fetch: bool = False) -> dict[str, Any]:
+    if fetch:
+        _git("fetch", "--quiet", timeout=120)
+    _, branch = _git("rev-parse", "--abbrev-ref", "HEAD")
+    branch = branch.strip()
+    _, porcelain = _git("status", "--porcelain")
+    files = []
+    for line in porcelain.splitlines():
+        if len(line) > 3:
+            files.append({"status": line[:2].strip() or "?", "path": line[3:].strip().strip('"')})
+    rc, counts = _git("rev-list", "--left-right", "--count", "@{u}...HEAD")
+    behind = ahead = None
+    if rc == 0 and counts.split():
+        behind, ahead = (int(x) for x in counts.split()[:2])
+    _, last = _git("log", "-1", "--format=%h %s")
+    _, unpushed = _git("log", "@{u}..HEAD", "--format=%h %s") if ahead else (0, "")
+    return {"branch": branch, "files": files, "behind": behind, "ahead": ahead, "last": last,
+            "unpushed": [ln for ln in unpushed.splitlines() if ln]}
+
+
+def clean_message(msg: str) -> str:
+    """Drop any Co-Authored-By trailer: this repo's commits carry no attribution."""
+    lines = [ln for ln in msg.splitlines() if not ln.lower().startswith("co-authored-by")]
+    return "\n".join(lines).strip()
+
+
+def commit(paths: list[str], message: str) -> tuple[bool, str]:
+    msg = clean_message(message)
+    if not msg:
+        return False, "empty commit message"
+    if not paths:
+        return False, "no files selected"
+    rc, out = _git("add", "--", *paths)
+    if rc != 0:
+        return False, out
+    rc, out = _git("commit", "-m", msg, "--", *paths)
+    return rc == 0, out
+
+
+def push() -> tuple[bool, str]:
+    rc, out = _git("push", timeout=180)
+    return rc == 0, out
+
+
+def _get(path: str, base: str = API_URL, timeout: float = 90) -> requests.Response:
+    return requests.get(base + path, timeout=timeout)
+
+
+def verify_production() -> list[dict[str, Any]]:
+    """Checks the deployed app is up AND current. Each row: name, ok, detail."""
+    want = utc_yesterday().date()
+    out: list[dict[str, Any]] = []
+
+    def check(name: str, fn) -> None:
+        try:
+            ok, detail = fn()
+        except Exception as exc:
+            ok, detail = False, f"{type(exc).__name__}: {exc}"[:160]
+        out.append({"check": name, "ok": bool(ok), "detail": detail})
+
+    check("API health", lambda: (lambda r: (r.status_code == 200, f"HTTP {r.status_code}"))(_get("/health")))
+    check("live price", lambda: (lambda r: (r.status_code == 200, f"HTTP {r.status_code}"))(_get("/price/BTC")))
+
+    def forecast():
+        r = _get("/forecast/BTC?alpha=0.025")
+        d = r.json()
+        asof = str(d.get("asof", d.get("date", "")))[:10]
+        return asof >= str(want), f"{d.get('model')} asof {asof} (want >= {want}), source {d.get('source')}"
+
+    check("forecast is current", forecast)
+
+    def live_bt():
+        r = _get("/backtests?asset=BTC&model=HS&alpha=0.025&limit=1&live=true")
+        last = str(r.json()[-1]["date"])[:10] if r.json() else ""
+        return last >= str(want), f"live walk-forward ends {last} (want >= {want})"
+
+    check("live walk-forward is current", live_bt)
+
+    def lstm():
+        r = _get("/models/latest?asset=BTC&alpha=0.025")
+        row = next((x for x in r.json() if x["model"] == "LSTM-Vol"), None)
+        last = str(row["date"])[:10] if row else ""
+        return last >= str(want), f"LSTM-Vol latest row {last or 'missing'}"
+
+    check("LSTM-Vol latest row", lstm)
+    check("track record", lambda: (lambda d: (len(d.get("days", [])) > 0, f"{len(d.get('days', []))} live days"))(
+        _get("/live/track-record?asset=BTC&alpha=0.025").json()))
+    check("web (Vercel)", lambda: (lambda r: (r.status_code == 200, f"HTTP {r.status_code}"))(_get("/", WEB_URL, 30)))
+    return out

@@ -38,3 +38,5 @@ docs/*.toc
 docs/*.fls
 docs/*.fdb_latexmk
 docs/*.synctex.gz
+# local ops center jobs (logs + metadata)
+data/ops/

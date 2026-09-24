@@ -93,3 +93,42 @@ def test_catalog_builds_argv_and_options():
     assert spec.frozen and "store" in spec.locks
     (daily,) = jobs.CATALOG["daily"][1]({"no_refresh": True})
     assert daily[-1] == "--no-refresh"
+
+
+def test_git_calls_open_no_console_window(monkeypatch):
+    from cryptorisk.ops import deploy
+
+    seen = []
+
+    def fake_run(argv, **kw):
+        seen.append((argv[0], kw.get("creationflags")))
+
+        class P:
+            returncode, stdout, stderr = 0, "", ""
+
+        return P()
+
+    monkeypatch.setattr(deploy.subprocess, "run", fake_run)
+    deploy._git("status")
+    jobs._kill_tree(123456789) if os.name == "nt" else None
+    assert seen[0] == ("git", jobs.NO_WINDOW)
+    if os.name == "nt":
+        assert seen[1] == ("taskkill", jobs.NO_WINDOW) and jobs.NO_WINDOW != 0
+
+
+def test_git_state_is_cached_until_fetch_or_invalidate(monkeypatch):
+    from cryptorisk.ops import deploy
+
+    calls = []
+    monkeypatch.setattr(deploy, "_git_state", lambda fetch: calls.append(fetch) or {"n": len(calls)})
+    deploy.invalidate_git_state()
+    assert deploy.git_state() == {"n": 1} and deploy.git_state() == {"n": 1}
+    assert len(calls) == 1
+    assert deploy.git_state(fetch=True) == {"n": 2}  # fetch always refreshes
+    deploy.invalidate_git_state()
+    deploy.git_state()
+    assert calls == [False, True, False]
+    monkeypatch.setattr(deploy.time, "monotonic", lambda: 1e9)  # long past the TTL
+    deploy.git_state()
+    assert len(calls) == 4
+    deploy.invalidate_git_state()

@@ -33,6 +33,10 @@ def jobs_dir() -> Path:
     return d
 
 
+#: Windows: run a child without opening a console window (0 elsewhere)
+NO_WINDOW = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0  # type: ignore[attr-defined]
+
+
 class Busy(RuntimeError):
     """Another running job holds a lock this one needs."""
 
@@ -206,7 +210,10 @@ def pid_alive(pid: int | None) -> bool:
 
 def _kill_tree(pid: int) -> None:
     if os.name == "nt":
-        subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], capture_output=True, check=False)
+        subprocess.run(  # noqa: S603
+            ["taskkill", "/PID", str(pid), "/T", "/F"], capture_output=True, check=False,
+            creationflags=NO_WINDOW,  # otherwise every call flashes a console window
+        )
     else:
         import signal
 

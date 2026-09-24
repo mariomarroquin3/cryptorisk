@@ -140,11 +140,12 @@ def test_git_state_fetches_at_most_every_few_minutes(monkeypatch):
 
     fetches = []
     monkeypatch.setattr(deploy, "_git_state", lambda fetch: fetches.append(fetch) or {"behind": 0})
-    deploy._state_cache.update(fetched=0.0)
+    deploy._state_cache.update(fetched=float("-inf"))
     deploy.invalidate_git_state()
-    deploy.git_state()                      # never fetched -> fetch
+    monkeypatch.setattr(deploy.time, "monotonic", lambda: 5.0)  # a machine that booted 5 s ago
+    deploy.git_state()                      # never fetched -> fetch, even with a tiny monotonic clock
     deploy.invalidate_git_state()
     deploy.git_state()                      # fetched just now -> no fetch
     assert fetches == [True, False]
-    deploy._state_cache.update(fetched=0.0)
+    deploy._state_cache.update(fetched=float("-inf"))
     deploy.invalidate_git_state()

@@ -33,7 +33,9 @@ def _git(*args: str, timeout: float = 60) -> tuple[int, str]:
 
 _STATE_TTL_S = 8.0
 _FETCH_EVERY_S = 300.0  # refresh the remote refs now and then so "behind" is not stale
-_state_cache: dict[str, Any] = {"at": 0.0, "value": None, "fetched": 0.0}
+# `fetched` starts at -inf, not 0: time.monotonic() counts from boot, so on a freshly started
+# machine "now - 0" can be under the interval and the first automatic fetch would be skipped.
+_state_cache: dict[str, Any] = {"at": 0.0, "value": None, "fetched": float("-inf")}
 _state_lock = threading.Lock()
 
 

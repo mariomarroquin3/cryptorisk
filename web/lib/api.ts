@@ -385,6 +385,8 @@ export interface WhatIfRow {
   last_close: number;
   shocked_close: number;
   baseline: { var: number; es: number };
+  /** The same model after a flat (0%) day: what the shock is measured against. */
+  flat: { var: number; es: number };
   shocked: { var: number; es: number };
   baseline_var_price: number | null;
   shocked_var_price: number | null;

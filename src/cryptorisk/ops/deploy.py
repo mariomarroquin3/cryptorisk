@@ -32,7 +32,8 @@ def _git(*args: str, timeout: float = 60) -> tuple[int, str]:
 
 
 _STATE_TTL_S = 8.0
-_state_cache: dict[str, Any] = {"at": 0.0, "value": None}
+_FETCH_EVERY_S = 300.0  # refresh the remote refs now and then so "behind" is not stale
+_state_cache: dict[str, Any] = {"at": 0.0, "value": None, "fetched": 0.0}
 _state_lock = threading.Lock()
 
 
@@ -49,9 +50,12 @@ def git_state(fetch: bool = False) -> dict[str, Any]:
         hit = _state_cache["value"]
         if not fetch and hit is not None and time.monotonic() - _state_cache["at"] < _STATE_TTL_S:
             return hit
+    fetch = fetch or time.monotonic() - _state_cache["fetched"] > _FETCH_EVERY_S
     value = _git_state(fetch)
     with _state_lock:
         _state_cache.update(at=time.monotonic(), value=value)
+        if fetch:
+            _state_cache["fetched"] = time.monotonic()
     return value
 
 
@@ -91,6 +95,14 @@ def commit(paths: list[str], message: str) -> tuple[bool, str]:
     if rc != 0:
         return False, out
     rc, out = _git("commit", "-m", msg, "--", *paths)
+    invalidate_git_state()
+    return rc == 0, out
+
+
+def pull() -> tuple[bool, str]:
+    """Fast-forward only: the daily bot pushes data commits, and a merge of its binary
+    parquet files would only produce conflicts."""
+    rc, out = _git("pull", "--ff-only", timeout=180)
     invalidate_git_state()
     return rc == 0, out
 

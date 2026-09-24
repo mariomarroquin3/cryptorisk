@@ -45,6 +45,22 @@ def _start(key: str, params: dict | None = None) -> None:
     st.success(f"Started {jid}. Follow it in the Jobs tab.")
 
 
+# Streamlit re-runs this whole script on every click; these reads take a few hundred ms each.
+@st.cache_data(ttl=20, show_spinner=False)
+def _data_status() -> pd.DataFrame:
+    return status.data_status()
+
+
+@st.cache_data(ttl=20, show_spinner=False)
+def _model_table() -> pd.DataFrame:
+    return status.model_table()
+
+
+@st.cache_data(ttl=20, show_spinner=False)
+def _results_files() -> pd.DataFrame:
+    return status.results_files()
+
+
 def _color_behind(v):
     if v is None or pd.isna(v):
         return ""
@@ -71,7 +87,7 @@ tab_status, tab_daily, tab_pipe, tab_models, tab_jobs, tab_deploy = st.tabs(
 
 # --------------------------------------------------------------------------- Status
 with tab_status:
-    ds = status.data_status()
+    ds = _data_status()
     live = ds[ds["source"].str.startswith(("price_history", "backtests_live"))]
     worst = live["days_behind"].max() if not live.empty and live["days_behind"].notna().any() else None
     c = st.columns(4)
@@ -82,12 +98,20 @@ with tab_status:
     c[3].metric("Uncommitted files", len(gs["files"]))
     if worst is not None and worst > 1:
         st.warning("Live data is stale. Run the daily update, then commit and push from the Deploy tab.")
+    if gs["behind"]:
+        st.warning(
+            f"The remote has {gs['behind']} commit(s) you do not have (the daily bot pushes data). "
+            "Pull before running the daily update, or the data files will conflict."
+        )
+        if st.button("Pull (fast-forward only)", key="pull_status"):
+            ok, out = deploy.pull()
+            (st.success if ok else st.error)(out or "pulled")
     st.subheader("Datasets")
     styled = ds.style.map(_color_behind, subset=["days_behind"])
     st.dataframe(styled, hide_index=True, width="stretch")
     st.caption("The frozen study and the store stay at the study sample end on purpose (2026-09-10).")
     st.subheader("Result files")
-    st.dataframe(status.results_files(), hide_index=True, width="stretch")
+    st.dataframe(_results_files(), hide_index=True, width="stretch")
 
 # --------------------------------------------------------------------------- Daily
 with tab_daily:
@@ -113,7 +137,7 @@ with tab_daily:
 with tab_pipe:
     cfg = load_config()
     assets = list(cfg["assets"])
-    model_names = [m for m in status.model_table()["model"]]
+    model_names = list(_model_table()["model"])
     held = jobs.running_locks()
     st.caption("Same stages as the Makefile. Stages marked FROZEN rewrite the study results: the paper's numbers change.")
     for group in ("Live", "Data", "Study", "Dev"):
@@ -154,7 +178,7 @@ with tab_pipe:
 
 # --------------------------------------------------------------------------- Models
 with tab_models:
-    mt = status.model_table()
+    mt = _model_table()
     st.subheader("Models")
     st.dataframe(mt.style.map(_color_behind, subset=["live_days_behind"]), hide_index=True, width="stretch")
     st.caption(

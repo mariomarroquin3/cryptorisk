@@ -8,6 +8,11 @@ on:
 permissions:
   contents: write
 
+# Never two refreshes at once (a manual run overlapping the schedule would race on the same files).
+concurrency:
+  group: refresh-data
+  cancel-in-progress: false
+
 jobs:
   refresh:
     runs-on: ubuntu-latest
@@ -17,10 +22,23 @@ jobs:
         with:
           python-version: "3.12"
       - run: python -m pip install -e ".[api,ml]"
-      - run: python -m cryptorisk.study.extend_backtests   # rolls price_history forward, then the live walk-forward
-      - name: Commit if changed
+      - name: Roll data forward and push
         run: |
           git config user.name "cryptorisk-bot"
           git config user.email "cryptorisk-bot@users.noreply.github.com"
-          git add data/results/price_history.parquet data/results/backtests_live.parquet
-          git diff --cached --quiet || (git commit -m "data: roll price history and live walk-forward forward" && git push)
+          FILES="data/results/price_history.parquet data/results/backtests_live.parquet"
+          for attempt in 1 2 3; do
+            # rolls price_history forward, then the live walk-forward (LSTM-Vol included)
+            python -m cryptorisk.study.extend_backtests
+            git add $FILES
+            if git diff --cached --quiet; then echo "nothing to commit"; exit 0; fi
+            git commit -m "data: roll price history and live walk-forward forward"
+            if git push; then exit 0; fi
+            # Someone pushed in between. The files are regenerable, so start again from the new
+            # head instead of trying to merge binary parquet files.
+            echo "push rejected (attempt $attempt); resetting to origin/main and retrying"
+            git fetch origin main
+            git reset --hard origin/main
+          done
+          echo "could not push after 3 attempts" >&2
+          exit 1

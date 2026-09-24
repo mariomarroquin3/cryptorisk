@@ -125,15 +125,24 @@ function OverviewPageInner() {
   );
   const coverageRow = coverage?.find((r) => r.model === effModel) ?? null;
 
+  const fcSource = forecast?.source;
+  const fcAsof = forecast?.asof;
+  const fcVarPrice = forecast?.var_price;
+  const fcEsPrice = forecast?.es_price;
   const chartData = useMemo(() => {
     const priceLine: PricePoint[] = (prices ?? []).map((p) => ({
       time: p.date.slice(0, 10),
       value: p.close,
     }));
     const { varLine, esLine, breaches } = buildBand(prices ?? [], backtests ?? []);
-    const { liveVar, liveEs } = liveBandPoints({ varLine, esLine }, forecast);
+    const { liveVar, liveEs } = liveBandPoints(
+      { varLine, esLine },
+      { source: fcSource ?? "", asof: fcAsof, var_price: fcVarPrice, es_price: fcEsPrice },
+    );
     return { priceLine, varLine, esLine, breaches, liveVar, liveEs };
-  }, [prices, backtests, forecast]);
+    // Primitives, not the `forecast` object: it carries a fetch timestamp that changes every
+    // refresh, and a new chartData rebuilds the whole chart (and drops the user's zoom).
+  }, [prices, backtests, fcSource, fcAsof, fcVarPrice, fcEsPrice]);
 
   const coneSeries = useMemo(() => buildConeSeries(forecast), [forecast]);
 

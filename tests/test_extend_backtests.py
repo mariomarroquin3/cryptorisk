@@ -99,3 +99,19 @@ def test_whatif_shock_raises_reactive_models_and_leaves_lstm_cache_alone(monkeyp
     D.whatif_forecast("BTC", "HAR-RV", -0.1)
     assert dict(getattr(shared, "_cache", {})) == before
     D.whatif_forecast.cache_clear()
+
+
+def test_intraday_is_skipped_when_price_history_is_stale(monkeypatch):
+    from cryptorisk.api import app as A
+    from cryptorisk.api import data as D
+
+    called = []
+    monkeypatch.setattr(
+        D, "intraday_status",
+        lambda asset, ref: called.append(ref) or {"low_ret": -0.01, "ret_so_far": 0.0},
+    )
+    today = pd.Timestamp.now(tz="UTC").tz_localize(None).normalize()
+    stale = A._intraday("BTC", today - pd.Timedelta(days=4), 100.0, -0.05, -0.07)
+    assert stale is None and not called  # a 4-day-old reference close must not produce a "today" verdict
+    fresh = A._intraday("BTC", today - pd.Timedelta(days=1), 100.0, -0.05, -0.07)
+    assert fresh is not None and fresh["var_breached"] is False

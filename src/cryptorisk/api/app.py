@@ -55,6 +55,8 @@ def _warm_numba() -> None:
 @asynccontextmanager
 async def _lifespan(_app: FastAPI):
     threading.Thread(target=_warm_numba, daemon=True).start()
+    # Fetch the days since the snapshot now, so the first visitor after a cold start does not wait for Binance.
+    threading.Thread(target=D._price_history, daemon=True).start()
     yield
 
 
@@ -261,7 +263,7 @@ def forecast(
             "upper_price": _price(last, hi),
             "cone": _ensemble_cone(asset, last, alpha),
             "regime_summary": C.regime_summary(asset),
-            "intraday": _intraday(asset, last, lo, es),
+            "intraday": _intraday(asset, fc["asof"], last, lo, es),
         }
 
     # No live re-fit here (e.g. LSTM-Vol without torch): use the newest stored
@@ -286,8 +288,15 @@ def forecast(
     }
 
 
-def _intraday(asset: str, last_close: float, var: float | None, es: float | None) -> dict | None:
-    """Today's incomplete UTC day vs the forecast: has the VaR/ES already been hit?"""
+def _intraday(asset: str, asof: Any, last_close: float, var: float | None, es: float | None) -> dict | None:
+    """Today's incomplete UTC day vs the forecast: has the VaR/ES already been hit?
+
+    Only meaningful when ``last_close`` is *yesterday's* close: if the price
+    history is older (the Binance tail failed), "return so far today" would span
+    several days and could flag a VaR breach that never happened today."""
+    yesterday = pd.Timestamp.now(tz="UTC").tz_localize(None).normalize() - pd.Timedelta(days=1)
+    if pd.Timestamp(asof).normalize() != yesterday:
+        return None
     st = D.intraday_status(asset, last_close)
     if st is None:
         return None
@@ -318,7 +327,11 @@ def whatif(
     alphas = tuple(cfg["alphas"])
     base = D.today_forecast(asset, model, alphas=alphas)
     hit = D.whatif_forecast(asset, model, round(log_shock, 4), alphas)
-    if base is None or hit is None:
+    # A flat day (0%) through the same code path. Comparing only with today's forecast mixes two
+    # things: the shock, and how much a model's estimate decays after any quiet day. The flat run
+    # separates them (cached across shocks, so it costs one extra fit per model, once).
+    flat = D.whatif_forecast(asset, model, 0.0, alphas)
+    if base is None or hit is None or flat is None:
         raise HTTPException(404, f"no what-if available for {asset}/{model}")
     last = base["last_close"]
     shocked_close = last * (1 + shock)
@@ -330,6 +343,7 @@ def whatif(
         "last_close": last,
         "shocked_close": shocked_close,
         "baseline": {"var": base[f"var_{alpha}"], "es": base[f"es_{alpha}"]},
+        "flat": {"var": flat[f"var_{alpha}"], "es": flat[f"es_{alpha}"]},
         "shocked": {"var": hit[f"var_{alpha}"], "es": hit[f"es_{alpha}"]},
         "baseline_var_price": _price(last, base[f"var_{alpha}"]),
         "shocked_var_price": _price(shocked_close, hit[f"var_{alpha}"]),

@@ -174,7 +174,7 @@ def _snapshot_history() -> pd.DataFrame:
     return df
 
 
-@ttl_cache(600)
+@ttl_cache(600, stale_while_revalidate=True)
 def _price_history() -> pd.DataFrame:
     """The committed snapshot plus every complete UTC day since it, from Binance
     5-min klines (``api.live_tail``): the forecast and price chart stay current

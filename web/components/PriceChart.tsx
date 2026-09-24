@@ -6,6 +6,8 @@ import {
   createChart,
   createSeriesMarkers,
   IChartApi,
+  IPriceLine,
+  ISeriesApi,
   LineSeries,
   SeriesMarker,
   Time,
@@ -31,6 +33,9 @@ export interface ChartProps {
 export function PriceChart({ price, varLine, esLine, breaches, livePrice, liveVar, liveEs }: ChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
+  const priceSeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
+  const liveLineRef = useRef<IPriceLine | null>(null);
+  const livePriceRef = useRef(livePrice);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -97,23 +102,40 @@ export function PriceChart({ price, varLine, esLine, breaches, livePrice, liveVa
       createSeriesMarkers(priceSeries, markers);
     }
 
-    if (livePrice != null && Number.isFinite(livePrice)) {
-      priceSeries.createPriceLine({
-        price: livePrice,
-        color: "#3ddc84",
-        lineWidth: 1,
-        lineStyle: 3,
-        title: "live",
-      });
-    }
+    priceSeriesRef.current = priceSeries;
+    const lp = livePriceRef.current;
+    liveLineRef.current =
+      lp != null && Number.isFinite(lp)
+        ? priceSeries.createPriceLine({ price: lp, color: "#3ddc84", lineWidth: 1, lineStyle: 3, title: "live" })
+        : null;
 
     chart.timeScale().fitContent();
 
     return () => {
       chart.remove();
       chartRef.current = null;
+      priceSeriesRef.current = null;
+      liveLineRef.current = null;
     };
-  }, [price, varLine, esLine, breaches, livePrice, liveVar, liveEs]);
+  }, [price, varLine, esLine, breaches, liveVar, liveEs]);
+
+  // The spot price ticks every few seconds: move its line in place instead of
+  // rebuilding the chart (which reset the user's zoom and scroll each time).
+  useEffect(() => {
+    livePriceRef.current = livePrice;
+    const series = priceSeriesRef.current;
+    if (!series) return;
+    if (livePrice == null || !Number.isFinite(livePrice)) {
+      if (liveLineRef.current) series.removePriceLine(liveLineRef.current);
+      liveLineRef.current = null;
+    } else if (liveLineRef.current) {
+      liveLineRef.current.applyOptions({ price: livePrice });
+    } else {
+      liveLineRef.current = series.createPriceLine({
+        price: livePrice, color: "#3ddc84", lineWidth: 1, lineStyle: 3, title: "live",
+      });
+    }
+  }, [livePrice]);
 
   return <div ref={containerRef} className="h-[420px] w-full" />;
 }

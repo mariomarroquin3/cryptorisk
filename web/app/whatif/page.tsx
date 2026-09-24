@@ -51,11 +51,12 @@ function WhatIfInner() {
   const cols: Column<WhatIfPoint & { dpp: number }>[] = [
     { key: "model", label: "model", render: (r) => <ModelTip name={r.model} info={info?.[r.model]} /> },
     { key: "base", label: "VaR today", render: (r) => fmtPct(r.base, 2), help: "One-day VaR from the model re-fitted on the latest 500 days, before any hypothetical move." },
+    { key: "flat", label: "VaR after a flat day", render: (r) => fmtPct(r.flat, 2), help: "The same model if the next day is flat (0%). Most models already lower their VaR after a quiet day, so this is the fair reference for the shock." },
     { key: "shocked", label: "VaR after shock", render: (r) => fmtPct(r.shocked, 2), help: "One-day VaR for the day after, with the hypothetical return appended to the window." },
-    { key: "dpp", label: "change (pp)", render: (r) => `${r.dpp >= 0 ? "+" : ""}${(r.dpp * 100).toFixed(2)}`, help: "Shocked minus baseline VaR, in percentage points. Negative = the model now sees more downside risk." },
-    { key: "multiple", label: "multiple", render: (r) => `${r.multiple.toFixed(2)}x`, help: "Shocked VaR divided by today's VaR. 1.00x = no reaction." },
+    { key: "dpp", label: "shock vs flat (pp)", render: (r) => `${r.dpp >= 0 ? "+" : ""}${(r.dpp * 100).toFixed(2)}`, help: "VaR after the shock minus VaR after a flat day, in percentage points. Negative = the shock makes the model see more downside risk." },
+    { key: "effect", label: "shock effect", render: (r) => `${r.effect.toFixed(2)}x`, help: "VaR after the shock divided by VaR after a flat day. 1.00x = the shock changes nothing." },
   ];
-  const tableRows = points.map((p) => ({ ...p, dpp: p.shocked - p.base }));
+  const tableRows = points.map((p) => ({ ...p, dpp: p.shocked - p.flat }));
 
   return (
     <div className="space-y-6">
@@ -134,8 +135,8 @@ function WhatIfInner() {
       ) : (
         <>
           <ChartCard
-            title="How much each model's VaR moves"
-            caption="Shocked VaR as a multiple of today's VaR (dashed line = no reaction). Amber = machine learning, blue = the rest. Realized-measure models (HAR-RV, HARQ, GARCH-X) treat the shock day as a smooth move with no jump; the model that barely moves is the one that would be slowest to warn you."
+            title="How much the shock moves each model's VaR"
+            caption="VaR after the shock as a multiple of VaR after a flat day (dashed line = the shock changes nothing). Measuring against a flat day, not today's forecast, keeps a model's ordinary decay after a quiet day out of its reaction. Amber = machine learning, blue = the rest. Realized-measure models (HAR-RV, HARQ, GARCH-X) treat the shock day as a smooth move with no jump; the model that barely moves is the one that would be slowest to warn you."
           >
             <ReactionBars points={points} info={info} />
           </ChartCard>

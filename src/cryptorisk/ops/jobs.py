@@ -17,6 +17,7 @@ import os
 import subprocess
 import sys
 import time
+import uuid
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
@@ -205,7 +206,12 @@ def pid_alive(pid: int | None) -> bool:
         os.kill(int(pid), 0)
     except OSError:
         return False
-    return True
+    # A finished child nobody has reaped yet is a zombie: it still answers signal 0 but is not running.
+    try:
+        state = Path(f"/proc/{int(pid)}/stat").read_text().rsplit(")", 1)[1].split()[0]
+    except (OSError, IndexError):
+        return True  # no /proc (macOS): trust the signal check
+    return state != "Z"
 
 
 def _kill_tree(pid: int) -> None:
@@ -300,7 +306,8 @@ def start_job(
     clash = [lk for lk in locks if lk in held]
     if clash:
         raise Busy(f"{', '.join(clash)} in use by job {held[clash[0]]}")
-    job_id = f"{datetime.now():%Y%m%d-%H%M%S}-{key}"
+    # the short random suffix keeps two jobs of the same kind started in the same second apart
+    job_id = f"{datetime.now():%Y%m%d-%H%M%S}-{key}-{uuid.uuid4().hex[:4]}"
     (jobs_dir() / job_id).mkdir(parents=True, exist_ok=False)
     meta = {
         "id": job_id, "key": key, "label": label, "steps": steps, "locks": locks,

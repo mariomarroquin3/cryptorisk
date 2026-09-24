@@ -121,6 +121,7 @@ def test_git_state_is_cached_until_fetch_or_invalidate(monkeypatch):
 
     calls = []
     monkeypatch.setattr(deploy, "_git_state", lambda fetch: calls.append(fetch) or {"n": len(calls)})
+    deploy._state_cache["fetched"] = time.monotonic()  # a recent fetch: no automatic one in this test
     deploy.invalidate_git_state()
     assert deploy.git_state() == {"n": 1} and deploy.git_state() == {"n": 1}
     assert len(calls) == 1
@@ -131,4 +132,19 @@ def test_git_state_is_cached_until_fetch_or_invalidate(monkeypatch):
     monkeypatch.setattr(deploy.time, "monotonic", lambda: 1e9)  # long past the TTL
     deploy.git_state()
     assert len(calls) == 4
+    deploy.invalidate_git_state()
+
+
+def test_git_state_fetches_at_most_every_few_minutes(monkeypatch):
+    from cryptorisk.ops import deploy
+
+    fetches = []
+    monkeypatch.setattr(deploy, "_git_state", lambda fetch: fetches.append(fetch) or {"behind": 0})
+    deploy._state_cache.update(fetched=0.0)
+    deploy.invalidate_git_state()
+    deploy.git_state()                      # never fetched -> fetch
+    deploy.invalidate_git_state()
+    deploy.git_state()                      # fetched just now -> no fetch
+    assert fetches == [True, False]
+    deploy._state_cache.update(fetched=0.0)
     deploy.invalidate_git_state()

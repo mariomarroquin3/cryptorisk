@@ -45,6 +45,7 @@ function WhatIfInner() {
   const rows = useWhatIfAll(effAsset, models, shock, effAlpha);
   const points = useMemo(() => toPoints(rows), [rows]);
   const pending = models.filter((m) => rows[m] === undefined).length;
+  const failed = models.filter((m) => rows[m] === null);
   const sample = Object.values(rows).find((r) => r) ?? null;
 
   const cols: Column<WhatIfPoint & { dpp: number }>[] = [
@@ -120,7 +121,10 @@ function WhatIfInner() {
           {pending > 0 ? (
             <span className="text-muted">Re-fitting {pending} more models (the slow ones come last)...</span>
           ) : (
-            <span className="text-muted">All {points.length} models re-fitted.</span>
+            <span className="text-muted">
+              {points.length} models re-fitted
+              {failed.length > 0 && `; no live re-fit on this server for ${failed.join(", ")}`}.
+            </span>
           )}
         </div>
       )}

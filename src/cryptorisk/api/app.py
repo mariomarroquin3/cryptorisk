@@ -264,8 +264,14 @@ def forecast(
             "intraday": _intraday(asset, last, lo, es),
         }
 
-    bt = D.load_backtests()
-    row = bt[(bt.asset == asset) & (bt.model == model_name) & (bt.alpha == alpha)].tail(1)
+    # No live re-fit here (e.g. LSTM-Vol without torch): use the newest stored
+    # walk-forward row, including the days rolled forward since the frozen sample.
+    bt = D.load_backtests_live()
+    row = (
+        bt[(bt.asset == asset) & (bt.model == model_name) & (bt.alpha == alpha)]
+        .sort_values("date")
+        .tail(1)
+    )
     if row.empty:
         raise HTTPException(404, f"no forecast available for {asset}/{model_name}")
     r = row.iloc[0]

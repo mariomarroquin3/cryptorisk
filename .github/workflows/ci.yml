@@ -22,7 +22,16 @@ jobs:
       - name: Lint
         run: python -m ruff check .
       - name: Test
-        run: python -m pytest --cov=cryptorisk --cov-report=term-missing
+        # Failed tests are also emitted as annotations: the raw log needs a login to read,
+        # annotations do not, so a red run can be diagnosed from the API/UI summary.
+        run: |
+          set -o pipefail
+          python -m pytest --cov=cryptorisk --cov-report=term-missing -ra 2>&1 | tee pytest.log || status=$?
+          grep -E "^(FAILED|ERROR) " pytest.log | head -8 | while IFS= read -r line; do echo "::error title=pytest::${line:0:400}"; done
+          tail -n 25 pytest.log | grep -E "passed|failed|error" | head -2 | while IFS= read -r line; do echo "::notice title=pytest summary::$line"; done
+          # a crash or timeout leaves no FAILED line: show where the log stopped
+          tail -n 4 pytest.log | while IFS= read -r line; do echo "::notice title=pytest tail::${line:0:300}"; done
+          exit ${status:-0}
       - name: Import smoke test (api)
         run: python -c "import cryptorisk.api.app"
 

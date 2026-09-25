@@ -350,6 +350,30 @@ def whatif(
     }
 
 
+@app.get("/explain/var-change/{asset}")
+def var_change(asset: str, model: str, alpha: float = Query(0.025)) -> dict:
+    """Why the model's VaR/ES moved since yesterday's forecast: the effect of the new day
+    entering the window versus the oldest day leaving it (see ``var_change_attribution``).
+    One model per call so a client can fill in results as the fast models return."""
+    cfg = load_config()
+    _check_asset(asset, cfg["assets"])
+    _check_alpha(alpha, cfg["alphas"])
+    if model not in D.model_names() or model == "MS-GARCH":
+        raise HTTPException(404, f"no live re-fit for model {model!r}")
+    res = D.var_change_attribution(asset, model, tuple(cfg["alphas"]))
+    if res is None:
+        raise HTTPException(404, f"no attribution available for {asset}/{model}")
+    k = f"_{alpha}"
+    return {
+        "asset": asset, "model": model, "alpha": alpha,
+        "asof": str(res["asof"])[:10], "prev_asof": str(res["prev_asof"])[:10],
+        "new_date": str(res["new_date"])[:10], "new_return": res["new_return"],
+        "dropped_date": str(res["dropped_date"])[:10], "dropped_return": res["dropped_return"],
+        "var": {"prev": res["prev_var" + k], "now": res["now_var" + k], "new": res["new_var" + k], "old": res["old_var" + k]},
+        "es": {"prev": res["prev_es" + k], "now": res["now_es" + k], "new": res["new_es" + k], "old": res["old_es" + k]},
+    }
+
+
 @app.get("/live/track-record")
 def live_track_record(asset: str, alpha: float) -> dict:
     """Per-model violations / FZ0 on the days since the frozen sample end

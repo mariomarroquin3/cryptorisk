@@ -18,6 +18,7 @@ import {
 import { Field } from "@/components/Field";
 import { LstmFeatureShare, LstmImportanceHeatmap, LstmLagProfile } from "@/components/LstmCharts";
 import { RfPdpChart } from "@/components/RfPdpChart";
+import { VarChangePanel } from "@/components/VarChangePanel";
 import { ChartSkeleton } from "@/components/Skeleton";
 import { fmtConfidence } from "@/lib/format";
 import {
@@ -288,6 +289,9 @@ function ExplainPageInner() {
           </div>
         </>
       )}
+
+      <h2 className="text-lg font-medium">5. Why did each model&apos;s VaR change since yesterday?</h2>
+      <VarChangePanel asset={effAsset} alpha={effAlpha} />
     </div>
   );
 }

@@ -391,3 +391,17 @@ export interface WhatIfRow {
   baseline_var_price: number | null;
   shocked_var_price: number | null;
 }
+
+export interface VarChangeRow {
+  asset: string;
+  model: string;
+  alpha: number;
+  asof: string;
+  prev_asof: string;
+  new_date: string;
+  new_return: number;
+  dropped_date: string;
+  dropped_return: number;
+  var: { prev: number; now: number; new: number; old: number };
+  es: { prev: number; now: number; new: number; old: number };
+}

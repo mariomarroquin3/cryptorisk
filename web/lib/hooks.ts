@@ -26,6 +26,7 @@ import {
   RegimesResponse,
   RfExplain,
   RfPdp,
+  VarChangeRow,
   WhatIfRow,
 } from "./api";
 
@@ -182,36 +183,33 @@ export function useLiveTrackRecord(asset: string | null, alpha: number) {
 /** Slow re-fits go last so the fast models fill in first. */
 const SLOW_LAST = ["RF-QR", "Realized-SV", "LSTM-Vol"];
 
-/** What-if VaR/ES for every model under one hypothetical next-day return.
- * One request per model, at most four in flight, results appear as they
- * arrive (`undefined` = pending, `null` = failed). */
-export function useWhatIfAll(
-  asset: string | null,
+/** One request per model against `${basePath}?model=<m>&${query}`, at most four in flight, results
+ * appearing as they arrive (`undefined` = pending, `null` = failed). Used by endpoints that re-fit
+ * a model per call (what-if, VaR-change attribution). */
+export function useModelFanout<T>(
+  basePath: string | null,
+  query: string,
   models: string[],
-  shock: number,
-  alpha: number,
-): Record<string, WhatIfRow | null | undefined> {
-  type Rows = Record<string, WhatIfRow | null | undefined>;
+): Record<string, T | null | undefined> {
+  type Rows = Record<string, T | null | undefined>;
   const key = models.join(",");
-  const sig = `${asset}|${key}|${shock}|${alpha}`;
+  const sig = `${basePath}|${key}|${query}`;
   // Results are tagged with the parameters they answer, so stale ones are
   // ignored when the inputs change (no reset-in-effect needed).
   const [state, setState] = useState<{ sig: string; rows: Rows }>({ sig: "", rows: {} });
   useEffect(() => {
-    if (!asset || !key) return;
+    if (!basePath || !key) return;
     let cancelled = false;
     const queue = key
       .split(",")
       .sort((a, b) => SLOW_LAST.indexOf(a) - SLOW_LAST.indexOf(b));
-    const put = (m: string, r: WhatIfRow | null) =>
+    const put = (m: string, r: T | null) =>
       setState((p) => ({ sig, rows: { ...(p.sig === sig ? p.rows : {}), [m]: r } }));
     const worker = async () => {
       while (queue.length > 0 && !cancelled) {
         const m = queue.shift() as string;
         try {
-          const r = await apiGet<WhatIfRow>(
-            `/whatif/${asset}?model=${encodeURIComponent(m)}&shock=${shock}&alpha=${alpha}`,
-          );
+          const r = await apiGet<T>(`${basePath}?model=${encodeURIComponent(m)}&${query}`);
           if (!cancelled) put(m, r);
         } catch {
           if (!cancelled) put(m, null);
@@ -222,6 +220,26 @@ export function useWhatIfAll(
     return () => {
       cancelled = true;
     };
-  }, [asset, key, shock, alpha, sig]);
+  }, [basePath, key, query, sig]);
   return state.sig === sig ? state.rows : {};
 }
+
+/** What-if VaR/ES for every model under one hypothetical next-day return. */
+export function useWhatIfAll(
+  asset: string | null,
+  models: string[],
+  shock: number,
+  alpha: number,
+): Record<string, WhatIfRow | null | undefined> {
+  return useModelFanout<WhatIfRow>(asset ? `/whatif/${asset}` : null, `shock=${shock}&alpha=${alpha}`, models);
+}
+
+/** Why each model's VaR moved since yesterday's forecast. */
+export function useVarChangeAll(
+  asset: string | null,
+  models: string[],
+  alpha: number,
+): Record<string, VarChangeRow | null | undefined> {
+  return useModelFanout<VarChangeRow>(asset ? `/explain/var-change/${asset}` : null, `alpha=${alpha}`, models);
+}
+

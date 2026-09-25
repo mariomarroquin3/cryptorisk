@@ -435,33 +435,24 @@ def _shock_day_realized(win: pd.DataFrame, shock: float) -> dict[str, float]:
 _WHATIF_SLOTS = threading.BoundedSemaphore(2)
 
 
-@ttl_cache(1800)
-def whatif_forecast(
-    asset: str, model_name: str, shock: float, alphas: tuple[float, ...] = (0.01, 0.025), window: int = 500
+def _refit(
+    asset: str,
+    model_name: str,
+    dates: np.ndarray,
+    returns: np.ndarray,
+    realized: dict[str, np.ndarray] | None,
+    alphas: tuple[float, ...],
 ) -> dict[str, Any] | None:
-    """One-step-ahead VaR/ES if the *next* daily log-return were ``shock``: the
-    model is re-fitted on the latest ``window - 1`` days plus a hypothetical day
-    (so the window keeps its length) and forecasts the day after. Uses a private
-    copy of the model so stateful ones (LSTM-Vol's weight cache) are not
-    disturbed. ``None`` if the model is unavailable or the fit fails."""
+    """Fit a private copy of ``model_name`` on the given window and read VaR/ES at each
+    alpha. The copy keeps stateful models (LSTM-Vol's weight cache) undisturbed; the
+    semaphore bounds how many fits run at once. ``None`` if the model is unavailable or
+    the fit fails."""
     base = _model_map().get(model_name)
     if base is None:
         return None
-    win = load_price_window(asset, n=window + 30)
-    if len(win) < window:
-        return None
-    win = win.tail(window - 1)
     model = copy.copy(base)
     if hasattr(model, "_cache"):
         model._cache = {}
-
-    last_date = win["date"].iloc[-1]
-    dates = np.append(win["date"].to_numpy("datetime64[D]"), np.datetime64((last_date + pd.Timedelta(days=1)).date()))
-    returns = np.append(win["log_return"].to_numpy(float), shock)
-    realized = None
-    if model_name in _NEEDS_REALIZED:
-        day = _shock_day_realized(win, shock)
-        realized = {c: np.append(win[c].to_numpy(float), day[c]) for c in _REALIZED_COLS if c in win}
     ctx = Context(returns=returns, dates=dates, asof=dates[-1], asset=asset, realized=realized)
     try:
         with _WHATIF_SLOTS:
@@ -475,4 +466,79 @@ def whatif_forecast(
                 out[key] = float(fn(a))
             except Exception:
                 out[key] = np.nan
+    return out
+
+
+def _frame_inputs(model_name: str, frame: pd.DataFrame) -> tuple[np.ndarray, np.ndarray, dict | None]:
+    realized = None
+    if model_name in _NEEDS_REALIZED:
+        realized = {c: frame[c].to_numpy(float) for c in _REALIZED_COLS if c in frame}
+    return frame["date"].to_numpy("datetime64[D]"), frame["log_return"].to_numpy(float), realized
+
+
+@ttl_cache(1800)
+def whatif_forecast(
+    asset: str, model_name: str, shock: float, alphas: tuple[float, ...] = (0.01, 0.025), window: int = 500
+) -> dict[str, Any] | None:
+    """One-step-ahead VaR/ES if the *next* daily log-return were ``shock``: the
+    model is re-fitted on the latest ``window - 1`` days plus a hypothetical day
+    (so the window keeps its length) and forecasts the day after."""
+    win = load_price_window(asset, n=window + 30)
+    if len(win) < window:
+        return None
+    win = win.tail(window - 1)
+    last_date = win["date"].iloc[-1]
+    dates, returns, realized = _frame_inputs(model_name, win)
+    dates = np.append(dates, np.datetime64((last_date + pd.Timedelta(days=1)).date()))
+    returns = np.append(returns, shock)
+    if realized is not None:
+        day = _shock_day_realized(win, shock)
+        realized = {c: np.append(v, day[c]) for c, v in realized.items()}
+    return _refit(asset, model_name, dates, returns, realized, alphas)
+
+
+@ttl_cache(1800)
+def var_change_attribution(
+    asset: str, model_name: str, alphas: tuple[float, ...] = (0.01, 0.025), window: int = 500
+) -> dict[str, Any] | None:
+    """Why this model's VaR/ES moved since yesterday's forecast.
+
+    Between yesterday's window (ending D-1) and today's (ending D) two things changed: the
+    new day D entered and the oldest day left. Four re-fits -- yesterday's window, +new,
+    -old, and today's -- give each effect, averaged over the two orders in which they can be
+    applied (the effects interact, so a single order would be arbitrary). The two
+    contributions add up exactly to today's minus yesterday's forecast.
+    """
+    win = load_price_window(asset, n=window + 30)
+    if len(win) < window + 1:
+        return None
+    win = win.tail(window + 1)                     # rows D-window .. D
+    frames = {
+        "prev": win.iloc[:-1],                     # yesterday's window
+        "plus": win,                               # + the new day, nothing dropped
+        "minus": win.iloc[1:-1],                   # - the oldest day, new day not yet in
+        "now": win.iloc[1:],                       # today's window
+    }
+    fits = {}
+    for key, frame in frames.items():
+        fits[key] = _refit(asset, model_name, *_frame_inputs(model_name, frame), alphas)
+        if fits[key] is None:
+            return None
+    out: dict[str, Any] = {
+        "model": model_name,
+        "asof": win["date"].iloc[-1],
+        "prev_asof": win["date"].iloc[-2],
+        "new_date": win["date"].iloc[-1],
+        "new_return": float(win["log_return"].iloc[-1]),
+        "dropped_date": win["date"].iloc[0],
+        "dropped_return": float(win["log_return"].iloc[0]),
+    }
+    for a in alphas:
+        for kind in ("var", "es"):
+            k = f"{kind}_{a}"
+            prev, plus, minus, now = (fits[n][k] for n in ("prev", "plus", "minus", "now"))
+            out[f"prev_{k}"] = prev
+            out[f"now_{k}"] = now
+            out[f"new_{k}"] = 0.5 * ((plus - prev) + (now - minus))
+            out[f"old_{k}"] = 0.5 * ((minus - prev) + (now - plus))
     return out

@@ -115,3 +115,50 @@ def test_intraday_is_skipped_when_price_history_is_stale(monkeypatch):
     assert stale is None and not called  # a 4-day-old reference close must not produce a "today" verdict
     fresh = A._intraday("BTC", today - pd.Timedelta(days=1), 100.0, -0.05, -0.07)
     assert fresh is not None and fresh["var_breached"] is False
+
+
+def _synthetic_window(n=560, last_shock=None, seed=5):
+    rng = np.random.default_rng(seed)
+    r = rng.standard_t(6, n) * 0.02
+    if last_shock is not None:
+        r[-1] = last_shock
+    rv = r**2 + 1e-5
+    return pd.DataFrame({
+        "date": pd.date_range("2025-01-01", periods=n), "close": 100 * np.exp(np.cumsum(r)),
+        "log_return": r, "rv": rv, "bv": rv * 0.9, "rsv_pos": rv / 2, "rsv_neg": rv / 2, "jump": 0.0, "rq": rv**2,
+    })
+
+
+def test_var_change_attribution_adds_up_and_blames_the_new_shock(monkeypatch):
+    from cryptorisk.api import data as D
+
+    win = _synthetic_window(last_shock=-0.15)
+    monkeypatch.setattr(D, "load_price_window", lambda asset, n=900: win.tail(n))
+    D.var_change_attribution.cache_clear()
+    res = D.var_change_attribution("BTC", "GARCH-t", (0.025,))
+    k = "var_0.025"
+    total = res["now_" + k] - res["prev_" + k]
+    assert abs(res["new_" + k] + res["old_" + k] - total) < 1e-12        # exact decomposition
+    assert res["new_" + k] < -0.005                                       # a -15% day deepens the VaR ...
+    assert abs(res["old_" + k]) < abs(res["new_" + k]) / 5               # ... far more than an ordinary day leaving
+    assert res["new_return"] == win["log_return"].iloc[-1] and res["dropped_date"] == win["date"].iloc[-501]
+    D.var_change_attribution.cache_clear()
+
+
+def test_var_change_endpoint_shapes_and_rejects_offline_models(monkeypatch):
+    import pytest
+    from fastapi import HTTPException
+
+    from cryptorisk.api import app as A
+    from cryptorisk.api import data as D
+
+    win = _synthetic_window()
+    monkeypatch.setattr(D, "load_price_window", lambda asset, n=900: win.tail(n))
+    D.var_change_attribution.cache_clear()
+    out = A.var_change("BTC", "GARCH-t", 0.025)
+    assert set(out["var"]) == {"prev", "now", "new", "old"} and out["asof"] > out["prev_asof"]
+    assert abs(out["var"]["new"] + out["var"]["old"] - (out["var"]["now"] - out["var"]["prev"])) < 1e-12
+    with pytest.raises(HTTPException) as e:
+        A.var_change("BTC", "MS-GARCH", 0.025)
+    assert e.value.status_code == 404
+    D.var_change_attribution.cache_clear()

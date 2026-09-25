@@ -741,6 +741,35 @@ RF-QR (a quantile regression forest) and LSTM-Vol (a recurrent net trained by Ga
 - **RF-QR** beats the *median* statistical model on FZ0 in 2/4 cells and is never the best model in a cell.
 - Reading: a learned model can be competitive on the tail score (inside the MCS) without beating hand-built volatility structure; the calibration diagnostics (coverage, ES) are where a gap shows. The web `/explain` page shows what the forest relies on.
 
+### Adaptive conformal recalibration (ACI)
+
+ACI (Gibbs & Candes, 2021) wraps a model without touching it: after each day it moves the tail level the model is queried at by `gamma * (alpha - breach)`, so a model that is breached too often is asked for a deeper quantile and one that is breached too rarely for a shallower one. `gamma = 0.05 * alpha`; VaR and ES are read at the same adjusted level. Each wrapped model is compared with its raw self on the same days (`study.run_conformal`); *dFZ0* is mean FZ0(ACI) minus FZ0(raw), so **positive means ACI scores worse**, and the p-value is a Diebold-Mariano test of that difference.
+
+| asset | a | model | hit raw | hit ACI | Kupiec p raw | Kupiec p ACI | DQ p raw | DQ p ACI | dFZ0 | DM p |
+|:--|--:|:--|--:|--:|--:|--:|--:|--:|--:|--:|
+| BTC | 0.01 | GARCH-t | 0.0112 | 0.0105 | 0.534 | 0.808 | 0.013 | 0.005 | +0.0157 | 0.140 |
+| BTC | 0.01 | HS | 0.0097 | 0.0101 | 0.885 | 0.960 | 0.959 | 0.917 | +0.0004 | 0.928 |
+| BTC | 0.01 | LSTM-Vol | 0.0131 | 0.0108 | 0.125 | 0.665 | 0.435 | 0.421 | +0.0083 | 0.506 |
+| BTC | 0.01 | RF-QR | 0.0101 | 0.0101 | 0.960 | 0.960 | 0.349 | 0.301 | +0.0016 | 0.790 |
+| BTC | 0.025 | GARCH-t | 0.0262 | 0.0254 | 0.699 | 0.887 | 0.562 | 0.451 | +0.0076 | 0.271 |
+| BTC | 0.025 | HS | 0.0232 | 0.0239 | 0.543 | 0.722 | 0.058 | 0.199 | +0.0022 | 0.733 |
+| BTC | 0.025 | LSTM-Vol | 0.0295 | 0.0254 | 0.143 | 0.887 | 0.008 | 0.022 | +0.0051 | 0.636 |
+| BTC | 0.025 | RF-QR | 0.0262 | 0.0251 | 0.699 | 0.985 | 0.226 | 0.169 | +0.0070 | 0.102 |
+| ETH | 0.01 | GARCH-t | 0.0097 | 0.0093 | 0.885 | 0.732 | 0.341 | 0.276 | +0.0047 | 0.163 |
+| ETH | 0.01 | HS | 0.0116 | 0.0120 | 0.419 | 0.321 | 0.000 | 0.000 | -0.0001 | 0.994 |
+| ETH | 0.01 | LSTM-Vol | 0.0146 | 0.0116 | 0.026 | 0.419 | 0.000 | 0.001 | +0.0012 | 0.920 |
+| ETH | 0.01 | RF-QR | 0.0127 | 0.0116 | 0.176 | 0.419 | 0.063 | 0.060 | -0.0036 | 0.797 |
+| ETH | 0.025 | GARCH-t | 0.0280 | 0.0258 | 0.322 | 0.791 | 0.002 | 0.034 | +0.0105 | 0.076 |
+| ETH | 0.025 | HS | 0.0254 | 0.0251 | 0.887 | 0.985 | 0.000 | 0.000 | +0.0073 | 0.295 |
+| ETH | 0.025 | LSTM-Vol | 0.0310 | 0.0269 | 0.054 | 0.529 | 0.000 | 0.000 | -0.0033 | 0.807 |
+| ETH | 0.025 | RF-QR | 0.0280 | 0.0262 | 0.322 | 0.699 | 0.000 | 0.000 | +0.0111 | 0.198 |
+
+- Rejections at 5% across the 16 cells (raw -> ACI): Kupiec 1->0, Christoffersen CC 3->1, DQ 8->8.
+- ACI scores worse on FZ0 in 13/16 cells; the difference is significant in 0/16.
+- Reading: recalibration pulls the hit rate to the target and clears the *unconditional* coverage failures cheaply, but it does not touch *conditional* miscalibration (violations that cluster or can be predicted, which the DQ test picks up), and it does not improve the joint VaR/ES score: coverage is repaired at the price of a slightly deeper, less sharp VaR.
+
+- Mean dFZ0 from ACI: +0.0034 for the machine-learning models, +0.0061 for the classical controls (positive = worse).
+
 ## Reproducibility
 
 `make data && make msgarch && make backtest && make evaluate && make subperiods && make regime-id && make decide && make report && make portfolio` rebuilds every artefact from the sources, deterministically (seed in `config/study.yaml`). `make data` also daily-ingests the portfolio basket's extra assets, so `make portfolio` needs nothing further. The DuckDB store and the figures are gitignored (the figures are regenerated); `data/results/`, this report, the model cards and `portfolio.md` are versioned.

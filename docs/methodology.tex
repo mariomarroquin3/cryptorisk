@@ -1123,11 +1123,12 @@ for an unrelated reason (its R-side estimation cost). Between retrains the
 stored network is still \emph{run} every day on the newest $L=20$ returns, so
 the variance forecast reacts to each new observation, exactly as the GARCH
 recursions do; what goes stale, for up to $19$ days, is the parameter vector
-(and the fitted $
-u$), which every parametric model here re-estimates daily.
+(and the fitted $\nu$), which every parametric model here re-estimates daily.
 That is a genuine limitation, not a convenience. (An earlier version reused the
 whole predictive distribution for the $20$ days, freezing VaR/ES; the results
 in this document use the corrected schedule.)
+
+\paragraph{Recalibration by adaptive conformal inference.} A model that is systematically off on coverage can be repaired without being refitted: Adaptive Conformal Inference (Gibbs \& Cand\`es, 2021) tracks whether the VaR was breached and moves the tail level at which the predictive distribution is read, $a_{t+1}=a_t+\gamma(\alpha-\mathbf 1\{r_t<\VaR_t\})$, with $\gamma=0.05\alpha$ and $a_t$ clipped to $[\alpha/20,0.2]$. A model breached too often is asked for a deeper quantile, one breached too rarely for a shallower one, and VaR and ES are read at the same adjusted level. The recursion uses only past outcomes, so it introduces no look-ahead, and it gives long-run coverage $\alpha$ whatever the model does. We wrap HS, GARCH-$t$, RF-QR and LSTM-Vol and compare each with its raw self on the same days (Diebold--Mariano on FZ0). Recalibration clears the unconditional coverage rejections (Kupiec $1\to0$ of $16$ cells) and most of the conditional-coverage ones (Christoffersen $3\to1$), but it does not touch the dynamic-quantile rejections ($8\to8$) and it does not improve the joint score: FZ0 is worse in $13$ of $16$ cells, though never significantly. Coverage is bought with a slightly deeper, less sharp VaR; what remains miscalibrated afterwards is \emph{conditional}, which a level shift cannot reach.
 
 \intuition{Instead of assuming the shape of the variance recursion or the
 tail, hand the raw history to a learner and let it find its own shape. The

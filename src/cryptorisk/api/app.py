@@ -374,6 +374,31 @@ def var_change(asset: str, model: str, alpha: float = Query(0.025)) -> dict:
     }
 
 
+@app.get("/conformal/summary")
+def conformal_summary(asset: str, alpha: float) -> list[dict]:
+    """Raw vs adaptive-conformal (ACI) calibration for the wrapped models: hit rate, coverage
+    tests, FZ0 and a Diebold-Mariano test of the FZ0 difference (``study.run_conformal``)."""
+    cfg = load_config()
+    _check_asset(asset, cfg["assets"])
+    _check_alpha(alpha, cfg["alphas"])
+    df = D.load_results()["conformal_summary"]
+    if df.empty:
+        return []
+    return _records(df[(df.asset == asset) & (df.alpha == alpha)])
+
+
+@app.get("/conformal/level-path")
+def conformal_level_path(asset: str, alpha: float) -> list[dict]:
+    """The adjusted tail level ACI queried each model at over time (every 5th day)."""
+    cfg = load_config()
+    _check_asset(asset, cfg["assets"])
+    _check_alpha(alpha, cfg["alphas"])
+    df = D.load_results()["conformal_path"]
+    if df.empty:
+        return []
+    return _records(df[(df.asset == asset) & (df.alpha == alpha)][["date", "model", "level"]])
+
+
 @app.get("/live/track-record")
 def live_track_record(asset: str, alpha: float) -> dict:
     """Per-model violations / FZ0 on the days since the frozen sample end

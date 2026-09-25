@@ -15,6 +15,7 @@ import {
   RfInputsChart,
   RollingHitRate,
 } from "@/components/ExplainCharts";
+import { ConformalPanel } from "@/components/ConformalPanel";
 import { Field } from "@/components/Field";
 import { LstmFeatureShare, LstmImportanceHeatmap, LstmLagProfile } from "@/components/LstmCharts";
 import { RfPdpChart } from "@/components/RfPdpChart";
@@ -292,6 +293,9 @@ function ExplainPageInner() {
 
       <h2 className="text-lg font-medium">5. Why did each model&apos;s VaR change since yesterday?</h2>
       <VarChangePanel asset={effAsset} alpha={effAlpha} />
+
+      <h2 className="text-lg font-medium">6. Can conformal recalibration repair the models&apos; calibration?</h2>
+      <ConformalPanel asset={effAsset} alpha={effAlpha} />
     </div>
   );
 }

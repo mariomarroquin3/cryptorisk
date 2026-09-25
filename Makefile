@@ -6,7 +6,7 @@ ifeq ($(OS),)
   PY := .venv/bin/python
 endif
 
-.PHONY: help install test lint fmt data realized msgarch backtest evaluate subperiods regime-id regime-band decide report explain portfolio price-snapshot dashboard ops api web dev clean
+.PHONY: help install test lint fmt data realized msgarch backtest evaluate subperiods regime-id regime-band decide report explain conformal portfolio price-snapshot dashboard ops api web dev clean
 
 help:
 	@echo "install   - create .venv and install (editable) with dev extras"
@@ -22,6 +22,7 @@ help:
 	@echo "regime-id - MS-GARCH regime identification from cached preds (Phase 4)"
 	@echo "decide    - decision layer: capital / limits / PLA / hedge -> decision_*.csv (Phase 5)"
 	@echo "report    - assemble docs/results.md + model_cards + figures (Phase 6)"
+	@echo "conformal - adaptive conformal recalibration of HS/GARCH-t/RF-QR/LSTM-Vol vs raw -> conformal_*"
 	@echo "portfolio - BTC+ETH basket VaR/ES with a copula tail -> portfolio_* (Phase 7)"
 	@echo "price-snapshot - export data/results/price_history.parquet for the API (run after data/realized change; commit the diff before deploying)"
 	@echo "dashboard - Streamlit live risk terminal over data/results/ + a live price feed"
@@ -76,6 +77,9 @@ report:
 
 explain:
 	$(PY) -m cryptorisk.study.run_explain
+
+conformal:
+	$(PY) -m cryptorisk.study.run_conformal
 
 portfolio:
 	$(PY) -m cryptorisk.study.run_portfolio

@@ -483,3 +483,18 @@ locks (`store`, `results`, `live`) and overlapping jobs are refused. Stages that
 rewrite the frozen study are marked FROZEN and need a confirmation tick. Commit
 messages get any Co-Authored-By trailer stripped. The GitHub workflow
 `refresh-data.yml` already does the daily update in CI (torch included).
+
+## Conformal recalibration (ACI) and VaR-change attribution
+
+- `models/conformal.py::AdaptiveConformal` wraps any model: level_{t+1} = level_t +
+  gamma*(alpha - breach), gamma = 0.05*alpha, clipped to [alpha/20, 0.2]; VaR and ES are
+  read at the adjusted level (`AdjustedDist`). State is per asset and only meaningful in the
+  sequential walk-forward (idempotent per asof, skips gaps). NOT in `all_models()`: the frozen
+  study stays raw. `study/run_conformal.py` (`make conformal`, ~10 min) writes
+  `conformal_{backtests.parquet,summary.csv,level_path.csv}`; `results.md` §10 and the
+  `/explain` section 6 read them. Finding: ACI fixes unconditional coverage (Kupiec 1->0
+  rejections of 16), not DQ (8->8), and FZ0 is worse in 13/16 (never significant).
+- `api/data.py::var_change_attribution` (`/explain/var-change/{asset}?model&alpha`): four
+  re-fits (yesterday's window, +new day, -oldest day, today's) give the effect of the new day and
+  of the day leaving the window, averaged over both orders so they add up exactly.
+  `_refit` is the shared private-copy + semaphore re-fit (also used by `/whatif`).

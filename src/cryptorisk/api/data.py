@@ -60,6 +60,8 @@ def load_results() -> dict[str, pd.DataFrame]:
         "rf_diagnostics": _csv("explain_rf_diagnostics.csv"),
         "rf_inputs": _csv("explain_rf_inputs.csv"),
         "lstm_importance": _csv("explain_lstm_importance.csv"),
+        "conformal_summary": _csv("conformal_summary.csv"),
+        "conformal_path": _csv("conformal_level_path.csv"),
     }
 
 

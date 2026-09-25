@@ -162,6 +162,15 @@ _register(
                     *(["--skip-lstm"] if p.get("skip_lstm") else []), *(["--skip-rf"] if p.get("skip_rf") else []))],
 )
 _register(
+    Spec("conformal", "Conformal recalibration study (ACI)", "Study",
+         "Re-runs the walk-forward for HS, GARCH-t, RF-QR and LSTM-Vol wrapped in adaptive conformal "
+         "inference and compares each with its raw self (coverage tests, FZ0, Diebold-Mariano). Writes "
+         "only new conformal_* files; the frozen study tables are untouched.",
+         est="30-90 min", locks=frozenset({"store", "results"}), needs=("torch",)),
+    lambda p: [_mod("cryptorisk.study.run_conformal", *_opt("--models", p.get("models")),
+                    *_opt("--assets", p.get("assets")))],
+)
+_register(
     Spec("report", "Assemble report", "Study", "docs/results.md, model cards and figures from data/results.",
          est="< 1 min", locks=frozenset({"results"}), frozen=True),
     lambda p: [_mod("cryptorisk.study.report")],

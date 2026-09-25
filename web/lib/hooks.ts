@@ -7,6 +7,8 @@ import {
   BacktestRow,
   CapitalRow,
   Config,
+  ConformalPathRow,
+  ConformalRow,
   CoverageRow,
   EsTestRow,
   EstimationRiskRow,
@@ -243,3 +245,11 @@ export function useVarChangeAll(
   return useModelFanout<VarChangeRow>(asset ? `/explain/var-change/${asset}` : null, `alpha=${alpha}`, models);
 }
 
+
+export function useConformalSummary(asset: string | null, alpha: number) {
+  return useSWR<ConformalRow[]>(asset ? `/conformal/summary?asset=${asset}&alpha=${alpha}` : null, fetcher);
+}
+
+export function useConformalPath(asset: string | null, alpha: number) {
+  return useSWR<ConformalPathRow[]>(asset ? `/conformal/level-path?asset=${asset}&alpha=${alpha}` : null, fetcher);
+}

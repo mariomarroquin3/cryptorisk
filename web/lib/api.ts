@@ -405,3 +405,27 @@ export interface VarChangeRow {
   var: { prev: number; now: number; new: number; old: number };
   es: { prev: number; now: number; new: number; old: number };
 }
+
+export interface ConformalRow {
+  asset: string;
+  alpha: number;
+  base_model: string;
+  variant: "raw" | "ACI";
+  n: number;
+  hit_rate: number;
+  kupiec_p: number;
+  chr_cc_p: number;
+  dq_p: number;
+  fz0_mean: number;
+  mean_var: number;
+  mean_es: number;
+  /** ACI rows only: mean FZ0(ACI) - FZ0(raw); negative = ACI scores better. */
+  dm_fz0_diff?: number | null;
+  dm_p?: number | null;
+}
+
+export interface ConformalPathRow {
+  date: string;
+  model: string;
+  level: number;
+}

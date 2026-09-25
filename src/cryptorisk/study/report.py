@@ -82,6 +82,7 @@ def _load() -> dict:
         "pla": csv("decision_pla.csv"),
         "hedge": csv("decision_hedge.csv"),
         "er": csv("decision_estimation_risk.csv"),
+        "conformal": csv("conformal_summary.csv"),
     }
 
 
@@ -335,6 +336,67 @@ def _ml_section(D: dict, P) -> None:
         "calibration diagnostics (coverage, ES) are where a gap shows. The web "
         "`/explain` page shows what the forest relies on.\n"
     )
+    _conformal_subsection(D, P)
+
+
+def _conformal_subsection(D: dict, P) -> None:
+    """Does adaptive conformal recalibration (ACI) repair calibration, and what does it cost?"""
+    conf = D.get("conformal", pd.DataFrame())
+    if conf.empty:
+        return
+    P("### Adaptive conformal recalibration (ACI)\n")
+    P(
+        "ACI (Gibbs & Candes, 2021) wraps a model without touching it: after each day it "
+        "moves the tail level the model is queried at by `gamma * (alpha - breach)`, so a "
+        "model that is breached too often is asked for a deeper quantile and one that is "
+        "breached too rarely for a shallower one. `gamma = 0.05 * alpha`; VaR and ES are "
+        "read at the same adjusted level. Each wrapped model is compared with its raw self "
+        "on the same days (`study.run_conformal`); *dFZ0* is mean FZ0(ACI) minus "
+        "FZ0(raw), so **positive means ACI scores worse**, and the p-value is a "
+        "Diebold-Mariano test of that difference.\n"
+    )
+    P("| asset | a | model | hit raw | hit ACI | Kupiec p raw | Kupiec p ACI | DQ p raw | DQ p ACI | dFZ0 | DM p |")
+    P("|:--|--:|:--|--:|--:|--:|--:|--:|--:|--:|--:|")
+    raw = conf[conf.variant == "raw"].set_index(["asset", "alpha", "base_model"])
+    aci = conf[conf.variant == "ACI"].set_index(["asset", "alpha", "base_model"])
+    keys = raw.index.intersection(aci.index)
+    for key in keys:
+        r, a = raw.loc[key], aci.loc[key]
+        P(
+            f"| {key[0]} | {key[1]:g} | {key[2]} | {r['hit_rate']:.4f} | {a['hit_rate']:.4f} | "
+            f"{r['kupiec_p']:.3f} | {a['kupiec_p']:.3f} | {r['dq_p']:.3f} | {a['dq_p']:.3f} | "
+            f"{a['dm_fz0_diff']:+.4f} | {a['dm_p']:.3f} |"
+        )
+    P("")
+    r_all, a_all = raw.loc[keys], aci.loc[keys]
+    rej = {
+        name: (int((r_all[col] < 0.05).sum()), int((a_all[col] < 0.05).sum()))
+        for name, col in (("Kupiec", "kupiec_p"), ("Christoffersen CC", "chr_cc_p"), ("DQ", "dq_p"))
+    }
+    n = len(keys)
+    P(
+        f"- Rejections at 5% across the {n} cells (raw -> ACI): "
+        + ", ".join(f"{k} {a}->{b}" for k, (a, b) in rej.items())
+        + "."
+    )
+    P(
+        f"- ACI scores worse on FZ0 in {int((a_all['dm_fz0_diff'] > 0).sum())}/{n} cells; the "
+        f"difference is significant in {int((a_all['dm_p'] < 0.05).sum())}/{n}."
+    )
+    P(
+        "- Reading: recalibration pulls the hit rate to the target and clears the *unconditional* "
+        "coverage failures cheaply, but it does not touch *conditional* miscalibration (violations "
+        "that cluster or can be predicted, which the DQ test picks up), and it does not improve the "
+        "joint VaR/ES score: coverage is repaired at the price of a slightly deeper, less sharp VaR.\n"
+    )
+    ml = [m for m, f in _METHOD_FAMILY.items() if f == "Machine learning"]
+    is_ml = a_all.index.get_level_values("base_model").isin(ml)
+    if is_ml.any() and (~is_ml).any():
+        P(
+            f"- Mean dFZ0 from ACI: {a_all['dm_fz0_diff'][is_ml].mean():+.4f} for the machine-learning "
+            f"models, {a_all['dm_fz0_diff'][~is_ml].mean():+.4f} for the classical controls "
+            "(positive = worse).\n"
+        )
 
 
 def results_md(D: dict, figs: dict[str, str]) -> str:

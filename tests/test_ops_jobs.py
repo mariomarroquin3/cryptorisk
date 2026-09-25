@@ -91,8 +91,10 @@ def test_catalog_builds_argv_and_options():
     (argv,) = build({"models": ["HS", "RF-QR"], "assets": ["BTC"]})
     assert argv[-5:] == ["--models", "HS", "RF-QR", "--assets", "BTC"]
     assert spec.frozen and "store" in spec.locks
-    (daily,) = jobs.CATALOG["daily"][1]({"no_refresh": True})
-    assert daily[-1] == "--no-refresh"
+    steps = jobs.CATALOG["daily"][1]({"no_refresh": True})
+    # roll the data forward, then refresh today's LSTM explanation (the API host has no torch)
+    assert [s[3] for s in steps] == ["cryptorisk.study.extend_backtests", "cryptorisk.study.run_lstm_local"]
+    assert steps[0][-1] == "--no-refresh"
 
 
 def test_git_calls_open_no_console_window(monkeypatch):

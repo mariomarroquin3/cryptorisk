@@ -84,7 +84,10 @@ _register(
          "into backtests_live.parquet, LSTM-Vol included (torch is installed here, not on Render). This is the "
          "'refit' the deployed API cannot do for the LSTM. Afterwards: commit + push from the Deploy tab.",
          est="1-5 min", locks=frozenset({"live"}), needs=("torch",)),
-    lambda p: [_mod("cryptorisk.study.extend_backtests", *(["--no-refresh"] if p.get("no_refresh") else []))],
+    lambda p: [
+        _mod("cryptorisk.study.extend_backtests", *(["--no-refresh"] if p.get("no_refresh") else [])),
+        _mod("cryptorisk.study.run_lstm_local"),   # today's LSTM explanation (the API host has no torch)
+    ],
 )
 _register(
     Spec("prices", "Refresh price history only", "Live",

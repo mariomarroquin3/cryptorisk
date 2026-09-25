@@ -2,6 +2,7 @@
 
 import { Suspense } from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { BreachHeadroom } from "@/components/BreachHeadroom";
 import { Column, DataTable } from "@/components/DataTable";
 import { Field } from "@/components/Field";
 import { MetricCard } from "@/components/MetricCard";
@@ -231,6 +232,15 @@ function CapitalPageInner() {
         </>
         )
       )}
+
+      <div>
+        <h2 className="mb-2 text-lg font-medium">Distance to a breach and Basel headroom</h2>
+        <p className="mb-3 text-sm text-muted">
+          How far the price is from breaching each model&apos;s 99% VaR tomorrow, how many exceptions each is from the
+          next Basel zone, and what one more exception would cost in capital.
+        </p>
+        <BreachHeadroom asset={effAsset} />
+      </div>
 
       <div>
         <h2 className="mb-2 text-lg font-medium">Estimation-risk band (parameter-uncertainty bootstrap)</h2>

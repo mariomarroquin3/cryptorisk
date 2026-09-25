@@ -26,10 +26,11 @@ jobs:
         run: |
           git config user.name "cryptorisk-bot"
           git config user.email "cryptorisk-bot@users.noreply.github.com"
-          FILES="data/results/price_history.parquet data/results/backtests_live.parquet"
+          FILES="data/results/price_history.parquet data/results/backtests_live.parquet data/results/explain_lstm_local.csv"
           for attempt in 1 2 3; do
             # rolls price_history forward, then the live walk-forward (LSTM-Vol included)
             python -m cryptorisk.study.extend_backtests
+            python -m cryptorisk.study.run_lstm_local || echo "LSTM local explanation skipped"
             git add $FILES
             if git diff --cached --quiet; then echo "nothing to commit"; exit 0; fi
             git commit -m "data: roll price history and live walk-forward forward"

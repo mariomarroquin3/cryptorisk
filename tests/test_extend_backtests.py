@@ -162,3 +162,76 @@ def test_var_change_endpoint_shapes_and_rejects_offline_models(monkeypatch):
         A.var_change("BTC", "MS-GARCH", 0.025)
     assert e.value.status_code == 404
     D.var_change_attribution.cache_clear()
+
+
+def test_lstm_local_endpoint_returns_days_oldest_first(monkeypatch):
+    from cryptorisk.api import app as A
+    from cryptorisk.api import data as D
+
+    rows = [
+        {"asset": "BTC", "alpha": 0.025, "asof": "2026-09-23", "date": f"2026-09-{d:02d}", "lag": 24 - d,
+         "ret": 0.01 * d, "per_day": 0.001 * d, "c_return": 0.0, "c_squared": 0.0, "c_down_squared": 0.0,
+         "base_var": 0.05, "flat_var": 0.048}
+        for d in (21, 22, 23)
+    ]
+    monkeypatch.setattr(D, "load_results", lambda: {"lstm_local": pd.DataFrame(rows)})
+    out = A.explain_lstm_local("BTC", 0.025)
+    assert [d["date"] for d in out["days"]] == ["2026-09-21", "2026-09-22", "2026-09-23"]
+    assert out["asof"] == "2026-09-23" and out["base_var"] == 0.05 and out["flat_var"] == 0.048
+    monkeypatch.setattr(D, "load_results", lambda: {"lstm_local": pd.DataFrame()})
+    assert A.explain_lstm_local("BTC", 0.025)["days"] == []
+
+
+def _headroom_bt(exceptions_last_250, aged_in_oldest_30=0, model="M", n=300):
+    """A 99% / 97.5% walk-forward with a chosen number of exceptions in the last 250 days."""
+    dates = pd.date_range("2025-01-01", periods=n)
+    viol = np.zeros(n, bool)
+    tail_idx = np.arange(n - 250, n)
+    viol[tail_idx[-exceptions_last_250 + aged_in_oldest_30 :][: exceptions_last_250 - aged_in_oldest_30]] = True
+    viol[tail_idx[:aged_in_oldest_30]] = True         # these sit in the oldest 30 days of the window
+    rows = []
+    for alpha, es in ((0.01, -0.08), (0.025, -0.06)):
+        rows.append(pd.DataFrame({
+            "date": dates, "asset": "BTC", "model": model, "window": 500, "alpha": alpha,
+            "var": -0.04, "es": es, "sigma2": 1e-3, "realized": 0.0,
+            "violation": viol if alpha == 0.01 else np.zeros(n, bool), "pit": 0.5,
+        }))
+    return pd.concat(rows, ignore_index=True)
+
+
+def test_basel_headroom_zone_steps_and_capital(monkeypatch):
+    from cryptorisk.api import data as D
+
+    bt = pd.concat([_headroom_bt(4, model="G4"), _headroom_bt(7, aged_in_oldest_30=3, model="A7"),
+                    _headroom_bt(10, model="R10")], ignore_index=True)
+    monkeypatch.setattr(D, "load_backtests_live", lambda: bt)
+    D.basel_headroom.cache_clear()
+    by = {r["model"]: r for r in D.basel_headroom("BTC")}
+    g, a, r = by["G4"], by["A7"], by["R10"]
+    assert (g["exceptions_250d"], g["zone"], g["zone_if_breached"], g["to_next_zone"]) == (4, "green", "amber", 1)
+    assert (a["exceptions_250d"], a["zone"], a["to_next_zone"], a["ageing_out_30d"]) == (7, "amber", 3, 3)
+    assert (r["zone"], r["to_next_zone"], r["zone_if_breached"]) == ("red", None, "red")
+    # one more exception in green: multiplier 1.5 -> 1.9, on 1M * |ES 97.5%| * sqrt(10)
+    assert g["m_c"] == 1.5 and abs(g["m_c_if_breached"] - 1.9) < 1e-9
+    assert abs(g["extra_capital_if_breached_usd"] - 0.4 * 1_000_000 * 0.06 * 10**0.5) < 1e-6
+    D.basel_headroom.cache_clear()
+
+
+def test_breach_distance_uses_live_spot_and_rejects_offline_models(monkeypatch):
+    import pytest
+    from fastapi import HTTPException
+
+    from cryptorisk.api import app as A
+    from cryptorisk.api import data as D
+
+    monkeypatch.setattr(D, "today_forecast", lambda asset, model, alphas=(): {
+        "asof": pd.Timestamp("2026-09-23"), "last_close": 100.0,
+        "var_0.01": np.log(0.94), "es_0.01": np.log(0.90), "var_0.025": np.log(0.96), "es_0.025": np.log(0.93)})
+    monkeypatch.setattr(D, "live_price", lambda asset: {"price": 98.0})
+    out = A.breach_distance("BTC", "GARCH-t", 0.01)
+    assert abs(out["var_price"] - 94.0) < 1e-9 and abs(out["dist_var"] - (94 / 98 - 1)) < 1e-9
+    monkeypatch.setattr(D, "live_price", lambda asset: None)         # falls back to the last close
+    assert abs(A.breach_distance("BTC", "GARCH-t", 0.01)["dist_var"] - (94 / 100 - 1)) < 1e-9
+    with pytest.raises(HTTPException) as e:
+        A.breach_distance("BTC", "MS-GARCH", 0.01)
+    assert e.value.status_code == 404

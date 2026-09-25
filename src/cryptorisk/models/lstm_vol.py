@@ -189,6 +189,51 @@ class LstmVol:
         ppf, cdf, es = student_t_z(c["nu"])
         return ParametricDist(loc=0.0, scale=float(np.sqrt(v_next)), z_ppf=ppf, z_cdf=cdf, z_es=es)
 
+    def explain_local(self, ctx: Context, alpha: float = 0.025) -> dict | None:
+        """Which of the last ``_SEQ_LEN`` days drive *today's* VaR, by occlusion.
+
+        The forecast is the network's variance for the 20-day window ending at
+        ``ctx.asof``. Each input is replaced in turn by a flat day (return 0, so its squared
+        features are 0 too) and the VaR is recomputed with the same weights and tail; the
+        change in VaR *magnitude* is that input's contribution (positive = it pushes the
+        VaR deeper than a flat day would). ``cell[k][f]`` is one (day, feature) input,
+        ``per_day[k]`` occludes the whole day, both oldest first. ``None`` when the
+        window is too short or the fit fell back to the empirical quantile.
+        """
+        dist = self.fit_predict(ctx)
+        c = self._cache.get(ctx.asset)
+        if c is None or not isinstance(dist, ParametricDist):
+            return None
+        ppf, _, _ = student_t_z(c["nu"])
+        r = ctx.returns.astype(np.float32)
+        x0 = _features(r)[-_SEQ_LEN:].reshape(1, _SEQ_LEN, 3).astype(np.float32)
+
+        def var_mag(x: np.ndarray) -> float:
+            sigma = float(np.sqrt(np.exp(_predict_log_var(c["net"], x))))
+            return float(-ppf(alpha) * sigma)
+
+        base = var_mag(x0)
+        cell = np.zeros((_SEQ_LEN, 3))
+        per_day = np.zeros(_SEQ_LEN)
+        for k in range(_SEQ_LEN):
+            xd = x0.copy()
+            xd[0, k, :] = 0.0
+            per_day[k] = base - var_mag(xd)
+            for f in range(3):
+                xc = x0.copy()
+                xc[0, k, f] = 0.0
+                cell[k, f] = base - var_mag(xc)
+        return {
+            "alpha": alpha,
+            "features": ["return", "squared return", "squared down-return"],
+            "dates": [str(d)[:10] for d in np.asarray(ctx.dates)[-_SEQ_LEN:]],
+            "returns": [float(v) for v in ctx.returns[-_SEQ_LEN:]],
+            "cell": cell.tolist(),
+            "per_day": per_day.tolist(),
+            "base_var": base,
+            "flat_var": var_mag(np.zeros_like(x0)),
+        }
+
     def explain(self, ctx: Context, repeats: int = 3) -> dict | None:
         """Permutation importance of each (lag, feature) input cell for a
         network freshly fitted on this window; ``importance[lag - 1][feature]``

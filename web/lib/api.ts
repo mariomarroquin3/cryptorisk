@@ -429,3 +429,49 @@ export interface ConformalPathRow {
   model: string;
   level: number;
 }
+
+export interface LstmLocalDay {
+  date: string;
+  lag: number;
+  ret: number;
+  per_day: number;
+  c_return: number;
+  c_squared: number;
+  c_down_squared: number;
+}
+
+export interface LstmLocal {
+  asof: string | null;
+  base_var: number | null;
+  flat_var: number | null;
+  days: LstmLocalDay[];
+}
+
+export interface BaselHeadroomRow {
+  model: string;
+  as_of: string;
+  exceptions_250d: number;
+  zone: string;
+  zone_if_breached: string;
+  /** Exceptions until the next zone; null in the red zone. */
+  to_next_zone: number | null;
+  /** Exceptions in the oldest 30 days of the 250-day window: they leave it within a month. */
+  ageing_out_30d: number;
+  m_c: number;
+  m_c_if_breached: number;
+  capital_usd: number;
+  extra_capital_if_breached_usd: number;
+}
+
+export interface BreachDistance {
+  asset: string;
+  model: string;
+  alpha: number;
+  asof: string;
+  spot: number;
+  last_close: number;
+  var_price: number | null;
+  es_price: number | null;
+  dist_var: number | null;
+  dist_es: number | null;
+}

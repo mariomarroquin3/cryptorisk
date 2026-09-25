@@ -60,6 +60,7 @@ def load_results() -> dict[str, pd.DataFrame]:
         "rf_diagnostics": _csv("explain_rf_diagnostics.csv"),
         "rf_inputs": _csv("explain_rf_inputs.csv"),
         "lstm_importance": _csv("explain_lstm_importance.csv"),
+        "lstm_local": _csv("explain_lstm_local.csv"),
         "conformal_summary": _csv("conformal_summary.csv"),
         "conformal_path": _csv("conformal_level_path.csv"),
     }
@@ -144,6 +145,57 @@ def live_track_record(asset: str, alpha: float, window: int = 500) -> dict[str, 
         ],
         "models": sorted(out, key=lambda r: r["fz0_rank"]),
     }
+
+
+@ttl_cache(300)
+def basel_headroom(asset: str, window: int = 500) -> list[dict[str, Any]]:
+    """How close each model is to the next Basel traffic-light zone, and what one more
+    99% exception would cost.
+
+    Exceptions are counted over the last 250 days of the (live-rolled) walk-forward, the
+    same rule as ``backtest.coverage``; the capital uses each model's latest 97.5% ES
+    (``m_c * N * ES * sqrt(LH)``, ``decision.capital``). ``ageing_out_30d`` counts the
+    exceptions in the oldest 30 days of the window: they leave it within a month, so the
+    count can fall without any good day. Rows carry ``as_of`` because a model without a
+    live walk-forward (MS-GARCH) stops at the frozen sample end."""
+    from cryptorisk.backtest.coverage import basel_zone_and_addon
+    from cryptorisk.config import load_config
+    from cryptorisk.decision.capital import basel_multiplier, es_capital
+
+    cfg = load_config()["decision"]
+    base = cfg["basel_multiplier_base"]
+    lh, notional = cfg["liquidity_horizon_days"], cfg["notional_usd"]
+    bt = load_backtests_live()
+    if bt.empty:
+        return []
+    sub = bt[(bt.asset == asset) & (bt.window == window)]
+    out: list[dict[str, Any]] = []
+    for model, g in sub.groupby("model", observed=True):
+        g99 = g[g.alpha == 0.01].sort_values("date")
+        g975 = g[g.alpha == 0.025].sort_values("date")
+        if len(g99) < 250 or g975.empty:
+            continue
+        viol = g99["violation"].fillna(False).to_numpy(bool)
+        x = int(viol[-250:].sum())
+        zone, _ = basel_zone_and_addon(x)
+        zone_after, _ = basel_zone_and_addon(x + 1)
+        es_975 = float(g975["es"].iloc[-1])
+        cap_now = es_capital(es_975, liquidity_horizon=lh, multiplier=basel_multiplier(x, base=base), notional=notional)
+        cap_next = es_capital(es_975, liquidity_horizon=lh, multiplier=basel_multiplier(x + 1, base=base), notional=notional)
+        out.append({
+            "model": model,
+            "as_of": str(pd.Timestamp(g99["date"].iloc[-1]).date()),
+            "exceptions_250d": x,
+            "zone": zone,
+            "zone_if_breached": zone_after,
+            "to_next_zone": None if zone == "red" else (5 - x if zone == "green" else 10 - x),
+            "ageing_out_30d": int(viol[-250:-220].sum()),
+            "m_c": basel_multiplier(x, base=base),
+            "m_c_if_breached": basel_multiplier(x + 1, base=base),
+            "capital_usd": cap_now,
+            "extra_capital_if_breached_usd": cap_next - cap_now,
+        })
+    return sorted(out, key=lambda r: (-r["exceptions_250d"], r["model"]))
 
 
 @ttl_cache(300)
@@ -387,7 +439,8 @@ def today_forecast(
         realized=realized,
     )
     try:
-        dist = model.fit_predict(ctx)
+        with _WHATIF_SLOTS:  # bounded like the what-if fits: pages fan several models out at once
+            dist = model.fit_predict(ctx)
     except Exception:
         return None
 

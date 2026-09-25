@@ -374,6 +374,58 @@ def var_change(asset: str, model: str, alpha: float = Query(0.025)) -> dict:
     }
 
 
+@app.get("/decision/basel-headroom")
+def basel_headroom(asset: str) -> list[dict]:
+    """Per model: 99% exceptions over the last 250 days, the Basel zone, how many more until
+    the next zone, how many age out within 30 days, and the capital cost of one more breach."""
+    _check_asset(asset, load_config()["assets"])
+    return D.basel_headroom(asset)
+
+
+@app.get("/decision/breach-distance/{asset}")
+def breach_distance(asset: str, model: str, alpha: float = Query(0.01)) -> dict:
+    """The price at which tomorrow's VaR (and ES) would be crossed, and how far it is from the
+    live spot. One model per call (a fresh re-fit), so a client can fill a table as they return."""
+    cfg = load_config()
+    _check_asset(asset, cfg["assets"])
+    _check_alpha(alpha, cfg["alphas"])
+    if model not in D.model_names() or model == "MS-GARCH":
+        raise HTTPException(404, f"no live re-fit for model {model!r}")
+    fc = D.today_forecast(asset, model, alphas=tuple(cfg["alphas"]))
+    if fc is None:
+        raise HTTPException(404, f"no live forecast for {asset}/{model}")
+    last = fc["last_close"]
+    live = D.live_price(asset)
+    spot = live["price"] if live else last
+    var_price, es_price = _price(last, fc[f"var_{alpha}"]), _price(last, fc[f"es_{alpha}"])
+    return {
+        "asset": asset, "model": model, "alpha": alpha, "asof": str(fc["asof"])[:10],
+        "spot": spot, "last_close": last, "var_price": var_price, "es_price": es_price,
+        "dist_var": var_price / spot - 1 if var_price else None,
+        "dist_es": es_price / spot - 1 if es_price else None,
+    }
+
+
+@app.get("/explain/lstm/local")
+def explain_lstm_local(asset: str, alpha: float) -> dict:
+    """Which of the last 20 days drive today's LSTM-Vol VaR (occlusion), precomputed where
+    torch is installed (``study.run_lstm_local``; refreshed by the daily workflow) because the
+    API host cannot fit the network."""
+    cfg = load_config()
+    _check_asset(asset, cfg["assets"])
+    _check_alpha(alpha, cfg["alphas"])
+    df = D.load_results()["lstm_local"]
+    sub = df[(df.asset == asset) & (df.alpha == alpha)].sort_values("lag", ascending=False) if not df.empty else df
+    if sub.empty:
+        return {"days": [], "asof": None, "base_var": None, "flat_var": None}
+    return {
+        "asof": str(sub["asof"].iloc[0]),
+        "base_var": float(sub["base_var"].iloc[0]),
+        "flat_var": float(sub["flat_var"].iloc[0]),
+        "days": _records(sub[["date", "lag", "ret", "per_day", "c_return", "c_squared", "c_down_squared"]]),
+    }
+
+
 @app.get("/conformal/summary")
 def conformal_summary(asset: str, alpha: float) -> list[dict]:
     """Raw vs adaptive-conformal (ACI) calibration for the wrapped models: hit rate, coverage

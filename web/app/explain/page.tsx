@@ -17,6 +17,7 @@ import {
 } from "@/components/ExplainCharts";
 import { ConformalPanel } from "@/components/ConformalPanel";
 import { Field } from "@/components/Field";
+import { LstmLocalPanel } from "@/components/LstmLocalPanel";
 import { LstmFeatureShare, LstmImportanceHeatmap, LstmLagProfile } from "@/components/LstmCharts";
 import { RfPdpChart } from "@/components/RfPdpChart";
 import { VarChangePanel } from "@/components/VarChangePanel";
@@ -288,6 +289,7 @@ function ExplainPageInner() {
               <LstmLagProfile rows={lstm} />
             </ChartCard>
           </div>
+          <LstmLocalPanel asset={effAsset} alpha={effAlpha} />
         </>
       )}
 

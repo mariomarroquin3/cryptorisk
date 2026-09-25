@@ -498,3 +498,15 @@ messages get any Co-Authored-By trailer stripped. The GitHub workflow
   re-fits (yesterday's window, +new day, -oldest day, today's) give the effect of the new day and
   of the day leaving the window, averaged over both orders so they add up exactly.
   `_refit` is the shared private-copy + semaphore re-fit (also used by `/whatif`).
+
+## LSTM local explanation and Basel headroom
+
+- `LstmVol.explain_local` (occlusion: replace each of the last 20 days by a flat day, re-read the
+  VaR with the same weights and tail) -> `study/run_lstm_local.py` -> `explain_lstm_local.csv`
+  -> `/explain/lstm/local` -> `/explain` section 4. It is a CSV because the API host has no torch;
+  the daily workflow (`refresh-data.yml`, and the Ops "daily" job) regenerates it.
+- `api/data.py::basel_headroom` (`/decision/basel-headroom`): 99% exceptions over the last 250 days of
+  the live-rolled walk-forward, zone, exceptions to the next zone, `ageing_out_30d` (exceptions in the
+  oldest 30 days of the window), and the capital cost of one more exception
+  (`m_c * N * ES97.5 * sqrt(LH)`). `/decision/breach-distance/{asset}` is the per-model live re-fit
+  behind the "99% VaR price / distance to breach" columns on `/capital`.

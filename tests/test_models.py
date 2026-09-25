@@ -277,3 +277,28 @@ def test_random_forest_qr_partial_dependence():
 
     assert m.partial_dependence(c, "not_a_real_feature") is None
     assert m.partial_dependence(Context(returns=r[:60], dates=dates[:60], asof=dates[59]), "r2_w") is None
+
+
+def test_lstm_explain_local_blames_the_big_recent_shock():
+    import importlib.util
+
+    import numpy as np
+    import pytest
+
+    if importlib.util.find_spec("torch") is None:
+        pytest.skip("torch not installed")
+    from cryptorisk.models.base import Context
+    from cryptorisk.models.lstm_vol import LstmVol
+
+    rng = np.random.default_rng(4)
+    r = rng.standard_t(6, 400) * 0.02
+    r[-3] = -0.12                                       # a large loss three days before the forecast
+    dates = np.datetime64("2024-01-01") + np.arange(400).astype("timedelta64[D]")
+    ctx = Context(returns=r, dates=dates, asof=dates[-1], asset="BTC")
+    ex = LstmVol().explain_local(ctx, 0.025)
+    assert ex is not None and len(ex["per_day"]) == 20 and len(ex["cell"]) == 20
+    assert all(np.isfinite(ex["per_day"])) and ex["base_var"] > 0 and ex["flat_var"] > 0
+    assert ex["dates"][-1] == str(dates[-1])[:10] and ex["returns"][-3] == r[-3]
+    # occluding the day with the -12% return changes the VaR the most, or close to it
+    order = np.argsort(np.abs(ex["per_day"]))[::-1]
+    assert 17 in order[:3]

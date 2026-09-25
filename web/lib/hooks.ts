@@ -5,6 +5,8 @@ import useSWR from "swr";
 import {
   apiGet,
   BacktestRow,
+  BaselHeadroomRow,
+  BreachDistance,
   CapitalRow,
   Config,
   ConformalPathRow,
@@ -19,6 +21,7 @@ import {
   LimitsRow,
   LiveTrackRecord,
   LstmImportanceRow,
+  LstmLocal,
   ModelInfo,
   ModelLatestRow,
   PortfolioComposition,
@@ -252,4 +255,21 @@ export function useConformalSummary(asset: string | null, alpha: number) {
 
 export function useConformalPath(asset: string | null, alpha: number) {
   return useSWR<ConformalPathRow[]>(asset ? `/conformal/level-path?asset=${asset}&alpha=${alpha}` : null, fetcher);
+}
+
+export function useLstmLocal(asset: string | null, alpha: number) {
+  return useSWR<LstmLocal>(asset ? `/explain/lstm/local?asset=${asset}&alpha=${alpha}` : null, fetcher);
+}
+
+export function useBaselHeadroom(asset: string | null) {
+  return useSWR<BaselHeadroomRow[]>(asset ? `/decision/basel-headroom?asset=${asset}` : null, fetcher);
+}
+
+/** Price at which tomorrow's 99% VaR would be crossed, per model, filled in as re-fits return. */
+export function useBreachDistanceAll(
+  asset: string | null,
+  models: string[],
+  alpha = 0.01,
+): Record<string, BreachDistance | null | undefined> {
+  return useModelFanout<BreachDistance>(asset ? `/decision/breach-distance/${asset}` : null, `alpha=${alpha}`, models);
 }

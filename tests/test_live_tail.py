@@ -1,7 +1,16 @@
 import numpy as np
 import pandas as pd
+import pytest
 
 from cryptorisk.api import live_tail as L
+
+
+@pytest.fixture(autouse=True)
+def _no_reference_rate(monkeypatch):
+    """Default to "provider hasn't published yet" so existing tests keep
+    asserting against the Binance close; tests of the reference-rate
+    preference override this explicitly."""
+    monkeypatch.setattr(L, "fetch_reference_daily", lambda *a, **k: ("coinmetrics", pd.DataFrame(columns=["date", "close"])))
 
 
 def _bars(start: str, days: int, drift: float = 0.0) -> pd.DataFrame:
@@ -29,6 +38,36 @@ def test_extend_adds_complete_days_only(monkeypatch):
     d2 = bars[bars["ts"].dt.normalize() == "2026-01-02"]["close"].iloc[-1]
     assert np.isclose(out["close"].iloc[1], d2)
     assert np.isclose(out["log_return"].iloc[1], np.log(d2 / 100.0))
+
+
+def test_extend_prefers_reference_close_over_binance(monkeypatch):
+    bars = _bars("2026-01-01 23:55", 3)
+    bars = bars[bars["ts"] < "2026-01-04 06:00"]  # Jan 4 incomplete
+    monkeypatch.setattr(L, "fetch_5m", lambda *a, **k: bars)
+    ref = pd.DataFrame({"date": [pd.Timestamp("2026-01-02")], "close": [999.0]})
+    monkeypatch.setattr(L, "fetch_reference_daily", lambda *a, **k: ("coinmetrics", ref))
+    out = L.extend_history("BTC", _hist("2026-01-01"), today=pd.Timestamp("2026-01-04"))
+    # Jan 2 has a reference close: use it, not Binance's.
+    assert np.isclose(out["close"].iloc[1], 999.0)
+    assert np.isclose(out["log_return"].iloc[1], np.log(999.0 / 100.0))
+    # Jan 3 has none published: fall back to Binance, chained off the reference close for Jan 2.
+    d3 = bars[bars["ts"].dt.normalize() == "2026-01-03"]["close"].iloc[-1]
+    assert np.isclose(out["close"].iloc[2], d3)
+    assert np.isclose(out["log_return"].iloc[2], np.log(d3 / 999.0))
+
+
+def test_extend_falls_back_to_binance_when_reference_lookup_fails(monkeypatch):
+    bars = _bars("2026-01-01 23:55", 3)
+    bars = bars[bars["ts"] < "2026-01-04 06:00"]
+    monkeypatch.setattr(L, "fetch_5m", lambda *a, **k: bars)
+
+    def _boom(*a, **k):
+        raise RuntimeError("network down")
+
+    monkeypatch.setattr(L, "fetch_reference_daily", _boom)
+    out = L.extend_history("BTC", _hist("2026-01-01"), today=pd.Timestamp("2026-01-04"))
+    d2 = bars[bars["ts"].dt.normalize() == "2026-01-02"]["close"].iloc[-1]
+    assert np.isclose(out["close"].iloc[1], d2)
 
 
 def test_extend_noop_when_current_or_network_down(monkeypatch):

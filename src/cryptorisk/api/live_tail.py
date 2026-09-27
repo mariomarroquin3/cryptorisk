@@ -7,6 +7,13 @@ jumps, RQ) for those days, so the intraday-based models (HAR-RV, HARQ,
 Realized-GARCH/SV, GARCH-X, RF-QR) see the new days too, not only the
 close-to-close ones.
 
+The frozen study's daily close is the reference rate (CoinMetrics/Coinbase, see
+``data.ingest.prices_daily``), not Binance -- so the day's closing *price* here
+is also taken from that reference where it has published the day, falling back
+to the Binance 5-min close only when it hasn't. Otherwise the live tail would
+quietly re-anchor the canonical close to a different venue than the one the
+study was built on.
+
 Also exposes the *current, incomplete* UTC day (return so far, running low) so a
 forecast can be checked against what has already happened today.
 
@@ -22,6 +29,7 @@ import numpy as np
 import pandas as pd
 import requests
 
+from cryptorisk.data.ingest.prices_daily import fetch_reference_daily
 from cryptorisk.data.realized import realized_daily
 
 # data-api.binance.vision serves the same public market data without the
@@ -85,6 +93,19 @@ def _utc_today() -> pd.Timestamp:
     return pd.Timestamp.now(tz="UTC").tz_localize(None).normalize()
 
 
+def _reference_closes(asset: str, start: pd.Timestamp, end: pd.Timestamp) -> dict[pd.Timestamp, float]:
+    """Reference-rate close per day in ``[start, end]`` (CoinMetrics/Coinbase),
+    the same source the frozen study used. Empty on any failure or if the
+    provider hasn't published a day yet -- the caller falls back to Binance."""
+    try:
+        _, ref = fetch_reference_daily(asset, str(start.date()), str((end + pd.Timedelta(days=1)).date()))
+    except Exception:
+        return {}
+    if ref.empty:
+        return {}
+    return {pd.Timestamp(d).normalize(): float(c) for d, c in zip(ref["date"], ref["close"], strict=True)}
+
+
 def extend_history(asset: str, hist: pd.DataFrame, *, today: pd.Timestamp | None = None) -> pd.DataFrame:
     """``hist`` (one asset, columns date/close/log_return/rv/...) plus a row for
     every complete UTC day after its last date. Returns ``hist`` unchanged if
@@ -112,6 +133,7 @@ def extend_history(asset: str, hist: pd.DataFrame, *, today: pd.Timestamp | None
     if len(complete) == 0:
         return hist
     closes = new[new["ts"].dt.normalize().isin(complete)].groupby(new["ts"].dt.normalize())["close"].last()
+    reference = _reference_closes(asset, complete.min(), complete.max())
 
     prev = float(hist.sort_values("date")["close"].iloc[-1])
     rv = realized_daily(bars).assign(date=lambda d: pd.to_datetime(d["date"])).set_index("date")
@@ -121,11 +143,12 @@ def extend_history(asset: str, hist: pd.DataFrame, *, today: pd.Timestamp | None
         # return span two days; stop rather than record a misleading one.
         if d != last + pd.Timedelta(days=1) + pd.Timedelta(days=len(rows)):
             break
-        row = {"date": d, "close": float(c), "log_return": float(np.log(c / prev))}
+        px = reference.get(d, float(c))
+        row = {"date": d, "close": px, "log_return": float(np.log(px / prev))}
         for col in _SPOT_COLS:
             row[col] = float(rv.at[d, col]) if d in rv.index else np.nan
         rows.append(row)
-        prev = float(c)
+        prev = px
     if not rows:
         return hist
     add = pd.DataFrame(rows)

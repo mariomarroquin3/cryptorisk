@@ -84,7 +84,8 @@ def results_files() -> pd.DataFrame:
     names = [
         "backtests.parquet", "backtests_live.parquet", "price_history.parquet", "eval_fz0_mcs.csv",
         "eval_coverage.csv", "decision_capital.csv", "decision_estimation_risk.csv", "explain_rf_importance.csv",
-        "explain_lstm_importance.csv", "portfolio_eval.csv",
+        "explain_lstm_importance.csv", "portfolio_eval.csv", "explain_lstm_local.csv", "conformal_summary.csv",
+        "conformal_level_path.csv",
     ]
     rows = []
     for n in names + ["../../docs/results.md"]:

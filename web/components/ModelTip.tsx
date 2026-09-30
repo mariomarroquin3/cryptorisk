@@ -20,7 +20,7 @@ export function ModelTip({ name, info }: { name: string; info: ModelInfo | undef
       </button>
       <span
         role="tooltip"
-        className="pointer-events-none absolute bottom-full left-0 z-20 mb-1.5 w-72 rounded-md border border-grid bg-bg px-3 py-2.5 text-[0.7rem] leading-snug font-normal text-text normal-case opacity-0 shadow-lg transition-opacity duration-100 group-hover:opacity-100 group-focus-within:opacity-100"
+        className="pointer-events-none absolute top-full left-0 z-20 mt-1.5 w-72 rounded-md border border-grid bg-bg px-3 py-2.5 text-[0.7rem] leading-snug font-normal text-text normal-case opacity-0 shadow-lg transition-opacity duration-100 group-hover:opacity-100 group-focus-within:opacity-100"
       >
         <div className="text-[0.6rem] font-semibold uppercase tracking-wide text-amber">
           {info.family}

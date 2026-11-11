@@ -62,9 +62,9 @@ async def _lifespan(_app: FastAPI):
 
 app = FastAPI(
     lifespan=_lifespan,
-    title="Cryptorisk API",
+    title="BTCRisk API",
     description=(
-        "Read-only REST API over the cryptorisk study: VaR/ES per model, "
+        "Read-only REST API over the BTCRisk study: VaR/ES per model, "
         "FZ0/MCS ranking, coverage & ES tests, the 4-asset portfolio, FRTB "
         "capital, position limits, the perp hedge, MS-GARCH regimes, plus a "
         "live spot price and an on-demand model re-fit."
@@ -156,7 +156,7 @@ def _check_alpha(alpha: float, alphas: list[float]) -> None:
 
 @app.get("/")
 def root() -> dict:
-    return {"name": "Cryptorisk API", "docs": "/docs", "health": "/health"}
+    return {"name": "BTCRisk API", "docs": "/docs", "health": "/health"}
 
 
 @app.get("/health")

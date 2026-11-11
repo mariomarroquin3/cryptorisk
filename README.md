@@ -1,4 +1,4 @@
-# cryptorisk
+# BTCRisk
 
 A comparative study of volatility / tail-risk models for crypto assets — VaR and
 Expected Shortfall for a BTC/ETH treasury position, evaluated **out-of-sample**

@@ -1,4 +1,4 @@
-"""Cryptorisk Ops Center -- a localhost control panel for the pipeline.
+"""BTCRisk Ops Center -- a localhost control panel for the pipeline.
 
     make ops          # http://127.0.0.1:8502
 
@@ -67,7 +67,7 @@ def _color_behind(v):
     return "color: #3ddc84" if v <= 1 else ("color: #ffb020" if v <= 3 else "color: #ff4d4f")
 
 
-st.title("◈ Cryptorisk Ops Center")
+st.title("◈ BTCRisk Ops Center")
 st.caption("Local control panel. Stops when you close the terminal; the jobs it launches keep running.")
 
 env = status.env_status()

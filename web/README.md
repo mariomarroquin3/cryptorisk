@@ -1,4 +1,4 @@
-# cryptorisk web
+# BTCRisk web
 
 Next.js + TypeScript + Tailwind v4 front-end over `cryptorisk`'s FastAPI
 (`../src/cryptorisk/api`). A third, independent surface over the same study

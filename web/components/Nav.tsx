@@ -31,7 +31,7 @@ function Logo() {
       >
         &#9672;
       </span>
-      <span className="font-display text-lg font-semibold tracking-wide text-text">Cryptorisk</span>
+      <span className="font-display text-lg font-semibold tracking-wide text-text">BTCRisk</span>
     </Link>
   );
 }
